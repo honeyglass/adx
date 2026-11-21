@@ -7,7 +7,9 @@ type Empty = z.ZodObject<{}>;
 type Maybe<T> = T | Promise<T>;
 export type Kind = 'fix' | 'retry' | 'ask' | 'bug';
 // A schema without named fields (the empty global) has no field, not every string.
-export type Field<S extends Obj> = string extends keyof z.output<S> ? never : keyof z.output<S> & string;
+export type Field<S extends Obj> = string extends keyof z.output<S>
+  ? never
+  : keyof z.output<S> & string;
 type Plain<T> = string extends keyof T ? unknown : T;
 type In<S extends Obj> = Plain<z.output<S>>;
 type Given<S extends Obj> = Plain<z.input<S>>;
@@ -87,14 +89,22 @@ export interface Stored<T, Oldest = T> {
    * Declares one older format and the step to the format after it. Name the formats from the
    * newest down, so `up` answers what the call before it takes.
    */
-  from<S extends z.ZodType>(version: number, shape: S, up: (old: z.output<S>) => Oldest): Stored<T, z.output<S>>;
+  from<S extends z.ZodType>(
+    version: number,
+    shape: S,
+    up: (old: z.output<S>) => Oldest,
+  ): Stored<T, z.output<S>>;
   /** The JSON text of one item, with `"version"` set to the current number. */
   stringify(value: T): string;
   /** Reads the JSON text of one item; an older format is converted, a newer one is refused. */
   parse(text: string): T;
 }
 /** The format number counts the stored fields of this kind, not the release of the tool. */
-export function stored<S extends z.ZodType>(name: string, version: number, shape: S): Stored<z.output<S>>;
+export function stored<S extends z.ZodType>(
+  name: string,
+  version: number,
+  shape: S,
+): Stored<z.output<S>>;
 
 // roots and files
 export interface File {
@@ -248,11 +258,17 @@ type Either<O, A> = [A] extends [void] ? O : O & Partial<A>;
 
 export interface Command<I extends Obj, O, G extends Obj = Empty, U = {}> {
   readonly name: string;
-  step(input?: Partial<Given<I> & UseGiven<Given<G>, U>>): CommandStep<Given<I> & UseGiven<Given<G>, U>>;
+  step(
+    input?: Partial<Given<I> & UseGiven<Given<G>, U>>,
+  ): CommandStep<Given<I> & UseGiven<Given<G>, U>>;
   invoke(input: Given<I> & UseGiven<Given<G>, U>, options?: InvokeOptions): Promise<Answer<O>>;
 }
-export interface ListCommand<I extends Obj, T extends Obj, G extends Obj = Empty, U = {}>
-  extends Command<I, Listing<In<T>>, G, U> {
+export interface ListCommand<
+  I extends Obj,
+  T extends Obj,
+  G extends Obj = Empty,
+  U = {},
+> extends Command<I, Listing<In<T>>, G, U> {
   readonly item: T;
 }
 
@@ -268,8 +284,13 @@ interface Common<I extends Obj, G extends Obj, U, R> {
   check?: (input: All<I, G, U>) => Issue<Fields<I, G, U>>[];
   next?: (out: R, input: All<I, G, U>) => Step[];
 }
-export interface ReadSpec<I extends Obj, G extends Obj, O, U = {}, S extends z.ZodType = z.ZodType>
-  extends Common<I, G, U, O> {
+export interface ReadSpec<
+  I extends Obj,
+  G extends Obj,
+  O,
+  U = {},
+  S extends z.ZodType = z.ZodType,
+> extends Common<I, G, U, O> {
   /**
    * The schema of the answer. With it the command takes `--fields`, and `schema` shows the answer.
    * A read that answers a long list or a large document needs it.
@@ -278,25 +299,44 @@ export interface ReadSpec<I extends Obj, G extends Obj, O, U = {}, S extends z.Z
   run: (input: All<I, G, U>, ctx: { refuse: Refuse<Fields<I, G, U>> }) => Out<O, I, G, U>;
   text?: (out: O) => string;
 }
-export interface ListSpec<I extends Obj, G extends Obj, T extends Obj, U = {}> extends Common<I, G, U, Listing<In<T>>> {
+export interface ListSpec<I extends Obj, G extends Obj, T extends Obj, U = {}> extends Common<
+  I,
+  G,
+  U,
+  Listing<In<T>>
+> {
   item: T;
   key: Field<T>;
   outline: Field<T>[];
   pageSize?: number;
-  run: (input: All<I, G, U>, ctx: { page: Page; refuse: Refuse<Fields<I, G, U>> }) => Out<Listing<In<T>>, I, G, U>;
+  run: (
+    input: All<I, G, U>,
+    ctx: { page: Page; refuse: Refuse<Fields<I, G, U>> },
+  ) => Out<Listing<In<T>>, I, G, U>;
   text?: (item: In<T>) => string;
 }
-export interface EffectSpec<I extends Obj, G extends Obj, O, A extends object | void, U = {}>
-  extends Common<I, G, U, Merged<O, A>> {
+export interface EffectSpec<
+  I extends Obj,
+  G extends Obj,
+  O,
+  A extends object | void,
+  U = {},
+> extends Common<I, G, U, Merged<O, A>> {
   /** Every effect takes `--replace`. `false` switches the option off, and `schema` does not list it. */
   replace?: false;
   /** Runs every check and stages every file. Its answer is the answer of the dry run. */
-  plan: (input: All<I, G, U>, ctx: { files: Files; refuse: Refuse<Fields<I, G, U>> }) => Out<O, I, G, U>;
+  plan: (
+    input: All<I, G, U>,
+    ctx: { files: Files; refuse: Refuse<Fields<I, G, U>> },
+  ) => Out<O, I, G, U>;
   /**
    * Only for a send or another effect that is no file. It returns what the real run adds;
    * adx answers `{ ...planned, ...applied }`.
    */
-  apply?: (input: All<I, G, U>, ctx: { act: Act; planned: O; refuse: Refuse<Fields<I, G, U>> }) => Out<A, I, G, U>;
+  apply?: (
+    input: All<I, G, U>,
+    ctx: { act: Act; planned: O; refuse: Refuse<Fields<I, G, U>> },
+  ) => Out<A, I, G, U>;
   /** The call that shows whether a send took effect. adx refuses to start when `apply` stands without it. */
   look?: (input: All<I, G, U>) => Step;
   text?: (out: Either<O, A>) => string;
@@ -315,7 +355,12 @@ export interface Tool<G extends Obj> {
   list<I extends Obj = Empty, T extends Obj = Empty, const U extends GlobalUse<G> = {}>(
     spec: ListSpec<I, G, T, U>,
   ): ListCommand<I, T, G, U>;
-  effect<I extends Obj = Empty, O = unknown, A extends object | void = void, const U extends GlobalUse<G> = {}>(
+  effect<
+    I extends Obj = Empty,
+    O = unknown,
+    A extends object | void = void,
+    const U extends GlobalUse<G> = {},
+  >(
     spec: EffectSpec<I, G, O, A, U>,
   ): Command<I, Either<O, A>, G, U>;
   /** The first steps of the start answer (the tool called alone); called after the commands exist. */

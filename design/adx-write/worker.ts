@@ -9,13 +9,26 @@ import * as fs from 'node:fs';
 import { join } from 'node:path';
 import { Plan, commit, Refused } from './write.ts';
 
-const [root, mode, id, iterations, gapMs, syncFlag] = process.argv.slice(2) as [string, string, string, string, string, string];
+const [root, mode, id, iterations, gapMs, syncFlag] = process.argv.slice(2) as [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+];
 const n = Number(iterations);
 const gap = Number(gapMs);
 const sync = syncFlag === '1';
 const LIMIT = 16 * 1024 * 1024;
-const out = { ok: [] as string[], refused: {} as Record<string, number>, held: [] as number[], wait: [] as number[] };
-const pause = (ms: number) => (ms > 0 ? new Promise(r => setTimeout(r, ms * Math.random() * 2)) : Promise.resolve());
+const out = {
+  ok: [] as string[],
+  refused: {} as Record<string, number>,
+  held: [] as number[],
+  wait: [] as number[],
+};
+const pause = (ms: number) =>
+  ms > 0 ? new Promise(r => setTimeout(r, ms * Math.random() * 2)) : Promise.resolve();
 const refuse = (code: string) => (out.refused[code] = (out.refused[code] ?? 0) + 1);
 
 function tempWrite(path: string, data: string) {
@@ -44,7 +57,12 @@ for (let i = 0; i < n; i++) {
     const tNote = tempWrite(join(root, note), `# ${line}\n`);
     const tIndex = tempWrite(index, old + line + '\n');
     const now = fs.lstatSync(index, { bigint: true });
-    if (now.dev !== seen.dev || now.ino !== seen.ino || now.size !== seen.size || now.mtimeNs !== seen.mtimeNs) {
+    if (
+      now.dev !== seen.dev ||
+      now.ino !== seen.ino ||
+      now.size !== seen.size ||
+      now.mtimeNs !== seen.mtimeNs
+    ) {
       fs.unlinkSync(tNote);
       fs.unlinkSync(tIndex);
       refuse('CHANGED_SINCE_PLAN');

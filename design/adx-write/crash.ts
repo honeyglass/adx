@@ -9,7 +9,9 @@ const here = import.meta.dirname;
 const base = join(here, 'runs', 'crash');
 
 function startChild(root: string, line: string, stopAt: string, signals = 'default') {
-  const child = spawn('node', [join(here, 'child.ts'), root, line, stopAt, signals], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('node', [join(here, 'child.ts'), root, line, stopAt, signals], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   let out = '';
   let err = '';
   child.stdout.on('data', d => (out += d));
@@ -19,7 +21,9 @@ function startChild(root: string, line: string, stopAt: string, signals = 'defau
       if (/STOPPED|SLEEPING/.test(err)) resolve();
     }),
   );
-  const exited = new Promise<{ code: number | null; signal: string | null }>(r => child.on('exit', (code, signal) => r({ code, signal })));
+  const exited = new Promise<{ code: number | null; signal: string | null }>(r =>
+    child.on('exit', (code, signal) => r({ code, signal })),
+  );
   return { child, stopped, exited, out: () => out, err: () => err };
 }
 
@@ -48,8 +52,12 @@ for (const stopAt of ['before-rename-0', 'after-rename-0', 'after-rename-1']) {
   console.log(`writer ended by ${exit.signal}; lock free now: ${lockIsFree(root)}`);
   show(root, 'folder after the kill');
   const t0 = performance.now();
-  const next = spawnSync('node', [join(here, 'child.ts'), root, 'c', 'none', 'default'], { encoding: 'utf8' });
-  console.log(`next call ("c") answered in ${(performance.now() - t0).toFixed(0)} ms: ${next.stdout.trim()}`);
+  const next = spawnSync('node', [join(here, 'child.ts'), root, 'c', 'none', 'default'], {
+    encoding: 'utf8',
+  });
+  console.log(
+    `next call ("c") answered in ${(performance.now() - t0).toFixed(0)} ms: ${next.stdout.trim()}`,
+  );
   show(root, 'folder after the next call');
 }
 
@@ -65,7 +73,9 @@ for (const signals of ['handle', 'default']) {
   console.log(`writer stderr: ${c.err().trim().split('\n').join(' | ')}`);
   show(root, 'folder after the writer ended');
   if (signals === 'default') {
-    const next = spawnSync('node', [join(here, 'child.ts'), root, 'c', 'none', 'default'], { encoding: 'utf8' });
+    const next = spawnSync('node', [join(here, 'child.ts'), root, 'c', 'none', 'default'], {
+      encoding: 'utf8',
+    });
     console.log(`next call ("c"): ${next.stdout.trim()}`);
     show(root, 'folder after the next call');
   }

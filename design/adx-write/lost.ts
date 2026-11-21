@@ -6,7 +6,13 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
-const [mode, writers, iterations, gapMs, sync] = process.argv.slice(2) as [string, string, string, string, string];
+const [mode, writers, iterations, gapMs, sync] = process.argv.slice(2) as [
+  string,
+  string,
+  string,
+  string,
+  string,
+];
 const here = import.meta.dirname;
 const root = fs.mkdtempSync(join(process.env.RUNS ?? join(here, 'runs'), `${mode}-`));
 fs.mkdirSync(join(root, 'notes'));
@@ -15,22 +21,32 @@ fs.writeFileSync(join(root, 'index.md'), '# index\n', { mode: 0o600 });
 const start = performance.now();
 const outs = await Promise.all(
   Array.from({ length: Number(writers) }, (_, id) =>
-    run('node', [join(here, 'worker.ts'), root, mode, String(id), iterations, gapMs, sync], { maxBuffer: 64 << 20 }).then(r => JSON.parse(r.stdout)),
+    run('node', [join(here, 'worker.ts'), root, mode, String(id), iterations, gapMs, sync], {
+      maxBuffer: 64 << 20,
+    }).then(r => JSON.parse(r.stdout)),
   ),
 );
 const seconds = (performance.now() - start) / 1000;
 
 const acknowledged: string[] = outs.flatMap(o => o.ok);
-const lines = fs.readFileSync(join(root, 'index.md'), 'utf8').split('\n').filter(l => l.startsWith('- '));
+const lines = fs
+  .readFileSync(join(root, 'index.md'), 'utf8')
+  .split('\n')
+  .filter(l => l.startsWith('- '));
 const inIndex = new Set(lines);
 const lost = acknowledged.filter(l => !inIndex.has(l));
 const refused: Record<string, number> = {};
-for (const o of outs) for (const [k, v] of Object.entries(o.refused)) refused[k] = (refused[k] ?? 0) + (v as number);
+for (const o of outs)
+  for (const [k, v] of Object.entries(o.refused)) refused[k] = (refused[k] ?? 0) + (v as number);
 const notes = fs.readdirSync(join(root, 'notes')).filter(n => n.endsWith('.md'));
-const leftovers = fs.readdirSync(root, { recursive: true }).map(String).filter(n => /\.(tmp|adx-tmp|adx-old)$|\.adx\.journal$/.test(n));
+const leftovers = fs
+  .readdirSync(root, { recursive: true })
+  .map(String)
+  .filter(n => /\.(tmp|adx-tmp|adx-old)$|\.adx\.journal$/.test(n));
 const held = outs.flatMap(o => o.held ?? []).sort((a, b) => a - b);
 const wait = outs.flatMap(o => o.wait ?? []).sort((a, b) => a - b);
-const q = (a: number[], p: number) => (a.length ? Number(a[Math.min(a.length - 1, Math.floor(a.length * p))]!.toFixed(2)) : null);
+const q = (a: number[], p: number) =>
+  a.length ? Number(a[Math.min(a.length - 1, Math.floor(a.length * p))]!.toFixed(2)) : null;
 
 console.log(
   JSON.stringify({

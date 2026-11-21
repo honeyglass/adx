@@ -15,9 +15,13 @@ export function show(root: string, title: string) {
   };
   walk(root);
   const index = join(root, 'index.md');
-  if (fs.existsSync(index)) console.log('  index.md: ' + JSON.stringify(fs.readFileSync(index, 'utf8')));
+  if (fs.existsSync(index))
+    console.log('  index.md: ' + JSON.stringify(fs.readFileSync(index, 'utf8')));
   const journal = join(root, '.adx.journal');
-  if (fs.existsSync(journal)) console.log('  .adx.journal:\n    ' + fs.readFileSync(journal, 'utf8').trim().split('\n').join('\n    '));
+  if (fs.existsSync(journal))
+    console.log(
+      '  .adx.journal:\n    ' + fs.readFileSync(journal, 'utf8').trim().split('\n').join('\n    '),
+    );
 }
 
 export function fresh(base: string, name: string) {

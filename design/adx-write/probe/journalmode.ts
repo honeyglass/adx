@@ -16,7 +16,9 @@ for (const mode of ['DELETE', 'OFF', 'MEMORY']) {
     const files = fs.readdirSync(dir).filter(n => n.startsWith(`${mode}-${locking}`));
     db.exec('ROLLBACK');
     db.close();
-    console.log(`${mode}/${locking}: pragma answered ${JSON.stringify(set)}; during lock: ${files.join(', ')}; size ${fs.statSync(path).size}`);
+    console.log(
+      `${mode}/${locking}: pragma answered ${JSON.stringify(set)}; during lock: ${files.join(', ')}; size ${fs.statSync(path).size}`,
+    );
     break;
   }
 }

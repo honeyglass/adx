@@ -13,7 +13,9 @@ const time = (label: string, n: number, f: (i: number) => void) => {
     ms.push(performance.now() - t);
   }
   ms.sort((a, b) => a - b);
-  console.log(`${label}: median ${ms[n >> 1]!.toFixed(2)} ms, max ${ms[n - 1]!.toFixed(2)} ms (${n} runs)`);
+  console.log(
+    `${label}: median ${ms[n >> 1]!.toFixed(2)} ms, max ${ms[n - 1]!.toFixed(2)} ms (${n} runs)`,
+  );
 };
 time('write 16 B, no fsync', 100, i => {
   const fd = fs.openSync(join(dir, `a${i}`), 'wx');

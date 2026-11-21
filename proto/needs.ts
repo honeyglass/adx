@@ -46,7 +46,8 @@ tracker.effect({
 });
 
 // A typo in needs does not compile where the source is used.
-const typo = async ({ project }: Known) => (project === undefined ? needs('project', 'tema') : choices([]));
+const typo = async ({ project }: Known) =>
+  project === undefined ? needs('project', 'tema') : choices([]);
 tracker.effect({
   name: 'ticket schedule typo',
   does: 'x',

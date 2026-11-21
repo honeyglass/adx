@@ -59,7 +59,8 @@ tracker.read({
   name: 'projects refuse',
   does: 'x',
   global: { project: 'optional' },
-  run: ({ project }, { refuse }) => (project === undefined ? refuse(noProject.at('project')) : { project }),
+  run: ({ project }, { refuse }) =>
+    project === undefined ? refuse(noProject.at('project')) : { project },
 });
 
 // A typo in the global use does not compile.

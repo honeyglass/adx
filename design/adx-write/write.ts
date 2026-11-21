@@ -55,7 +55,8 @@ export function readBounded(path: string, limit: number): Buffer | undefined {
     throw e;
   }
   try {
-    if (!fs.fstatSync(fd).isFile()) throw Object.assign(new Error(`${path} is not a file`), { code: 'NOT_A_FILE' });
+    if (!fs.fstatSync(fd).isFile())
+      throw Object.assign(new Error(`${path} is not a file`), { code: 'NOT_A_FILE' });
     const chunks: Buffer[] = [];
     let total = 0;
     for (;;) {
@@ -64,7 +65,10 @@ export function readBounded(path: string, limit: number): Buffer | undefined {
       if (n === 0) break;
       chunks.push(chunk.subarray(0, n));
       total += n;
-      if (total > limit) throw Object.assign(new Error(`${path} is larger than ${limit} bytes`), { code: 'TOO_LARGE' });
+      if (total > limit)
+        throw Object.assign(new Error(`${path} is larger than ${limit} bytes`), {
+          code: 'TOO_LARGE',
+        });
     }
     return Buffer.concat(chunks, total);
   } finally {
@@ -74,7 +78,10 @@ export function readBounded(path: string, limit: number): Buffer | undefined {
 
 function listNames(folder: string): string[] {
   try {
-    return fs.readdirSync(folder).filter(n => !isAdxName(n)).sort();
+    return fs
+      .readdirSync(folder)
+      .filter(n => !isAdxName(n))
+      .sort();
   } catch (e: any) {
     if (e.code === 'ENOENT') return [];
     throw e;
@@ -101,7 +108,10 @@ export class Plan {
   read(rel: string, limit: number): string | undefined {
     if (this.texts.has(rel)) return this.texts.get(rel);
     const data = readBounded(this.abs(rel), limit);
-    this.seen.set(rel, data ? { is: 'file', size: data.length, sha: sha(data), limit } : { is: 'absent' });
+    this.seen.set(
+      rel,
+      data ? { is: 'file', size: data.length, sha: sha(data), limit } : { is: 'absent' },
+    );
     this.texts.set(rel, data?.toString('utf8'));
     return data?.toString('utf8');
   }
@@ -117,7 +127,16 @@ export class Plan {
   write(rel: string, data: string | Buffer, opts: { replace?: boolean } = {}): Written {
     const old = this.read(rel, READ_LIMIT);
     if (old !== undefined && !opts.replace)
-      throw new Refused(refusal('fix', 'Nothing was changed.', 'ALREADY_EXISTS', rel, `${rel} exists`, `add --replace to overwrite ${rel}`));
+      throw new Refused(
+        refusal(
+          'fix',
+          'Nothing was changed.',
+          'ALREADY_EXISTS',
+          rel,
+          `${rel} exists`,
+          `add --replace to overwrite ${rel}`,
+        ),
+      );
     const bytes = Buffer.from(data);
     this.staged.push({ rel, how: 'write', data: bytes });
     return { file: rel, bytes: bytes.length, replaces: old !== undefined };
@@ -127,7 +146,16 @@ export class Plan {
   update(rel: string, limit: number, change: (old: string) => string): Written {
     const old = readBounded(this.abs(rel), limit); // not recorded: the commit re-reads it under the lock
     if (old === undefined)
-      throw new Refused(refusal('fix', 'Nothing was changed.', 'NOT_FOUND', rel, `${rel} does not exist`, 'files.update never creates a file'));
+      throw new Refused(
+        refusal(
+          'fix',
+          'Nothing was changed.',
+          'NOT_FOUND',
+          rel,
+          `${rel} does not exist`,
+          'files.update never creates a file',
+        ),
+      );
     const next = change(old.toString('utf8'));
     this.staged.push({ rel, how: 'update', limit, change });
     return { file: rel, bytes: Buffer.byteLength(next), replaces: true };
@@ -137,14 +165,30 @@ export class Plan {
   updateValue(rel: string, data: string | Buffer): Written {
     const old = this.read(rel, READ_LIMIT);
     if (old === undefined)
-      throw new Refused(refusal('fix', 'Nothing was changed.', 'NOT_FOUND', rel, `${rel} does not exist`, 'files.update never creates a file'));
+      throw new Refused(
+        refusal(
+          'fix',
+          'Nothing was changed.',
+          'NOT_FOUND',
+          rel,
+          `${rel} does not exist`,
+          'files.update never creates a file',
+        ),
+      );
     const bytes = Buffer.from(data);
     this.staged.push({ rel, how: 'write', data: bytes });
     return { file: rel, bytes: bytes.length, replaces: true };
   }
 }
 
-export function refusal(kind: Kind, state: string, code: string, path: string, message: string, hint: string) {
+export function refusal(
+  kind: Kind,
+  state: string,
+  code: string,
+  path: string,
+  message: string,
+  hint: string,
+) {
   return { ok: false as const, kind, state, issues: [{ code, path, message, hint }] };
 }
 
@@ -157,7 +201,11 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
  * (fcntl F_SETLK on Unix, LockFileEx on Windows). The kernel drops it when the process ends,
  * however it ends. The wait is a loop of try-locks with async sleeps, so SIGINT can still end a wait.
  */
-export async function withRootLock<T>(root: string, waitMs: number, fn: () => T): Promise<{ held: T; wait: number; ms: number } | undefined> {
+export async function withRootLock<T>(
+  root: string,
+  waitMs: number,
+  fn: () => T,
+): Promise<{ held: T; wait: number; ms: number } | undefined> {
   const path = join(root, LOCK);
   try {
     fs.closeSync(fs.openSync(path, C.O_WRONLY | C.O_CREAT | C.O_EXCL | C.O_NOFOLLOW, 0o600));
@@ -194,7 +242,16 @@ export async function withRootLock<T>(root: string, waitMs: number, fn: () => T)
 
 // ---------- the commit ----------
 
-type Entry = { rel: string; target: string; temp: string; backup: string; replaces: boolean; data: Buffer; mode: number; ino?: number };
+type Entry = {
+  rel: string;
+  target: string;
+  temp: string;
+  backup: string;
+  replaces: boolean;
+  data: Buffer;
+  mode: number;
+  ino?: number;
+};
 
 function syncDir(dir: string, sync: boolean) {
   if (!sync || process.platform === 'win32') return;
@@ -258,13 +315,16 @@ export function recover(root: string, sync = true): string[] {
     if (e.code === 'ENOENT') return [];
     throw e;
   }
-  const lines = text.split('\n').filter(Boolean).flatMap(line => {
-    try {
-      return [JSON.parse(line)];
-    } catch {
-      return []; // a torn last line after a power cut
-    }
-  });
+  const lines = text
+    .split('\n')
+    .filter(Boolean)
+    .flatMap(line => {
+      try {
+        return [JSON.parse(line)];
+      } catch {
+        return []; // a torn last line after a power cut
+      }
+    });
   type Logged = { rel: string; temp: string; backup: string; replaces: boolean };
   const header = lines[0] as { token: string; entries: Logged[] } | undefined;
   const mark = lines[1] as { commit: number[] } | undefined;
@@ -307,7 +367,10 @@ export function recover(root: string, sync = true): string[] {
       if (unlinkQuiet(e.backup)) done.push(`removed ${basename(e.backup)}`);
     });
     if (complete) done.unshift('kept a finished commit');
-    for (const dir of new Set((header.entries as (Logged & { target: string })[]).map(e => dirname(e.target)))) syncDir(dir, sync);
+    for (const dir of new Set(
+      (header.entries as (Logged & { target: string })[]).map(e => dirname(e.target)),
+    ))
+      syncDir(dir, sync);
   }
   fs.unlinkSync(path);
   syncDir(root, sync);
@@ -318,14 +381,22 @@ export async function commit(plan: Plan, options: Options = {}): Promise<Answer>
   const sync = options.sync ?? true;
   const rollback = options.rollback ?? true;
   fs.mkdirSync(plan.root, { recursive: true, mode: 0o700 });
-  for (const s of plan.staged) fs.mkdirSync(dirname(plan.abs(s.rel)), { recursive: true, mode: 0o700 });
+  for (const s of plan.staged)
+    fs.mkdirSync(dirname(plan.abs(s.rel)), { recursive: true, mode: 0o700 });
   let recovered: string[] = [];
   const locked = await withRootLock(plan.root, options.lockWaitMs ?? 10_000, () => {
     recovered = recover(plan.root, sync);
     return commitLocked(plan, sync, rollback, options);
   });
   if (!locked)
-    return refusal('retry', 'Nothing was changed.', 'LOCKED', LOCK, `another call held the lock of ${plan.root} for longer than ${options.lockWaitMs ?? 10_000} ms`, 'call again in a few seconds');
+    return refusal(
+      'retry',
+      'Nothing was changed.',
+      'LOCKED',
+      LOCK,
+      `another call held the lock of ${plan.root} for longer than ${options.lockWaitMs ?? 10_000} ms`,
+      'call again in a few seconds',
+    );
   const answer = locked.held;
   if (recovered.length) answer.recovered = recovered;
   if (answer.ok) answer.ms = { wait: locked.wait, held: locked.ms };
@@ -340,7 +411,12 @@ function commitLocked(plan: Plan, sync: boolean, rollback: boolean, options: Opt
       ok: false,
       kind: 'retry',
       state: 'Nothing was changed.',
-      issues: changed.map(rel => ({ code: 'CHANGED_SINCE_PLAN', path: rel, message: `${rel} changed after this call read it`, hint: 'call again; the plan reads the new content' })),
+      issues: changed.map(rel => ({
+        code: 'CHANGED_SINCE_PLAN',
+        path: rel,
+        message: `${rel} changed after this call read it`,
+        hint: 'call again; the plan reads the new content',
+      })),
     };
 
   // 2. The content of every file, a function update recomputed from what is there now.
@@ -351,7 +427,15 @@ function commitLocked(plan: Plan, sync: boolean, rollback: boolean, options: Opt
     let data: Buffer;
     if (s.how === 'update') {
       const old = readBounded(target, s.limit);
-      if (old === undefined) return refusal('retry', 'Nothing was changed.', 'CHANGED_SINCE_PLAN', s.rel, `${s.rel} was removed after the plan`, 'call again');
+      if (old === undefined)
+        return refusal(
+          'retry',
+          'Nothing was changed.',
+          'CHANGED_SINCE_PLAN',
+          s.rel,
+          `${s.rel} was removed after the plan`,
+          'call again',
+        );
       data = Buffer.from(s.change(old.toString('utf8')));
     } else data = s.data;
     let mode = 0o600;
@@ -361,7 +445,15 @@ function commitLocked(plan: Plan, sync: boolean, rollback: boolean, options: Opt
       replaces = true;
       if (st.isFile()) mode = st.mode & 0o7777; // a replaced file keeps its mode
     } catch {}
-    entries.push({ rel: s.rel, target, temp: sideName(target, token, TMP), backup: sideName(target, token, OLD), replaces, data, mode });
+    entries.push({
+      rel: s.rel,
+      target,
+      temp: sideName(target, token, TMP),
+      backup: sideName(target, token, OLD),
+      replaces,
+      data,
+      mode,
+    });
   }
 
   // 3. The journal names every side file before the first one exists.
@@ -373,7 +465,16 @@ function commitLocked(plan: Plan, sync: boolean, rollback: boolean, options: Opt
   };
   try {
     const rel = (p: string) => p.slice(plan.root.length + 1);
-    journal({ token, pid: process.pid, entries: entries.map(e => ({ rel: e.rel, temp: rel(e.temp), backup: rel(e.backup), replaces: e.replaces })) });
+    journal({
+      token,
+      pid: process.pid,
+      entries: entries.map(e => ({
+        rel: e.rel,
+        temp: rel(e.temp),
+        backup: rel(e.backup),
+        replaces: e.replaces,
+      })),
+    });
     syncDir(plan.root, sync);
 
     // 4. Every file whole beside its place: O_EXCL never follows a link left at the temporary name.
@@ -419,7 +520,11 @@ function commitLocked(plan: Plan, sync: boolean, rollback: boolean, options: Opt
   for (const e of entries) fs.rmSync(e.backup, { force: true });
   fs.unlinkSync(journalPath);
   syncDir(plan.root, sync);
-  return { ok: true, written: entries.map(e => ({ file: e.rel, bytes: e.data.length, replaces: e.replaces })), ms: { wait: 0, held: 0 } };
+  return {
+    ok: true,
+    written: entries.map(e => ({ file: e.rel, bytes: e.data.length, replaces: e.replaces })),
+    ms: { wait: 0, held: 0 },
+  };
 }
 
 /** The old file keeps a second name: a hard link (no copy), or on a volume without links a copy of its bytes. */
@@ -447,14 +552,24 @@ function moveNew(e: Entry) {
     fs.unlinkSync(e.temp);
   } catch (error: any) {
     if (error.code === 'EEXIST' || error.code === 'ENOENT') throw error;
-    if (fs.existsSync(e.target) || isLink(e.target)) throw Object.assign(new Error('exists'), { code: 'EEXIST' });
+    if (fs.existsSync(e.target) || isLink(e.target))
+      throw Object.assign(new Error('exists'), { code: 'EEXIST' });
     fs.renameSync(e.temp, e.target); // under the lock only a writer outside adx can come between
   }
 }
 
-function undo(plan: Plan, entries: Entry[], failed: number, error: any, rollback: boolean, sync: boolean): Answer {
+function undo(
+  plan: Plan,
+  entries: Entry[],
+  failed: number,
+  error: any,
+  rollback: boolean,
+  sync: boolean,
+): Answer {
   const conflict = error.code === 'EEXIST' && !entries[failed]!.replaces;
-  const cause = conflict ? `${entries[failed]!.rel} appeared after the plan` : `moving ${entries[failed]!.rel} failed: ${error.code}`;
+  const cause = conflict
+    ? `${entries[failed]!.rel} appeared after the plan`
+    : `moving ${entries[failed]!.rel} failed: ${error.code}`;
   const moved = entries.slice(0, failed);
   const left: string[] = []; // files not put back
   const side: string[] = []; // temporary files and backups not removed
@@ -470,27 +585,55 @@ function undo(plan: Plan, entries: Entry[], failed: number, error: any, rollback
     for (const e of [...moved].reverse()) {
       const before = left.length;
       if (e.replaces) tryDo(`put back ${e.rel}`, () => fs.renameSync(e.backup, e.target));
-      else tryDo(`remove ${e.rel}`, () => fs.lstatSync(e.target).ino === e.ino && fs.unlinkSync(e.target));
+      else
+        tryDo(
+          `remove ${e.rel}`,
+          () => fs.lstatSync(e.target).ino === e.ino && fs.unlinkSync(e.target),
+        );
       if (left.length > before) keep.add(e);
     }
   }
   for (const e of entries) {
     tryDo(e.temp.slice(plan.root.length + 1), () => fs.unlinkSync(e.temp), side);
-    if (!keep.has(e)) tryDo(e.backup.slice(plan.root.length + 1), () => fs.unlinkSync(e.backup), side);
+    if (!keep.has(e))
+      tryDo(e.backup.slice(plan.root.length + 1), () => fs.unlinkSync(e.backup), side);
   }
-  for (const dir of new Set(entries.map(e => dirname(e.target)))) tryDo(`sync ${dir}`, () => syncDir(dir, sync), side);
+  for (const dir of new Set(entries.map(e => dirname(e.target))))
+    tryDo(`sync ${dir}`, () => syncDir(dir, sync), side);
   const names = moved.map(e => e.rel).join(', ');
   let state: string;
-  if (!rollback) state = moved.length ? `Written before the failure: ${names}.` : 'Nothing was changed.';
-  else if (left.length === 0) state = moved.length ? `Nothing was changed: ${cause}, and ${names} was put back.` : `Nothing was changed: ${cause}.`;
-  else state = `Not all was undone: ${cause}; could not ${left.join(', ')}. The next write of this tool puts it back.`;
-  if (side.length) state += ` A temporary file could not be removed (${side.join(', ')}); ${rollback ? 'the next write removes it' : 'nothing removes it later'}.`;
-  if ((left.length === 0 && side.length === 0) || !rollback) fs.rmSync(join(plan.root, JOURNAL), { force: true });
-  if (conflict) return refusal('retry', state, 'CHANGED_SINCE_PLAN', entries[failed]!.rel, cause, 'call again; the plan reads the new content');
+  if (!rollback)
+    state = moved.length ? `Written before the failure: ${names}.` : 'Nothing was changed.';
+  else if (left.length === 0)
+    state = moved.length
+      ? `Nothing was changed: ${cause}, and ${names} was put back.`
+      : `Nothing was changed: ${cause}.`;
+  else
+    state = `Not all was undone: ${cause}; could not ${left.join(', ')}. The next write of this tool puts it back.`;
+  if (side.length)
+    state += ` A temporary file could not be removed (${side.join(', ')}); ${rollback ? 'the next write removes it' : 'nothing removes it later'}.`;
+  if ((left.length === 0 && side.length === 0) || !rollback)
+    fs.rmSync(join(plan.root, JOURNAL), { force: true });
+  if (conflict)
+    return refusal(
+      'retry',
+      state,
+      'CHANGED_SINCE_PLAN',
+      entries[failed]!.rel,
+      cause,
+      'call again; the plan reads the new content',
+    );
   return systemRefusal(error, state, entries[failed]!.rel);
 }
 
 function systemRefusal(error: any, state: string, path = '') {
   const retry = ['EBUSY', 'EAGAIN'].includes(error.code);
-  return refusal(retry ? 'retry' : 'ask', state, 'SYSTEM_REFUSED', path, `the system refused: ${error.code ?? error.message}`, retry ? 'call again' : 'check the folder and its permissions');
+  return refusal(
+    retry ? 'retry' : 'ask',
+    state,
+    'SYSTEM_REFUSED',
+    path,
+    `the system refused: ${error.code ?? error.message}`,
+    retry ? 'call again' : 'check the folder and its permissions',
+  );
 }
