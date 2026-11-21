@@ -1,0 +1,2 @@
+{"mode":"lock-fn","writers":20,"callsEach":100,"gapMs":0,"sync":false,"seconds":2.1,"acknowledged":2000,"indexLines":2000,"lost":0,"duplicates":0,"refused":{},"notes":2000,"leftovers":0,"heldMs":{"p50":0.79,"p99":2.27,"max":12.01},"waitMs":{"p50":0,"p99":189.51,"max":351.05}}
+{"mode":"check","writers":20,"callsEach":100,"gapMs":0,"sync":false,"seconds":0.5,"acknowledged":1042,"indexLines":428,"lost":614,"duplicates":0,"refused":{"CHANGED_SINCE_PLAN":958},"notes":1042,"leftovers":0,"heldMs":{"p50":null,"p99":null,"max":null},"waitMs":{"p50":null,"p99":null,"max":null}}

@@ -1,0 +1,20 @@
+{
+  "name": "@honeyglass/adx",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "A TypeScript toolkit for command-line tools that AI agents drive, with the Agent DX rules built in. Designed, not built yet.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p proto --noEmit"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@honeyglass/utils": "github:honeyglass/utils#a6c8b941393ba0831b2909a54dae0a59d40f50bf",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "zod": "4.6.5"
+  }
+}

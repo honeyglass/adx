@@ -1,0 +1,32 @@
+
+===== second move fails, rollback: true
+answer: { "ok": false, "kind": "ask", "state": "Nothing was changed: moving notes/b.md failed: EACCES, and index.md was put back. A temporary file could not be removed (notes/.b.md.4264c40960a3.adx-tmp (EACCES)); the next write removes it.", "issues": [ { "code": "SYSTEM_REFUSED", "path": "notes/b.md", "message": "the system refused: EACCES", "hint": "check the folder and its permissions" } ] }
+--- folder after the failed call (notes/ still read-only)
+  .adx.journal  ino 43577661  321 B  links 1
+  .adx.lock  ino 43577659  0 B  links 1
+  index.md  ino 43577657  12 B  links 1
+  notes/  mode 500
+  notes/.b.md.4264c40960a3.adx-tmp  ino 43577663  4 B  links 1
+  notes/a.md  ino 43577658  4 B  links 1
+  index.md: "# index\n- a\n"
+  .adx.journal:
+    {"token":"4264c40960a3","pid":22828,"entries":[{"rel":"index.md","temp":".index.md.4264c40960a3.adx-tmp","backup":".index.md.4264c40960a3.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.4264c40960a3.adx-tmp","backup":"notes/.b.md.4264c40960a3.adx-old","replaces":false}]}
+    {"commit":[43577662,43577663]}
+next call: {"ok":true,"written":[{"file":"index.md","bytes":16,"replaces":true},{"file":"notes/c.md","bytes":4,"replaces":false}],"ms":{"wait":0.0675420000000031,"held":31.931957999999995},"recovered":["removed .b.md.4264c40960a3.adx-tmp"]}
+--- folder after the next call (notes/ writable again)
+  .adx.lock  ino 43577659  0 B  links 1
+  index.md  ino 43577668  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43577658  4 B  links 1
+  notes/c.md  ino 43577669  4 B  links 1
+  index.md: "# index\n- a\n- c\n"
+
+===== second move fails, rollback: false
+answer: { "ok": false, "kind": "ask", "state": "Written before the failure: index.md. A temporary file could not be removed (notes/.b.md.c3682c890f93.adx-tmp (EACCES)); nothing removes it later.", "issues": [ { "code": "SYSTEM_REFUSED", "path": "notes/b.md", "message": "the system refused: EACCES", "hint": "check the folder and its permissions" } ] }
+--- folder after the failed call (notes/ still read-only)
+  .adx.lock  ino 43577678  0 B  links 1
+  index.md  ino 43577681  16 B  links 1
+  notes/  mode 500
+  notes/.b.md.c3682c890f93.adx-tmp  ino 43577682  4 B  links 1
+  notes/a.md  ino 43577677  4 B  links 1
+  index.md: "# index\n- a\n- b\n"

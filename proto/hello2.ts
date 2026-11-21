@@ -1,0 +1,257 @@
+// Guide, chapter "Basics": the whole hello, and below it the cases that must not compile.
+import { z } from 'zod';
+import { code, detailOf, envDir, fresh, id, paged, root, tool } from '@honeyglass/adx';
+
+const home = root('home', envDir('HELLO_HOME'));
+
+export const hello = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'greets people',
+  skill: 'SKILL.md',
+  roots: [home],
+});
+
+const LANGUAGES = [
+  { code: 'ar', name: 'Arabic', hello: 'Marhaba', formal: 'As-salamu alaykum' },
+  { code: 'de', name: 'German', hello: 'Hallo', formal: 'Guten Tag' },
+  { code: 'en', name: 'English', hello: 'Hello', formal: 'Good day' },
+  { code: 'eo', name: 'Esperanto', hello: 'Saluton' },
+  // ...and 38 more
+];
+const byCode = (code: string) => LANGUAGES.find(l => l.code === code);
+
+const languageChoices = () => LANGUAGES.map(l => ({ value: l.code, does: l.name }));
+
+const friendFile = (name: string) => home.file(`friends/${name}.json`);
+
+const friendNames = async () => (await home.list('friends', '.json')).map(f => f.stem);
+
+const noFormal = code(
+  'NO_FORMAL_GREETING',
+  'fix',
+  'Greet casually, or pick a language with a formal greeting',
+);
+const blankName = code('BLANK_NAME', 'fix', 'Pass a name with a letter in it');
+const unknownLanguage = code('UNKNOWN_LANGUAGE', 'fix', 'Use a code the list answers');
+
+const GreetIn = z.object({
+  name: z.string().describe('who to greet'),
+  lang: z.string().default('en').describe('the language code'),
+  style: z.enum(['casual', 'formal']).default('casual').describe('how to greet'),
+});
+
+const greet = hello.read({
+  name: 'greet',
+  does: 'greets one person',
+  input: GreetIn,
+  example: { name: 'Ada' },
+  values: { lang: languageChoices },
+  check: ({ name }) => (name.trim() === '' ? [blankName.at('name')] : []),
+  run: ({ name, lang, style }, { refuse }) => {
+    const l = byCode(lang);
+    if (l === undefined) throw new Error(`no language ${lang}`);
+    if (style === 'formal' && l.formal === undefined)
+      return refuse(
+        noFormal
+          .at('style', `${l.name} has no formal greeting`)
+          .command(language.step({ code: l.code })),
+      );
+    const word = style === 'formal' ? l.formal : l.hello;
+    return { greeting: `${word}, ${name}!` };
+  },
+  text: out => out.greeting,
+});
+
+const Language = z.object({
+  code: id().describe('the language code, such as de'),
+  name: z.string().describe('the language in English'),
+  hello: z.string().describe('the casual greeting'),
+  formal: z.string().optional().describe('the formal greeting'),
+});
+
+const languages = hello.list({
+  name: 'languages',
+  does: 'lists the languages hello speaks',
+  item: Language,
+  key: 'code',
+  outline: ['name'],
+  pageSize: 10,
+  run: (_, { page }) => paged(LANGUAGES, page),
+});
+
+const language = hello.read({
+  name: 'language',
+  does: 'shows one language in full',
+  input: z.object({ code: id().describe('the language code') }),
+  example: { code: 'de' },
+  values: { code: detailOf(languages) },
+  run: ({ code }, { refuse }) => byCode(code) ?? refuse(unknownLanguage.at('code')),
+});
+
+const FriendIn = z.object({
+  name: id().describe("the friend's short name"),
+  lang: z.string().describe("the friend's language code"),
+});
+
+const add = hello.effect({
+  name: 'friends add',
+  does: 'remembers a friend',
+  input: FriendIn,
+  example: { name: 'ada', lang: 'de' },
+  values: { name: fresh(friendNames), lang: languageChoices },
+  plan: (friend, { files }) => files.write(friendFile(friend.name), JSON.stringify(friend)),
+  next: (_, friend) => [greet.step({ lang: friend.lang })],
+});
+
+hello.start(async () => {
+  const friends = await friendNames();
+  return friends.length === 0 ? [add.step()] : [greet.step()];
+});
+
+// An optional field the step still needs.
+greet.step({ lang: 'de' }).needs('style');
+
+// A command without input can refuse: an issue that concerns no field.
+const noFriends = code('NO_FRIENDS', 'fix', 'Add a friend first');
+hello.read({
+  name: 'friends count',
+  does: 'counts the friends',
+  run: async (_, { refuse }) => {
+    const names = await friendNames();
+    return names.length === 0
+      ? refuse(noFriends.issue().command(add.step()))
+      : { friends: names.length };
+  },
+});
+
+// ---- what must NOT compile ----
+hello.read({
+  name: 'bad1',
+  does: 'x',
+  input: z.object({ name: z.string(), lang: z.string() }),
+  example: { name: 'Ada', lang: 'de' },
+  // @ts-expect-error typo in a values key
+  values: { lnag: languageChoices },
+  run: ({ name }) => ({ greeting: name }),
+});
+hello.read({
+  name: 'bad2',
+  does: 'x',
+  input: z.object({ name: z.string(), style: z.string() }),
+  example: { name: 'Ada', style: 'x' },
+  run: ({ name }, { refuse }) => {
+    // @ts-expect-error refusal at a field that does not exist, reported on this line
+    if (name === '') return refuse(noFormal.at('styl'));
+    return { greeting: name };
+  },
+});
+hello.list({
+  name: 'bad3',
+  does: 'x',
+  item: Language,
+  // @ts-expect-error key is no field of the item
+  key: 'kode',
+  outline: ['name'],
+  run: (_, { page }) => paged(LANGUAGES, page),
+});
+hello.list({
+  name: 'bad4',
+  does: 'x',
+  item: Language,
+  key: 'code',
+  // @ts-expect-error outline typo
+  outline: ['nmae'],
+  run: (_, { page }) => paged(LANGUAGES, page),
+});
+hello.read({
+  name: 'bad5',
+  does: 'x',
+  input: z.object({ code: id() }),
+  example: { code: 'de' },
+  // @ts-expect-error detailOf at a field the input does not have
+  values: { kode: detailOf(languages) },
+  run: ({ code }) => ({ code }),
+});
+hello.effect({
+  name: 'bad6',
+  does: 'x',
+  input: z.object({ name: id(), lang: z.string() }),
+  example: { name: 'ada', lang: 'de' },
+  plan: friend => friend,
+  // @ts-expect-error needs names a field greet does not have
+  next: friend => [greet.step({ lang: friend.lang }).needs('nmae')],
+});
+hello.read({
+  name: 'bad7',
+  does: 'x',
+  input: z.object({ name: z.string() }),
+  example: { name: 'Ada' },
+  // @ts-expect-error a check issue at a field that does not exist
+  check: ({ name }) => (name === '' ? [blankName.at('nmae')] : []),
+  run: ({ name }) => ({ greeting: name }),
+});
+hello.read({
+  name: 'bad8',
+  does: 'x',
+  input: z.object({ name: z.string() }),
+  // @ts-expect-error example misses the required name
+  example: {},
+  run: ({ name }) => ({ greeting: name }),
+});
+// @ts-expect-error invoke with a misspelled field
+void greet.invoke({ nmae: 'Ada' });
+
+// the old names and shapes are gone
+hello.effect({
+  name: 'bad9',
+  does: 'x',
+  input: z.object({ name: id() }),
+  example: { name: 'ada' },
+  // @ts-expect-error files.put was renamed files.write
+  plan: ({ name }, { files }) => files.put(friendFile(name), name),
+});
+hello.effect({
+  name: 'bad10',
+  does: 'x',
+  input: z.object({ name: id() }),
+  example: { name: 'ada' },
+  // @ts-expect-error replace can only be switched off
+  replace: true,
+  plan: ({ name }) => ({ name }),
+});
+hello.effect({
+  name: 'bad11',
+  does: 'x',
+  input: z.object({ name: id() }),
+  example: { name: 'ada' },
+  // @ts-expect-error files.update takes the limit and a function, not the new content
+  plan: ({ name }, { files }) => files.update(friendFile(name), name),
+});
+// @ts-expect-error the skill is a path, not a URL
+tool({ name: 'bad12', version: '0.1.0', does: 'x', skill: new URL('./SKILL.md', import.meta.url) });
+// @ts-expect-error the option of a root cannot be switched off
+root('bad13', envDir('HELLO_HOME'), { option: false });
+hello.effect({
+  name: 'bad14',
+  does: 'x',
+  input: z.object({ name: id() }),
+  example: { name: 'ada' },
+  // @ts-expect-error files.update takes no mode: a changed file keeps its mode
+  plan: ({ name }, { files }) => files.update(friendFile(name), 100, () => name, { mode: 0o644 }),
+});
+hello.read({
+  name: 'bad15',
+  does: 'x',
+  // @ts-expect-error a command without input has no field to refuse at; use .issue()
+  run: (_, { refuse }) => refuse(noFriends.at('friends')),
+});
+// @ts-expect-error .at() always names a field
+noFriends.at();
+// @ts-expect-error oneOf was renamed detailOf
+import { oneOf } from '@honeyglass/adx';
+// @ts-expect-error listedBy was renamed keyOf
+import { listedBy } from '@honeyglass/adx';
+
+export { add, language };
+if (import.meta.main) await hello.main();

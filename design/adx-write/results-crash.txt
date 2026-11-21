@@ -1,0 +1,146 @@
+
+===== SIGKILL at before-rename-0 (call adds "b": index.md first, then notes/b.md)
+lock free while the writer runs: false
+--- folder while the writer is stopped
+  .adx.journal  ino 43611327  321 B  links 1
+  .adx.lock  ino 43611326  0 B  links 1
+  .index.md.33c4335240be.adx-tmp  ino 43611328  16 B  links 1
+  index.md  ino 43611324  12 B  links 1
+  notes/  mode 700
+  notes/.b.md.33c4335240be.adx-tmp  ino 43611329  4 B  links 1
+  notes/a.md  ino 43611325  4 B  links 1
+  index.md: "# index\n- a\n"
+  .adx.journal:
+    {"token":"33c4335240be","pid":85850,"entries":[{"rel":"index.md","temp":".index.md.33c4335240be.adx-tmp","backup":".index.md.33c4335240be.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.33c4335240be.adx-tmp","backup":"notes/.b.md.33c4335240be.adx-old","replaces":false}]}
+    {"commit":[43611328,43611329]}
+writer ended by SIGKILL; lock free now: true
+--- folder after the kill
+  .adx.journal  ino 43611327  321 B  links 1
+  .adx.lock  ino 43611326  0 B  links 1
+  .index.md.33c4335240be.adx-tmp  ino 43611328  16 B  links 1
+  index.md  ino 43611324  12 B  links 1
+  notes/  mode 700
+  notes/.b.md.33c4335240be.adx-tmp  ino 43611329  4 B  links 1
+  notes/a.md  ino 43611325  4 B  links 1
+  index.md: "# index\n- a\n"
+  .adx.journal:
+    {"token":"33c4335240be","pid":85850,"entries":[{"rel":"index.md","temp":".index.md.33c4335240be.adx-tmp","backup":".index.md.33c4335240be.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.33c4335240be.adx-tmp","backup":"notes/.b.md.33c4335240be.adx-old","replaces":false}]}
+    {"commit":[43611328,43611329]}
+next call ("c") answered in 143 ms: {"ok":true,"written":[{"file":"index.md","bytes":16,"replaces":true},{"file":"notes/c.md","bytes":4,"replaces":false}],"ms":{"wait":0.008124999999999716,"held":32.414958000000006},"recovered":["removed .index.md.33c4335240be.adx-tmp","removed .b.md.33c4335240be.adx-tmp"]}
+--- folder after the next call
+  .adx.lock  ino 43611326  0 B  links 1
+  index.md  ino 43611332  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611325  4 B  links 1
+  notes/c.md  ino 43611333  4 B  links 1
+  index.md: "# index\n- a\n- c\n"
+
+===== SIGKILL at after-rename-0 (call adds "b": index.md first, then notes/b.md)
+lock free while the writer runs: false
+--- folder while the writer is stopped
+  .adx.journal  ino 43611343  321 B  links 1
+  .adx.lock  ino 43611342  0 B  links 1
+  .index.md.17657c7a4995.adx-old  ino 43611340  12 B  links 1
+  index.md  ino 43611344  16 B  links 1
+  notes/  mode 700
+  notes/.b.md.17657c7a4995.adx-tmp  ino 43611345  4 B  links 1
+  notes/a.md  ino 43611341  4 B  links 1
+  index.md: "# index\n- a\n- b\n"
+  .adx.journal:
+    {"token":"17657c7a4995","pid":85862,"entries":[{"rel":"index.md","temp":".index.md.17657c7a4995.adx-tmp","backup":".index.md.17657c7a4995.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.17657c7a4995.adx-tmp","backup":"notes/.b.md.17657c7a4995.adx-old","replaces":false}]}
+    {"commit":[43611344,43611345]}
+writer ended by SIGKILL; lock free now: true
+--- folder after the kill
+  .adx.journal  ino 43611343  321 B  links 1
+  .adx.lock  ino 43611342  0 B  links 1
+  .index.md.17657c7a4995.adx-old  ino 43611340  12 B  links 1
+  index.md  ino 43611344  16 B  links 1
+  notes/  mode 700
+  notes/.b.md.17657c7a4995.adx-tmp  ino 43611345  4 B  links 1
+  notes/a.md  ino 43611341  4 B  links 1
+  index.md: "# index\n- a\n- b\n"
+  .adx.journal:
+    {"token":"17657c7a4995","pid":85862,"entries":[{"rel":"index.md","temp":".index.md.17657c7a4995.adx-tmp","backup":".index.md.17657c7a4995.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.17657c7a4995.adx-tmp","backup":"notes/.b.md.17657c7a4995.adx-old","replaces":false}]}
+    {"commit":[43611344,43611345]}
+next call ("c") answered in 144 ms: {"ok":true,"written":[{"file":"index.md","bytes":16,"replaces":true},{"file":"notes/c.md","bytes":4,"replaces":false}],"ms":{"wait":0.00766699999999787,"held":33.768375},"recovered":["put back index.md","removed .b.md.17657c7a4995.adx-tmp"]}
+--- folder after the next call
+  .adx.lock  ino 43611342  0 B  links 1
+  index.md  ino 43611350  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611341  4 B  links 1
+  notes/c.md  ino 43611351  4 B  links 1
+  index.md: "# index\n- a\n- c\n"
+
+===== SIGKILL at after-rename-1 (call adds "b": index.md first, then notes/b.md)
+lock free while the writer runs: false
+--- folder while the writer is stopped
+  .adx.journal  ino 43611361  321 B  links 1
+  .adx.lock  ino 43611360  0 B  links 1
+  .index.md.d5783e237b09.adx-old  ino 43611358  12 B  links 1
+  index.md  ino 43611362  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611359  4 B  links 1
+  notes/b.md  ino 43611363  4 B  links 1
+  index.md: "# index\n- a\n- b\n"
+  .adx.journal:
+    {"token":"d5783e237b09","pid":85874,"entries":[{"rel":"index.md","temp":".index.md.d5783e237b09.adx-tmp","backup":".index.md.d5783e237b09.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.d5783e237b09.adx-tmp","backup":"notes/.b.md.d5783e237b09.adx-old","replaces":false}]}
+    {"commit":[43611362,43611363]}
+writer ended by SIGKILL; lock free now: true
+--- folder after the kill
+  .adx.journal  ino 43611361  321 B  links 1
+  .adx.lock  ino 43611360  0 B  links 1
+  .index.md.d5783e237b09.adx-old  ino 43611358  12 B  links 1
+  index.md  ino 43611362  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611359  4 B  links 1
+  notes/b.md  ino 43611363  4 B  links 1
+  index.md: "# index\n- a\n- b\n"
+  .adx.journal:
+    {"token":"d5783e237b09","pid":85874,"entries":[{"rel":"index.md","temp":".index.md.d5783e237b09.adx-tmp","backup":".index.md.d5783e237b09.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.d5783e237b09.adx-tmp","backup":"notes/.b.md.d5783e237b09.adx-old","replaces":false}]}
+    {"commit":[43611362,43611363]}
+next call ("c") answered in 152 ms: {"ok":true,"written":[{"file":"index.md","bytes":20,"replaces":true},{"file":"notes/c.md","bytes":4,"replaces":false}],"ms":{"wait":0.011957999999999913,"held":40.852709000000004},"recovered":["kept a finished commit","removed .index.md.d5783e237b09.adx-old"]}
+--- folder after the next call
+  .adx.lock  ino 43611360  0 B  links 1
+  index.md  ino 43611373  20 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611359  4 B  links 1
+  notes/b.md  ino 43611363  4 B  links 1
+  notes/c.md  ino 43611374  4 B  links 1
+  index.md: "# index\n- a\n- b\n- c\n"
+
+===== SIGTERM in the middle of a commit, signal handlers: handle
+writer exit: code 143 signal null
+writer stdout: {"ok":true,"written":[{"file":"index.md","bytes":16,"replaces":true},{"file":"notes/b.md","bytes":4,"replaces":false}],"ms":{"wait":0.011333000000000482,"held":1534.517625}}
+writer stderr: SLEEPING after-rename-0 | handler: SIGTERM arrived, the commit had already returned
+--- folder after the writer ended
+  .adx.lock  ino 43611393  0 B  links 1
+  index.md  ino 43611395  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611389  4 B  links 1
+  notes/b.md  ino 43611396  4 B  links 1
+  index.md: "# index\n- a\n- b\n"
+
+===== SIGTERM in the middle of a commit, signal handlers: default
+writer exit: code null signal SIGTERM
+writer stdout: (nothing)
+writer stderr: SLEEPING after-rename-0
+--- folder after the writer ended
+  .adx.journal  ino 43611407  321 B  links 1
+  .adx.lock  ino 43611406  0 B  links 1
+  .index.md.6f77e61614e0.adx-old  ino 43611404  12 B  links 1
+  index.md  ino 43611408  16 B  links 1
+  notes/  mode 700
+  notes/.b.md.6f77e61614e0.adx-tmp  ino 43611409  4 B  links 1
+  notes/a.md  ino 43611405  4 B  links 1
+  index.md: "# index\n- a\n- b\n"
+  .adx.journal:
+    {"token":"6f77e61614e0","pid":86592,"entries":[{"rel":"index.md","temp":".index.md.6f77e61614e0.adx-tmp","backup":".index.md.6f77e61614e0.adx-old","replaces":true},{"rel":"notes/b.md","temp":"notes/.b.md.6f77e61614e0.adx-tmp","backup":"notes/.b.md.6f77e61614e0.adx-old","replaces":false}]}
+    {"commit":[43611408,43611409]}
+next call ("c"): {"ok":true,"written":[{"file":"index.md","bytes":16,"replaces":true},{"file":"notes/c.md","bytes":4,"replaces":false}],"ms":{"wait":0.00837500000000091,"held":34.628416},"recovered":["put back index.md","removed .b.md.6f77e61614e0.adx-tmp"]}
+--- folder after the next call
+  .adx.lock  ino 43611406  0 B  links 1
+  index.md  ino 43611413  16 B  links 1
+  notes/  mode 700
+  notes/a.md  ino 43611405  4 B  links 1
+  notes/c.md  ino 43611414  4 B  links 1
+  index.md: "# index\n- a\n- c\n"
