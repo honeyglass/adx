@@ -5,9 +5,9 @@
   <img src="brand/header.svg" alt="adx" width="520">
 </picture>
 
-**Command-line tools that AI agents and people can both use well, with the Agent DX rules built in.**
+**A toolkit for building command-line tools that follow the 16 Agent DX rules, so AI agents and people can both use them well.**
 
-[Quickstart](#-quickstart) · [Guide](docs/guide.md) · [Docs](#-docs) · [Roadmap](#-roadmap) · [Report an issue](https://github.com/honeyglass/adx/issues)
+[Quickstart](#-quickstart) · [Agent DX rules](#-the-16-agent-dx-rules) · [Guide](docs/guide.md) · [Docs](#-docs) · [Roadmap](#-roadmap) · [Report an issue](https://github.com/honeyglass/adx/issues)
 
 ![Version](https://img.shields.io/github/package-json/v/honeyglass/adx?label=version&color=8b5cf6)
 ![License](https://img.shields.io/github/license/honeyglass/adx?color=8b5cf6)
@@ -30,6 +30,7 @@ guide compiles.
 
 ### Why adx?
 
+- 📏 **[The Agent DX rules built in](#-the-16-agent-dx-rules)**: a tool built on adx follows 15 of the 16 rules without code of yours; the agent skill is yours to write.
 - 🤖 **Built for AI agents**: JSON when piped, text at a terminal, one answer shape for every tool.
 - 🧭 **Every mistake at once**: all mistakes of a call come back in one answer, each with its fix and a command to run.
 - 🛑 **Nothing passes silently**: an unknown command, option, word or field is refused, never guessed.
@@ -55,6 +56,34 @@ node hello.ts greet --nmae Ada again
 
 The commands show how adx will work once it is built. The [Quickstart of the guide](docs/guide.md#2-quickstart)
 shows the whole `hello.ts`, about ten lines, and what each call answers.
+
+## <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/list-checks-dark.svg"><img src="brand/icons/list-checks.svg" width="24" height="24" alt=""></picture> The 16 Agent DX rules
+
+Each rule says what a tool does so that an agent can use it without help. The seven rules marked 📄
+come from Justin Poehnelt's article
+[Rewrite your CLI for AI agents](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/);
+the nine marked ➕ come from building tools for agents, such as
+[oriko](https://github.com/honeyglass/oriko). adx builds in every rule but the agent skill.
+
+1. 📄 **Raw JSON input**: takes the whole input of a command as one JSON object.
+2. 📄 **Schema at runtime**: prints every command and the exact input each one accepts.
+3. 📄 **JSON when piped**: answers text at a terminal and JSON when a program reads it.
+4. 📄 **Input hardening**: keeps every path inside an allowed folder and every id within allowed characters.
+5. 📄 **Dry runs**: a command that writes or sends says what it would do, and does nothing.
+6. 📄 **Agent skill**: ships a manual for agents with the code; you write it, and adx checks that a skill file you name is one.
+7. ➕ **Checks in layers**: checks shape, then meaning, then the costly checks, and answers all errors of a layer at once.
+8. ➕ **Errors with a hint**: each error says where it is and what to change.
+9. ➕ **All or nothing**: a refused or failed command writes nothing.
+10. ➕ **Exit codes 0, 1, 2**: 0 for success, 1 for a refusal, 2 when the tool broke.
+11. ➕ **Plan before the file**: shows the plan of the result before it writes the result.
+12. ➕ **Hints that run**: a refusal names the command that lists the fitting values.
+13. ➕ **Options that list**: an option given without its value lists the values it accepts.
+14. ➕ **Next steps**: the tool alone says where to start, and a success names the commands that can follow.
+15. ➕ **Nothing passes silently**: refuses an unknown command, option, word or input field.
+16. 📄 **Context discipline**: a large answer comes as an outline, and the caller names the fields or the one item it wants in full.
+
+The rules and how to check a tool against them:
+[honeyglass/skills, `adx/cli`](https://github.com/honeyglass/skills/blob/main/adx/cli/references/rules.md).
 
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/plug-dark.svg"><img src="brand/icons/plug.svg" width="24" height="24" alt=""></picture> Compatibility
 

@@ -20,7 +20,8 @@ It is designed, not built: the repository holds its guide, its design notes and 
   in a file of `proto/`. A case that must not compile stands behind `@ts-expect-error`.
 - `guide.de.md` says what `guide.md` says, with the same code blocks.
 - The 16 Agent DX rules are defined in honeyglass/skills, `adx/cli/references/rules.md`; read them
-  there, never copy them here.
+  there. The README lists each in one line, with its source; a change of a rule there changes that
+  line too. Copy nothing more of them here.
 
 ## Checks
 
