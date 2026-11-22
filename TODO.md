@@ -1,7 +1,7 @@
 # TODO
 
 Open work on adx, the toolkit for command-line tools that AI agents drive.
-<!-- last item number: 4 -->
+<!-- last item number: 6 -->
 
 ## Next
 
@@ -17,6 +17,13 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
       after:#1
       Plan: 'design/concurrency.md'
       'design/adx-write/'
+
+## Proof of concept
+
+- [ ] #5 Prove the remote side of adx (`remote`, `act.send`, `look`, retries) with a second tool that talks to a JSON server; oriko proves only the file side, as it has no server (added 2026-11-22)
+      after:#1
+- [ ] #6 Decide how adx reads a file the person names and an https address the person names, which `oriko read --posting` needs and adx cannot do today; oriko migrates `read` last and keeps its own code for it until then (added 2026-11-22)
+      after:#1
 
 ## Docs
 
