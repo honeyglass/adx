@@ -1,6 +1,6 @@
 // Guide, "Stored data that changes its format": a format number for one kind of stored data.
 import { z } from 'zod';
-import { envDir, id, root, stored, tool } from '@honeyglass/adx';
+import { effect, envDir, id, read, root, stored, tool } from '@honeyglass/adx';
 
 const home = root('home', envDir('HELLO_HOME'));
 
@@ -12,21 +12,12 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
   langs: [old.lang],
 }));
 
-export const hello = tool({
-  name: 'hello',
-  version: '0.3.0',
-  does: 'greets people',
-  roots: [home],
-  stored: [Friend],
-});
-
 const LIMIT = 65_536; // no friend file of ours is larger than 64 KiB
 const friendFile = (name: string) => home.file(`friends/${name}.json`);
 const friendChoices = async () =>
   (await home.list('friends', '.json')).map(f => ({ value: f.stem }));
 
-hello.read({
-  name: 'friends show',
+const show = read({
   does: 'shows one friend',
   input: z.object({ name: id().describe("the friend's short name") }),
   example: { name: 'ada' },
@@ -35,8 +26,7 @@ hello.read({
   text: friend => `${friend.name}: ${friend.langs.join(', ')}`,
 });
 
-hello.effect({
-  name: 'friends learn',
+const learn = effect({
   does: 'adds a language to a friend',
   input: z.object({
     name: id().describe("the friend's short name"),
@@ -50,6 +40,17 @@ hello.effect({
       const friend = Friend.parse(old);
       return Friend.stringify({ ...friend, langs: [...friend.langs, lang] });
     }),
+});
+
+export const hello = tool({
+  name: 'hello',
+  version: '0.3.0',
+  does: 'greets people',
+  roots: [home],
+  stored: [Friend],
+  commands: {
+    friends: { show, learn },
+  },
 });
 
 // Three formats: name them from the newest down, each step answers the format after it.

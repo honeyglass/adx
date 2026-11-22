@@ -1,16 +1,20 @@
 // Guide, chapter "Basics": the whole hello, and below it the cases that must not compile.
 import { z } from 'zod';
-import { code, detailOf, envDir, fresh, id, paged, root, tool } from '@honeyglass/adx';
+import {
+  code,
+  detailOf,
+  effect,
+  envDir,
+  fresh,
+  id,
+  list,
+  paged,
+  read,
+  root,
+  tool,
+} from '@honeyglass/adx';
 
 const home = root('home', envDir('HELLO_HOME'));
-
-export const hello = tool({
-  name: 'hello',
-  version: '0.1.0',
-  does: 'greets people',
-  skill: 'SKILL.md',
-  roots: [home],
-});
 
 const LANGUAGES = [
   { code: 'ar', name: 'Arabic', hello: 'Marhaba', formal: 'As-salamu alaykum' },
@@ -35,16 +39,13 @@ const noFormal = code(
 const blankName = code('BLANK_NAME', 'fix', 'Pass a name with a letter in it');
 const unknownLanguage = code('UNKNOWN_LANGUAGE', 'fix', 'Use a code the list answers');
 
-const GreetIn = z.object({
-  name: z.string().describe('who to greet'),
-  lang: z.string().default('en').describe('the language code'),
-  style: z.enum(['casual', 'formal']).default('casual').describe('how to greet'),
-});
-
-const greet = hello.read({
-  name: 'greet',
+const greet = read({
   does: 'greets one person',
-  input: GreetIn,
+  input: z.object({
+    name: z.string().describe('who to greet'),
+    lang: z.string().default('en').describe('the language code'),
+    style: z.enum(['casual', 'formal']).default('casual').describe('how to greet'),
+  }),
   example: { name: 'Ada' },
   values: { lang: languageChoices },
   check: ({ name }) => (name.trim() === '' ? [blankName.at('name')] : []),
@@ -70,8 +71,7 @@ const Language = z.object({
   formal: z.string().optional().describe('the formal greeting'),
 });
 
-const languages = hello.list({
-  name: 'languages',
+const languages = list({
   does: 'lists the languages hello speaks',
   item: Language,
   key: 'code',
@@ -80,8 +80,7 @@ const languages = hello.list({
   run: (_, { page }) => paged(LANGUAGES, page),
 });
 
-const language = hello.read({
-  name: 'language',
+const language = read({
   does: 'shows one language in full',
   input: z.object({ code: id().describe('the language code') }),
   example: { code: 'de' },
@@ -89,33 +88,21 @@ const language = hello.read({
   run: ({ code }, { refuse }) => byCode(code) ?? refuse(unknownLanguage.at('code')),
 });
 
-const FriendIn = z.object({
-  name: id().describe("the friend's short name"),
-  lang: z.string().describe("the friend's language code"),
-});
-
-const add = hello.effect({
-  name: 'friends add',
+const add = effect({
   does: 'remembers a friend',
-  input: FriendIn,
+  input: z.object({
+    name: id().describe("the friend's short name"),
+    lang: z.string().describe("the friend's language code"),
+  }),
   example: { name: 'ada', lang: 'de' },
   values: { name: fresh(friendNames), lang: languageChoices },
   plan: (friend, { files }) => files.write(friendFile(friend.name), JSON.stringify(friend)),
   next: (_, friend) => [greet.step({ lang: friend.lang })],
 });
 
-hello.start(async () => {
-  const friends = await friendNames();
-  return friends.length === 0 ? [add.step()] : [greet.step()];
-});
-
-// An optional field the step still needs.
-greet.step({ lang: 'de' }).needs('style');
-
 // A command without input can refuse: an issue that concerns no field.
 const noFriends = code('NO_FRIENDS', 'fix', 'Add a friend first');
-hello.read({
-  name: 'friends count',
+const count = read({
   does: 'counts the friends',
   run: async (_, { refuse }) => {
     const names = await friendNames();
@@ -125,9 +112,30 @@ hello.read({
   },
 });
 
+// The tool: every command stands in the table, under the word that calls it.
+export const hello = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'greets people',
+  skill: 'SKILL.md',
+  roots: [home],
+  commands: {
+    greet,
+    languages,
+    language,
+    friends: { add, count },
+  },
+  start: async () => {
+    const friends = await friendNames();
+    return friends.length === 0 ? [add.step()] : [greet.step()];
+  },
+});
+
+// An optional field the step still needs.
+greet.step({ lang: 'de' }).needs('style');
+
 // ---- what must NOT compile ----
-hello.read({
-  name: 'bad1',
+read({
   does: 'x',
   input: z.object({ name: z.string(), lang: z.string() }),
   example: { name: 'Ada', lang: 'de' },
@@ -135,8 +143,7 @@ hello.read({
   values: { lnag: languageChoices },
   run: ({ name }) => ({ greeting: name }),
 });
-hello.read({
-  name: 'bad2',
+read({
   does: 'x',
   input: z.object({ name: z.string(), style: z.string() }),
   example: { name: 'Ada', style: 'x' },
@@ -146,8 +153,7 @@ hello.read({
     return { greeting: name };
   },
 });
-hello.list({
-  name: 'bad3',
+list({
   does: 'x',
   item: Language,
   // @ts-expect-error key is no field of the item
@@ -155,8 +161,7 @@ hello.list({
   outline: ['name'],
   run: (_, { page }) => paged(LANGUAGES, page),
 });
-hello.list({
-  name: 'bad4',
+list({
   does: 'x',
   item: Language,
   key: 'code',
@@ -164,8 +169,7 @@ hello.list({
   outline: ['nmae'],
   run: (_, { page }) => paged(LANGUAGES, page),
 });
-hello.read({
-  name: 'bad5',
+read({
   does: 'x',
   input: z.object({ code: id() }),
   example: { code: 'de' },
@@ -173,8 +177,7 @@ hello.read({
   values: { kode: detailOf(languages) },
   run: ({ code }) => ({ code }),
 });
-hello.effect({
-  name: 'bad6',
+effect({
   does: 'x',
   input: z.object({ name: id(), lang: z.string() }),
   example: { name: 'ada', lang: 'de' },
@@ -182,8 +185,7 @@ hello.effect({
   // @ts-expect-error needs names a field greet does not have
   next: friend => [greet.step({ lang: friend.lang }).needs('nmae')],
 });
-hello.read({
-  name: 'bad7',
+read({
   does: 'x',
   input: z.object({ name: z.string() }),
   example: { name: 'Ada' },
@@ -191,8 +193,7 @@ hello.read({
   check: ({ name }) => (name === '' ? [blankName.at('nmae')] : []),
   run: ({ name }) => ({ greeting: name }),
 });
-hello.read({
-  name: 'bad8',
+read({
   does: 'x',
   input: z.object({ name: z.string() }),
   // @ts-expect-error example misses the required name
@@ -203,16 +204,14 @@ hello.read({
 void greet.invoke({ nmae: 'Ada' });
 
 // the old names and shapes are gone
-hello.effect({
-  name: 'bad9',
+effect({
   does: 'x',
   input: z.object({ name: id() }),
   example: { name: 'ada' },
   // @ts-expect-error files.put was renamed files.write
   plan: ({ name }, { files }) => files.put(friendFile(name), name),
 });
-hello.effect({
-  name: 'bad10',
+effect({
   does: 'x',
   input: z.object({ name: id() }),
   example: { name: 'ada' },
@@ -220,28 +219,31 @@ hello.effect({
   replace: true,
   plan: ({ name }) => ({ name }),
 });
-hello.effect({
-  name: 'bad11',
+effect({
   does: 'x',
   input: z.object({ name: id() }),
   example: { name: 'ada' },
   // @ts-expect-error files.update takes the limit and a function, not the new content
   plan: ({ name }, { files }) => files.update(friendFile(name), name),
 });
-// @ts-expect-error the skill is a path, not a URL
-tool({ name: 'bad12', version: '0.1.0', does: 'x', skill: new URL('./SKILL.md', import.meta.url) });
+tool({
+  name: 'bad12',
+  version: '0.1.0',
+  does: 'x',
+  // @ts-expect-error the skill is a path, not a URL
+  skill: new URL('./SKILL.md', import.meta.url),
+  commands: {},
+});
 // @ts-expect-error the option of a root cannot be switched off
 root('bad13', envDir('HELLO_HOME'), { option: false });
-hello.effect({
-  name: 'bad14',
+effect({
   does: 'x',
   input: z.object({ name: id() }),
   example: { name: 'ada' },
   // @ts-expect-error files.update takes no mode: a changed file keeps its mode
   plan: ({ name }, { files }) => files.update(friendFile(name), 100, () => name, { mode: 0o644 }),
 });
-hello.read({
-  name: 'bad15',
+read({
   does: 'x',
   // @ts-expect-error a command without input has no field to refuse at; use .issue()
   run: (_, { refuse }) => refuse(noFriends.at('friends')),

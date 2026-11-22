@@ -72,28 +72,24 @@ Node entfernt die Typen und führt die Datei aus. Es prüft sie nicht. Das tut d
 
 ### Ein Tool, eine Datei
 
-Die drei Blöcke unten sind zusammen eine Datei, `hello.ts`. Zuerst das Tool:
+Die zwei Blöcke unten sind zusammen eine Datei, `hello.ts`. Zuerst das Tool. Sein einziger Befehl steht in `commands`, der Tabelle der Befehle des Tools:
 
 ```ts
 import { z } from 'zod';
-import { tool } from '@honeyglass/adx';
+import { read, tool } from '@honeyglass/adx';
 
 export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-});
-```
-
-Dann ein Befehl:
-
-```ts
-hello.read({
-  name: 'greet',
-  does: 'greets one person',
-  input: z.object({ name: z.string().describe('who to greet') }),
-  example: { name: 'Ada' },
-  run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+  commands: {
+    greet: read({
+      does: 'greets one person',
+      input: z.object({ name: z.string().describe('who to greet') }),
+      example: { name: 'Ada' },
+      run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+    }),
+  },
 });
 ```
 
@@ -157,7 +153,7 @@ Der Rest dieser Anleitung schreibt `hello` für `node hello.ts`. [Wie wird ein T
 
 ### Was gerade passiert ist
 
-1. `hello.read` hat einen Befehl registriert, der nur liest. Seine Eingabe ist ein Zod-Schema. `.describe()` gibt jedem Feld den Text, den `schema` und `--help` ausgeben.
+1. `read` hat einen Befehl gemacht, der nur liest, und der Schlüssel `greet` in `commands` ist das Wort, das ihn aufruft. Seine Eingabe ist ein Zod-Schema. `.describe()` gibt jedem Feld den Text, den `schema` und `--help` ausgeben.
 2. `run` bekommt die geprüfte Eingabe. Ihr Typ, `{ name: string }`, kommt aus dem Schema. Du schreibst ihn nie. Schreibst du `({ nmae })`, lehnt der Compiler es ab.
 3. adx hat aus dem Feld `name` die Option `--name` gemacht. Ein Feld ohne `.optional()` oder `.default()` ist Pflicht. Dieselbe Eingabe geht auch als Ganzes hinein, als `--json '{"name":"Ada"}'`.
 4. Deine Funktion hat einen Wert zurückgegeben. adx hat ihn geschrieben: Text am Terminal, ein JSON-Dokument in der Pipe. Dein Code schreibt nie selbst auf stdout.
@@ -171,29 +167,31 @@ Dieses Kapitel erweitert `hello` um je eine Fähigkeit. Jeder Abschnitt zeigt nu
 
 ### Ein Befehl, der liest
 
-`hello.read` nimmt eine Funktion von der Eingabe zur Ausgabe. Hier lernt `greet` drei Sprachen:
+`read` nimmt eine Funktion von der Eingabe zur Ausgabe. Hier lernt `greet` drei Sprachen. Der Befehl zieht aus der Tabelle in eine Konstante, damit spätere Abschnitte ihn nennen können:
 
 ```ts
 const hellos = { en: 'Hello', de: 'Hallo', eo: 'Saluton' };
 
-const GreetIn = z.object({
-  name: z.string().describe('who to greet'),
-  lang: z.enum(['en', 'de', 'eo']).default('en').describe('the language code'),
-});
-```
-
-```ts
-const greet = hello.read({
-  name: 'greet',
+const greet = read({
   does: 'greets one person',
-  input: GreetIn,
+  input: z.object({
+    name: z.string().describe('who to greet'),
+    lang: z.enum(['en', 'de', 'eo']).default('en').describe('the language code'),
+  }),
   example: { name: 'Ada' },
   run: ({ name, lang }) => ({ greeting: `${hellos[lang]}, ${name}!` }),
   text: out => out.greeting,
 });
 ```
 
-- `hello.read` gibt einen Handle auf den Befehl zurück. Halte ihn in einer `const`: Spätere Abschnitte nennen den Befehl über ihn, in nächsten Schritten und in Tests.
+Das Tool listet die Konstante unter dem Wort, das sie aufruft. `{ greet }` ist die Kurzschreibweise für `{ greet: greet }`:
+
+```ts
+commands: { greet },
+```
+
+- `read` gibt den Befehl zurück. Die Konstante ist sein Handle: Spätere Abschnitte nennen den Befehl über ihn, in nächsten Schritten und in Tests.
+- Das Schema steht im Befehl, dort, wo du es liest. Ein Schema, das mehrere Befehle lesen, bekommt einen eigenen Namen.
 - `lang` hat einen Standardwert. Darum sieht `run` immer einen der drei Codes, während `example` das Feld weglassen darf. adx typisiert `example` nach dem, was ein Aufrufer schreibt, und `run` nach dem, was das Schema antwortet.
 - `text` legt die Form am Terminal fest. Ohne `text` gibt adx jedes Feld in einer Zeile aus.
 
@@ -338,7 +336,7 @@ Netzwerk- und Dateisystemfehler brauchen keinen Code von dir. adx ordnet sie ein
 
 ### Ein Befehl, der eine lange Liste liefert
 
-Eine Liste kann ohne Ende wachsen, und jede Zeile, die ein Agent liest, nimmt Platz, den er für die Aufgabe braucht. Darum antwortet `hello.list` mit einer Kurzform: den wenigen Feldern, die jeder Eintrag als Standard zeigt. Der Aufrufer nennt weitere Felder mit `--fields`, und lange Listen kommen in Seiten.
+Eine Liste kann ohne Ende wachsen, und jede Zeile, die ein Agent liest, nimmt Platz, den er für die Aufgabe braucht. Darum antwortet ein `list` mit einer Kurzform: den wenigen Feldern, die jeder Eintrag als Standard zeigt. Der Aufrufer nennt weitere Felder mit `--fields`, und lange Listen kommen in Seiten.
 
 ```ts
 const Language = z.object({
@@ -350,8 +348,7 @@ const Language = z.object({
 ```
 
 ```ts
-const languages = hello.list({
-  name: 'languages',
+const languages = list({
   does: 'lists the languages hello speaks',
   item: Language,
   key: 'code',
@@ -366,6 +363,7 @@ const languages = hello.list({
 - `outline` listet die weiteren Felder der Kurzform. Beide nennen Felder von `Language`: `outline: ['nmae']` kompiliert nicht.
 - Der `ctx` einer Liste hält `page`. `paged` schneidet eine Seite aus einem ganzen Array.
 - Ein Befehl ohne Eingabe, wie `languages`, lässt `input` und `example` weg.
+- Die Konstante einer Liste heißt nach dem, was sie listet, hier `languages`, denn `list` ist schon die Funktion.
 
 ```console
 $ hello languages | jq -c '.result.items[0], .result.total'
@@ -383,8 +381,7 @@ const unknownLanguage = code('UNKNOWN_LANGUAGE', 'fix', 'Use a code the list ans
 ```
 
 ```ts
-const language = hello.read({
-  name: 'language',
+const language = read({
   does: 'shows one language in full',
   input: z.object({ code: id().describe('the language code') }),
   example: { code: 'de' },
@@ -408,7 +405,7 @@ $ hello languages --fields | jq -c '[.result.values[].value]'
 
 ### Ein Befehl, der etwas ändert
 
-`hello.effect` nimmt eine Funktion `plan`. Sie führt jede Prüfung aus, merkt die Dateien vor, die zu schreiben sind, und antwortet, was geschehen wird. adx schreibt die vorgemerkten Dateien, nachdem `plan` zurückgekehrt ist. Im Probelauf schreibt adx nichts.
+Ein `effect` nimmt eine Funktion `plan`. Sie führt jede Prüfung aus, merkt die Dateien vor, die zu schreiben sind, und antwortet, was geschehen wird. adx schreibt die vorgemerkten Dateien, nachdem `plan` zurückgekehrt ist. Im Probelauf schreibt adx nichts.
 
 `hello` lernt, sich Freunde und ihre Sprache zu merken, eine Datei pro Freund. Die Dateien liegen in einem Root: einem Ordner, den das Tool nutzen darf. Lege ihn an und liste ihn im Tool:
 
@@ -429,26 +426,29 @@ const friendNames = async () => (await home.list('friends', '.json')).map(f => f
 ```
 
 ```ts
-const FriendIn = z.object({
-  name: id().describe("the friend's short name"),
-  lang: z.string().describe("the friend's language code"),
-});
-```
-
-```ts
-const add = hello.effect({
-  name: 'friends add',
+const add = effect({
   does: 'remembers a friend',
-  input: FriendIn,
+  input: z.object({
+    name: id().describe("the friend's short name"),
+    lang: z.string().describe("the friend's language code"),
+  }),
   example: { name: 'ada', lang: 'de' },
   values: { name: fresh(friendNames) },
   plan: (friend, { files }) => files.write(friendFile(friend.name), JSON.stringify(friend)),
 });
 ```
 
+Die Tabelle listet den Befehl in einer Gruppe. Eine Gruppe ist eine Tabelle in der Tabelle:
+
+```ts
+commands: {
+  friends: { add },
+},
+```
+
 - `files.write` merkt eine Datei vor und antwortet `{ file, bytes, replaces }`. Das ist auch die Antwort des Befehls.
 - `fresh` ist die Quelle für einen neuen Namen. Ein neuer Name hat keine Liste gültiger Werte, aber eine Liste der schon vergebenen Namen. `fresh` antwortet mit diesen, wenn `--name` ohne Wert kommt. Es lehnt nichts ab.
-- Ein Leerzeichen in `name` bildet eine Gruppe: `hello friends` allein listet ihre Aktionen.
+- Die Gruppe macht den Aufruf `hello friends add`, und `hello friends` allein listet ihre Aktionen.
 
 ```console
 $ hello friends add --name ada --lang de --dry-run | jq -c '.applied, .result'
@@ -528,13 +528,13 @@ hello language --code eo
 
 `language` wird in der Datei weiter unten angelegt als `greet`. Das geht, weil `run` es erst nutzt, wenn es läuft.
 
-Die ersten Schritte des Tools selbst kommen aus `hello.start`. Der Aufruf steht nach den Befehlen. So kann er sie nennen, und er kann den Datenordner lesen:
+Die ersten Schritte des Tools selbst kommen aus `start`, einer Eigenschaft des Tools. Die Befehle stehen über dem Tool. So kann `start` sie nennen, und es kann den Datenordner lesen:
 
 ```ts
-hello.start(async () => {
+start: async () => {
   const friends = await friendNames();
   return friends.length === 0 ? [add.step()] : [greet.step()];
-});
+},
 ```
 
 Ist noch kein Freund gespeichert, legt der erste Schritt einen an:
@@ -544,13 +544,13 @@ $ hello | jq -c '.next[0]'
 {"does":"remembers a friend","command":"hello friends add","needs":["name","lang"]}
 ```
 
-Ohne den Aufruf nennt die Startantwort die Befehle und den Schritt zu `schema`.
+Ohne `start` nennt die Startantwort die Befehle und den Schritt zu `schema`.
 
 ### Das Tool erklärt sich selbst
 
 Ein Tool auf adx enthält keinen Anleitungstext und keinen freien Hilfetext. Ein Agent lernt es aus vier Antworten, die alle aus deinen Deklarationen entstehen:
 
-- Das Tool allein nennt seine Befehle und die ersten Schritte (`hello.start`).
+- Das Tool allein nennt seine Befehle und die ersten Schritte (`start`).
 - `hello schema` nennt jeden Befehl, jeden Code mit Art und Hinweis, und was jede Art vom Aufrufer verlangt.
 - Jeder Erfolg nennt seine nächsten Schritte.
 - Jede Ablehnung nennt die Lösung und einen Befehl, der weiterhilft.
@@ -563,7 +563,7 @@ $ hello schema | jq -c '.result.kinds.ask, .result.codes[0]'
 
 Was kein Schritt ist, gehört in einen Agent-Skill: wann man das Tool nutzt, der Ablauf einer typischen Aufgabe, wann man anhält und die Person fragt. Ein Skill ist ein Markdown-Handbuch für Agenten. Er ist die eine Agent-DX-Regel, die adx nicht einbaut: Der Skill gehört dir, und das Tool öffnet ihn nie, bettet ihn nie ein und gibt ihn nie aus.
 
-Ein Tool kann seinen Skill mit `skill` nennen, einem Pfad relativ zum Ordner seiner `package.json`:
+Ein Tool kann seinen Skill mit `skill` nennen, einem Pfad relativ zum Ordner seiner `package.json`. Das ist das Tool dieses Kapitels im Ganzen. `count` ist ein weiterer Befehl der Gruppe `friends`: Er zählt die Freunde.
 
 ```ts
 export const hello = tool({
@@ -572,6 +572,16 @@ export const hello = tool({
   does: 'greets people',
   skill: 'SKILL.md',
   roots: [home],
+  commands: {
+    greet,
+    languages,
+    language,
+    friends: { add, count },
+  },
+  start: async () => {
+    const friends = await friendNames();
+    return friends.length === 0 ? [add.step()] : [greet.step()];
+  },
 });
 ```
 
@@ -641,9 +651,17 @@ Manche Befehle sind dazu da, eine Datei zu ändern: ein Bearbeiten, ein Aktualis
 const friendChoices = async () => (await friendNames()).map(name => ({ value: name }));
 ```
 
+`friends edit` nimmt dieselbe Eingabe wie `friends add`. Vier Befehle dieses Kapitels lesen dieses Schema, darum hat es jetzt einen Namen:
+
 ```ts
-hello.effect({
-  name: 'friends edit',
+const FriendIn = z.object({
+  name: id().describe("the friend's short name"),
+  lang: z.string().describe("the friend's language code"),
+});
+```
+
+```ts
+const edit = effect({
   does: "changes a friend's language",
   input: FriendIn,
   example: { name: 'ada', lang: 'en' },
@@ -701,13 +719,33 @@ Jeder Anwendungsfall unten ist ein ganzes Tool, Stück für Stück gezeigt.
 
 `tracker` liest und erstellt Tickets in einem Ticket-Tracker über dessen JSON-API. Die meisten Aufrufe arbeiten an einem Projekt, hier `checkout-web`.
 
-Drei neue Teile kommen dazu:
+Vier neue Teile kommen dazu:
 
 - **Ein Remote**: `remote()` bindet das Tool an einen Host. Dein Code liest darüber mit `get`, und jede Antwort läuft durch ein Zod-Schema, bevor dein Code sie sieht. Eine Anfrage, die etwas ändert, wird mit `post` gebaut und nur von `act.send` in `apply` gesendet. Ein Probelauf kann sie also nicht senden.
-- **Eine globale Eingabe**: `global` fügt Eingabe hinzu, die jeder Befehl teilt, etwa das Projekt. adx trägt sie in jeden Befehl, den es nennt.
+- **Eine globale Eingabe**: `global()` deklariert Eingabe, die jeder Befehl teilt, etwa das Projekt. adx trägt sie in jeden Befehl, den es nennt.
 - **Eine lange Liste als Quelle**: `detailOf` und `keyOf` richten ein Feld auf `ticket list`, weil es zu viele Ticket-Schlüssel zum Ausgeben gibt.
+- **Ordner**: `tracker` hat sieben Befehle, zu viele, um sie in einer Datei zu lesen. Es ist nach Features geschnitten, und eine Datei hält das Tool.
 
-Der Remote, mit der Variable für seine Adresse und der Variable für sein Token:
+**Der Aufbau.** adx liest keinen Ordnernamen, keinen Dateinamen und keine Reihenfolge von Importen. Ein Befehl ist ein Wert, und die Tabelle des Tools nimmt ihn, wo immer er liegt. Der Schnitt ist also deiner. Dieser hält eine einfache Regel: Ein Feature-Ordner importiert nur aus `core/` und aus sich selbst, und nur `cli/` fügt Features zusammen.
+
+```text
+tracker/
+├── bin/tracker.ts          the program: runs the tool
+├── cli/tracker.ts          the tool and the table of its commands
+├── tickets/                one feature
+│   ├── ticket.schema.ts    the schema five commands read
+│   ├── list.ts             ticket list
+│   ├── show.ts             ticket show
+│   ├── create.ts           ticket create
+│   ├── schedule.ts         ticket schedule
+│   ├── close.ts            ticket close
+│   └── stats.ts            stats
+├── user/whoami.ts          a second feature: whoami
+├── core/tracker.ts         what features share: the server and the project
+└── tests/tracker.test.ts   the tests
+```
+
+**Was die Features teilen**, liegt in `core/tracker.ts`. Zuerst der Remote, mit der Variable für seine Adresse und der Variable für sein Token:
 
 ```ts
 export const api = remote('tracker', {
@@ -716,31 +754,25 @@ export const api = remote('tracker', {
 });
 ```
 
-Was der Server antwortet:
+Dann die globale Eingabe. `global()` deklariert sie einmal und antwortet mit den drei Arten von Befehlen, in denen das Projekt in jeden Handler typisiert ist. Die Features nehmen `read`, `list` und `effect` von hier, nicht von adx:
 
 ```ts
-const Ticket = z.object({
-  id: id().describe('the ticket key, such as CW-112'),
-  title: z.string().describe('the one-line title'),
-  state: z.enum(['open', 'closed']).describe('open or closed'),
-  labels: z.array(z.string()).describe('the labels'),
-  body: multiline().describe('the description, Markdown'),
+export const project = global({
+  input: z.object({
+    project: id().describe('the project key, such as checkout-web'),
+  }),
+  example: { project: 'checkout-web' },
+  values: { project: projects },
 });
+
+// read, list and effect, with the project typed into every handler
+export const { read, list, effect } = project;
 ```
 
-```ts
-const TicketPage = z.object({
-  items: z.array(Ticket),
-  next: z.string().optional(),
-  total: z.number(),
-});
-const Named = z.array(z.object({ name: z.string(), description: z.string().default('') }));
-```
-
-Zwei Quellen. Eine Quelle, die vor ihrem Befehl steht, nennt die Felder, die sie liest, hier im Typ `Known`. Die Labels gehören zu einem Projekt. Ihre Quelle braucht also zuerst das Projekt und sagt das mit `needs`:
+`projects` ist die Quelle für die Werte des Projekts. Sie fragt den Server und antwortet mit Auswahlen:
 
 ```ts
-type Known = { project?: string; team?: string };
+export const Named = z.array(z.object({ name: z.string(), description: z.string().default('') }));
 
 const projects = async () =>
   (await api.get(['projects'], Named)).map(p => ({
@@ -749,37 +781,30 @@ const projects = async () =>
   }));
 ```
 
-```ts
-const labels = async ({ project }: Known) => {
-  if (project === undefined) return needs('project');
-  const all = await api.get(['projects', project, 'labels'], Named);
-  return all.map(l => ({ value: l.name, does: l.description }));
-};
-```
-
-Das Tool, mit dem Projekt als globaler Eingabe:
+**Was der Server antwortet**, ist für ein Ticket ein Schema, das fünf Befehle lesen. Darum hat es einen Namen und eine eigene Datei im Feature, `tickets/ticket.schema.ts`:
 
 ```ts
-export const tracker = tool({
-  name: 'tracker',
-  version: '1.2.0',
-  does: 'reads and files tickets',
-  remotes: [api],
-  global: {
-    input: z.object({
-      project: id().describe('the project key, such as checkout-web'),
-    }),
-    example: { project: 'checkout-web' },
-    values: { project: projects },
-  },
+export const Ticket = z.object({
+  id: id().describe('the ticket key, such as CW-112'),
+  title: z.string().describe('the one-line title'),
+  state: z.enum(['open', 'closed']).describe('open or closed'),
+  labels: z.array(z.string()).describe('the labels'),
+  body: multiline().describe('the description, Markdown'),
 });
 ```
 
-Die Liste. Der Server blättert, und der Handler reicht dessen Cursor durch. `project` steht in der Eingabe neben den eigenen Feldern des Befehls:
+**Die Liste**, in `tickets/list.ts`. Der Server blättert, und der Handler reicht dessen Cursor durch. `project` steht in der Eingabe neben den eigenen Feldern des Befehls. Das Schema einer Seite liest nur dieser Befehl, darum steht es in dieser Datei:
 
 ```ts
-export const list = tracker.list({
-  name: 'ticket list',
+const TicketPage = z.object({
+  items: z.array(Ticket),
+  next: z.string().optional(),
+  total: z.number(),
+});
+```
+
+```ts
+export const tickets = list({
   does: 'lists the tickets of a project',
   input: z.object({
     state: z.enum(['open', 'closed']).default('open').describe('open or closed'),
@@ -794,19 +819,20 @@ export const list = tracker.list({
 });
 ```
 
-Der Befehl, der ein Ticket zeigt:
+Die Konstante heißt `tickets`, nach dem, was der Befehl listet. Die Tabelle des Tools gibt dem Befehl sein Wort, `list`.
+
+**Der Befehl, der ein Ticket zeigt**, in `tickets/show.ts`:
 
 ```ts
 const noTicket = code('TICKET_NOT_FOUND', 'fix', 'Use a key the list command answers');
 ```
 
 ```ts
-const show = tracker.read({
-  name: 'ticket show',
+export const show = read({
   does: 'shows one ticket in full',
   input: z.object({ id: id().describe('the ticket key') }),
   example: { id: 'CW-112' },
-  values: { id: detailOf(list) },
+  values: { id: detailOf(tickets) },
   output: Ticket,
   run: async ({ project, id }, { refuse }) => {
     const path = ['projects', project, 'tickets', id];
@@ -820,23 +846,24 @@ const show = tracker.read({
 - `on` ordnet einem Status den Wert zu, mit dem `get` dafür antwortet. Mit `{ 404: undefined }` ist die Antwort ein Ticket oder `undefined`. Jeder andere Status kann dort auch stehen, etwa ein 409. Ohne `on` ist ein 404 ein Fehler wie jeder andere.
 - `output` ist das Schema der Antwort. Ein Ticket kann lang sein, darum deklariert der Befehl es: Der Aufrufer kann die Antwort dann mit `--fields` kürzen, und `schema` zeigt die Form. `run` muss antworten, was `output` deklariert.
 
-Der Befehl, der ein Ticket erstellt. Er sendet, also hat er `apply` neben `plan`:
+**Der Befehl, der ein Ticket erstellt**, in `tickets/create.ts`. Er sendet, also hat er `apply` neben `plan`:
 
 ```ts
-const CreateIn = z.object({
-  title: z.string().describe('the one-line title'),
-  body: multiline().default('').describe('the description, Markdown'),
-  label: z.array(z.string()).default([]).describe('a label; may repeat'),
-});
-```
-
-```ts
-export const create = tracker.effect({
-  name: 'ticket create',
+export const create = effect({
   does: 'files a new ticket',
-  input: CreateIn,
+  input: z.object({
+    title: z.string().describe('the one-line title'),
+    body: multiline().default('').describe('the description, Markdown'),
+    label: z.array(z.string()).default([]).describe('a label; may repeat'),
+  }),
   example: { title: 'Pay button overlaps the footer', label: ['bug'] },
-  values: { label: labels },
+  values: {
+    label: async ({ project }) => {
+      if (project === undefined) return needs('project');
+      const all = await api.get(['projects', project, 'labels'], Named);
+      return all.map(l => ({ value: l.name, does: l.description }));
+    },
+  },
   replace: false,
   plan: ({ project, title, label }) => ({ project, title, labels: label }),
   apply: async ({ project, title, body, label }, { act }) => {
@@ -844,17 +871,50 @@ export const create = tracker.effect({
     const request = api.post(['projects', project, 'tickets'], data);
     return { ticket: await act.send('the new ticket', request, Ticket) };
   },
-  look: () => list.step(),
+  look: () => tickets.step(),
   next: ({ ticket }) => [show.step({ id: ticket.id })],
 });
 ```
 
+- Die Labels gehören zu einem Projekt. Ihre Quelle braucht also zuerst das Projekt und sagt das mit `needs`. Die Quelle steht in `values`, und adx typisiert ihre Eingabe aus dem Befehl: `project` ist ein String oder `undefined`, und `needs('projekt')` kompiliert nicht.
 - `plan` antwortet, was gesendet wird. Das ist die Antwort des Probelaufs.
 - `apply` gibt nur zurück, was der echte Lauf hinzufügt. adx antwortet `{ ...planned, ...applied }`: alles, was der Probelauf geantwortet hat, und dazu `ticket`. So kann ein Agent, der den Probelauf gelesen hat, die echte Antwort mit demselben Code lesen.
 - `act` gibt es nur im `ctx` von `apply`, und adx ruft `apply` im Probelauf nie auf. `act` sendet nur. Dateien werden in `plan` vorgemerkt. So kann keine Ablehnung wegen einer Datei nach einem Senden kommen.
 - `next` bekommt die zusammengeführte Antwort. `ticket` ist also ohne Prüfung da.
 - `look` ist der Schritt, den adx nennt, wenn es nicht wissen kann, was ein gescheiterter Aufruf hinterlassen hat. adx startet nicht, wenn ein Befehl `apply` hat und kein `look`.
 - `replace: false`: Dieser Befehl schreibt keine Datei, also nimmt er kein `--replace`.
+
+**Das Tool**, in `cli/tracker.ts`, ist die einzige Datei, die jedes Feature sieht:
+
+```ts
+export const tracker = tool({
+  name: 'tracker',
+  version: '1.2.0',
+  does: 'reads and files tickets',
+  remotes: [api],
+  global: project,
+  commands: {
+    ticket: { list: tickets, show, create, schedule, close },
+    whoami,
+    stats,
+  },
+  next: [after(whoami, () => [tickets.step()])],
+  start: () => [tickets.step()],
+});
+```
+
+- `global: project` gibt jedem Befehl die Option `--project`. Ein Befehl, der ohne die globale Eingabe gemacht ist, kompiliert in dieser Tabelle nicht.
+- Ein Schlüssel von `commands` ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `tracker ticket list`, `tracker ticket show`, `tracker whoami`.
+- Ein Ordner und ein Wort sind unabhängig. `stats.ts` liegt in `tickets/`, und sein Aufruf ist `tracker stats`.
+- `next` und `after` zeigt das Ende dieses Abschnitts, unter "Ein Schritt über Ordner hinweg".
+
+Und `bin/tracker.ts` ist das ganze Programm:
+
+```ts
+import { tracker } from '../cli/tracker.ts';
+
+await tracker.main();
+```
 
 Das Token kommt aus `TRACKER_TOKEN`. Die Person setzt es, und `tracker schema` nennt die Variable, nie ihren Wert. Ein Test richtet `TRACKER_URL` auf einen Fake-Server.
 
@@ -931,10 +991,10 @@ Mit dem Label, das du `act.send` gegeben hast, "the new ticket", benennt `state`
 
 **Kein Token.** Ohne `TRACKER_TOKEN` wird jeder Aufruf, der den Server erreicht, mit `ENV_MISSING` abgelehnt, Art `ask`.
 
-**Eine Liste, die zwei Felder braucht.** Die Meilensteine von `tracker` gehören zu einem Team eines Projekts. Ihre Quelle nennt jedes Feld, das an dieser Stelle sicher fehlt:
+**Eine Liste, die zwei Felder braucht.** Die Meilensteine von `tracker` gehören zu einem Team eines Projekts. Ihre Quelle steht in `tickets/schedule.ts`. Sie hat einen Namen, also sagt sie mit dem Typ `Source` von adx, welche Felder sie liest. Sie nennt jedes Feld, das an dieser Stelle sicher fehlt:
 
 ```ts
-const milestones = async ({ project, team }: Known) => {
+const milestones: Source<{ project: string; team: string }> = async ({ project, team }) => {
   if (project === undefined && team === undefined) return needs('project', 'team');
   if (project === undefined) return needs('project');
   if (team === undefined) return needs('team');
@@ -943,10 +1003,10 @@ const milestones = async ({ project, team }: Known) => {
 };
 ```
 
-`ticket schedule` legt ein Ticket in einen Meilenstein. Seine Eingabe `ScheduleIn` hat die Felder `id`, `team` und `milestone`. `keyOf(list)` sagt, dass `id` einen Schlüssel der Liste nimmt. Anders als `detailOf` macht es diesen Befehl nicht zu dem, der einen Eintrag zeigt. `team` hat eine Quelle wie `labels`:
+`ticket schedule` legt ein Ticket in einen Meilenstein. Seine Eingabe hat die Felder `id`, `team` und `milestone`. `keyOf(tickets)` sagt, dass `id` einen Schlüssel der Liste nimmt. Anders als `detailOf` macht es diesen Befehl nicht zu dem, der einen Eintrag zeigt. `team` hat auch eine Quelle mit Namen, `teams`:
 
 ```ts
-values: { id: keyOf(list), team: teams, milestone: milestones },
+values: { id: keyOf(tickets), team: teams, milestone: milestones },
 ```
 
 Er sendet wie `ticket create`. Sein `look` ist eine Funktion der Eingabe und kann darum den Eintrag nennen: Nach einem Verbindungsabbruch ist der Schritt `tracker ticket show` mit dem Schlüssel des Aufrufs.
@@ -967,21 +1027,20 @@ Give --project first: the teams depend on it
 
 adx fragt die Quelle jedes fehlenden Feldes, was diese Quelle ihrerseits braucht. Die Teams brauchen das Projekt, und das fehlt auch. Darum hat das zweite Problem kein `command`: adx nennt einen Befehl nur, wenn er so läuft, wie er dasteht. Ist das Projekt gegeben, nennt das Problem für `team` den Befehl `tracker ticket schedule --project checkout-web --team`.
 
-Nenne nur, was sicher fehlt. Ob ein zweites Feld nötig ist, kann vom Wert des ersten abhängen: Hätten nur manche Projekte Teams, gäbe die Quelle zuerst `needs('project')` zurück. `needs` nimmt Felder des Befehls: `needs('tema')` kompiliert dort nicht, wo die Quelle benutzt wird.
+Nenne nur, was sicher fehlt. Ob ein zweites Feld nötig ist, kann vom Wert des ersten abhängen: Hätten nur manche Projekte Teams, gäbe die Quelle zuerst `needs('project')` zurück. `needs` nimmt Felder, die die Quelle liest: `needs('tema')` kompiliert nicht, und der Compiler meldet es an der Quelle.
 
-**Ein Befehl ohne das Projekt.** `global` gilt für jeden Befehl, und ein Befehl kann abweichen. `whoami` nimmt kein globales Feld. Er hat gar keine Eingabe. Seine Ablehnung betrifft also kein Feld und nutzt `.issue()`:
+**Ein Befehl ohne das Projekt.** `global` gilt für jeden Befehl, und ein Befehl kann abweichen. `whoami`, in `user/whoami.ts`, nimmt kein globales Feld. Er hat gar keine Eingabe. Seine Ablehnung betrifft also kein Feld und nutzt `.issue()`:
 
 ```ts
 const inactive = code('USER_INACTIVE', 'ask', 'Ask an admin to activate the account');
 ```
 
 ```ts
-export const whoami = tracker.read({
-  name: 'whoami',
+export const whoami = read({
   does: 'names the signed-in user',
   global: false,
   run: async (_, { refuse }) => {
-    const user = await api.get(['user'], User);
+    const user = await api.get(['user'], z.object({ login: z.string(), active: z.boolean() }));
     return user.active ? user : refuse(inactive.issue(`${user.login} is deactivated`));
   },
 });
@@ -1002,6 +1061,23 @@ global: { project: 'optional' },
 
 `tracker schema <command>` zeigt, ob ein Befehl die Option nimmt, und adx trägt den Wert nur in Schritte zu Befehlen, die sie haben.
 
+**Ein Schritt über Ordner hinweg.** Ein guter Schritt nach `whoami` ist die Liste der Tickets. Aber `whoami` liegt in `user/`, die Liste liegt in `tickets/`, und nach der Regel dieses Aufbaus importiert ein Feature kein anderes. Darum steht der Schritt dort, wo die Features zusammenkommen: am Tool, mit `after`.
+
+```ts
+next: [after(whoami, () => [tickets.step()])],
+```
+
+```console
+$ tracker whoami | jq -c '.next[0]'
+{"does":"lists the tickets of a project","command":"tracker ticket list","needs":["project"]}
+```
+
+- Ein `next`, dessen Schritte im eigenen Ordner des Befehls bleiben, steht am Befehl, wie in `ticket create`. Ein `next` zu einem Befehl eines anderen Ordners steht am Tool.
+- `after` nimmt einen Befehl und eine Funktion wie `next`. Die Funktion bekommt die Antwort des echten Laufs und die Eingabe, beide vom Befehl typisiert.
+- Seine Schritte folgen den Schritten des eigenen `next` des Befehls.
+- Ein `after` für einen Befehl, den das Tool nicht listet, ist ein `DECLARATION`-Fehler beim Start.
+- In einem größeren Tool bekommt die Liste von `next` eine eigene Datei in `cli/`.
+
 ### Ein Checker für eine Codebasis
 
 `lintkit` prüft die Go-Dateien eines Ordners gegen Hausregeln. Es liest nur, und seine Antwort wächst mit dem Code: 47 Funde in einem Paket sind normal. Zwei neue Teile:
@@ -1011,13 +1087,6 @@ global: { project: 'optional' },
 
 ```ts
 const gomod = root('module', marker('go.mod'));
-
-export const lintkit = tool({
-  name: 'lintkit',
-  version: '0.4.0',
-  does: 'checks Go files against house rules',
-  roots: [gomod],
-});
 ```
 
 `Finding` ist das Zod-Schema eines Funds. Seine Felder sind `id`, `rule`, `file`, `line`, `message` und `source`, die Zeilen um den Fund. Eine Funktion liest die Dateien und sammelt die Funde:
@@ -1042,19 +1111,16 @@ Die Liste, mit einer Regel über zwei Felder in `check` und einem eigenen Schrit
 ```ts
 const noRule = code('NO_RULE', 'fix', 'Name a rule, or leave --strict out');
 const noFinding = code('FINDING_NOT_FOUND', 'fix', 'Run the check again and use an id it lists');
-
-const CheckIn = z.object({
-  dir: dir(gomod).describe('the folder to check'),
-  rule: z.array(z.enum(RULES)).default([]).describe('a rule; may repeat'),
-  strict: z.boolean().default(false).describe('refuse a check of all rules'),
-});
 ```
 
 ```ts
-const checkCmd = lintkit.list({
-  name: 'check',
+const findings = list({
   does: 'checks the Go files of a folder',
-  input: CheckIn,
+  input: z.object({
+    dir: dir(gomod).describe('the folder to check'),
+    rule: z.array(z.enum(RULES)).default([]).describe('a rule; may repeat'),
+    strict: z.boolean().default(false).describe('refuse a check of all rules'),
+  }),
   example: { dir: '.' },
   item: Finding,
   key: 'id',
@@ -1070,7 +1136,19 @@ Die eigenen Schritte einer Liste kommen nach denen, die adx ableitet: der folgen
 Der Befehl `finding` zeigt einen Fund ganz, wie `language` in `hello`. Seine `id` nimmt einen Schlüssel der Prüfung:
 
 ```ts
-values: { id: detailOf(checkCmd) },
+values: { id: detailOf(findings) },
+```
+
+Das Tool listet beide. Die Konstante der Liste heißt `findings`, und ihr Wort ist `check`:
+
+```ts
+export const lintkit = tool({
+  name: 'lintkit',
+  version: '0.4.0',
+  does: 'checks Go files against house rules',
+  roots: [gomod],
+  commands: { check: findings, finding },
+});
 ```
 
 **Ein Paket prüfen.** Die Kurzform hält 47 Funde bei je wenigen Feldern:
@@ -1111,13 +1189,6 @@ Aus einem Ordner ohne `go.mod` darüber wird jeder Aufruf mit `ROOT_NOT_FOUND` a
 
 ```ts
 const home = root('home', envDir('NOTES_HOME', '~/notes'));
-
-export const notes = tool({
-  name: 'notes',
-  version: '0.2.0',
-  does: 'keeps Markdown notes in a folder',
-  roots: [home],
-});
 ```
 
 ```ts
@@ -1134,8 +1205,7 @@ const sample = {
 ```
 
 ```ts
-notes.effect({
-  name: 'add',
+const add = effect({
   does: 'stores one note',
   input: NoteIn,
   example: sample,
@@ -1150,8 +1220,7 @@ Ein zweites `notes add` auf dieselbe Datei wird mit `ALREADY_EXISTS` abgelehnt, 
 `notes append` ist dazu da, eine Datei zu ändern, also nutzt es `files.update`:
 
 ```ts
-notes.effect({
-  name: 'append',
+const append = effect({
   does: 'adds text to the end of a note',
   input: z.object({
     file: inFile(home).describe('the note to add to'),
@@ -1170,7 +1239,7 @@ $ notes append --file ideas/q3.md --text '- ship gift cards' --dry-run | jq -c '
 
 `outFile`, `inFile` und `home.file(...)` antworten mit einem Typ, `File`. So lässt sich jeder Datei-Handle mit einer Grenze lesen und vormerken.
 
-**Mehrere Dateien.** Jede Datei, die in einem `plan` vorgemerkt ist, wird mit den anderen geschrieben, alle oder keine. Der Befehl `add indexed` speichert die Notiz und führt einen Index, eine eigene Datei des Tools. Die erste Notiz legt den Index an, und die späteren aktualisieren ihn, weil `update` nie eine Datei anlegt. `indexWith` ist deine eigene Funktion: Sie antwortet mit dem Indextext samt der Zeile der Notiz.
+**Mehrere Dateien.** Jede Datei, die in einem `plan` vorgemerkt ist, wird mit den anderen geschrieben, alle oder keine. Der Befehl `add-indexed` speichert die Notiz und führt einen Index, eine eigene Datei des Tools. Die erste Notiz legt den Index an, und die späteren aktualisieren ihn, weil `update` nie eine Datei anlegt. `indexWith` ist deine eigene Funktion: Sie antwortet mit dem Indextext samt der Zeile der Notiz.
 
 ```ts
 plan: async (note, { files }) => {
@@ -1184,10 +1253,16 @@ plan: async (note, { files }) => {
 },
 ```
 
+Die Tabelle von `notes` listet beide Befehle. `add` ist ein Befehl, also kann es nicht zugleich eine Gruppe sein: Der zweite Befehl ist ein Wort, `add-indexed`. Ein Schlüssel mit Bindestrich steht in Anführungszeichen:
+
+```ts
+commands: { add, 'add-indexed': addIndexed, append, show },
+```
+
 adx schreibt jede Datei ganz neben ihren Platz und benennt sie dann nacheinander um. Ein Absturz oder eine volle Platte hinterlässt nie eine halbe Notiz. Zwei Umbenennungen sind kein atomarer Schritt. Scheitert eine spätere, nennt `state` die Dateien, die schon verschoben sind:
 
 ```console
-$ notes add indexed --file ideas/q4.md --title Q4 --text '- tbd' | jq -r '.state'
+$ notes add-indexed --file ideas/q4.md --title Q4 --text '- tbd' | jq -r '.state'
 Moved in: ideas/q4.md. Not moved: index.md. No temporary file is left.
 ```
 
@@ -1280,7 +1355,16 @@ Das Testkit bewacht die Nummer. Bei seinem ersten Lauf schreibt es einen Fingera
 
 Das Testkit, `@honeyglass/adx/test`, prüft jeden Befehl deines Tools auf das Verhalten, das diese Anleitung beschreibt: mehrere Fehler in einem Aufruf, jede Option leer gelassen, unbekannte Felder, ein Wert außerhalb jeder Liste, Probeläufe, die nichts ändern, Schritte, die laufen, Hinweise, die laufen. Du gibst ihm, was nur du weißt: Startdateien, Fake-Server und Variablen. Es läuft auf `node:test`, also ist nichts weiter zu installieren.
 
-Hier ist die Testdatei für `tracker`. Zuerst der Fake-Server, eine Tabelle von Routen:
+Hier ist die Testdatei für `tracker`, `tests/tracker.test.ts`. Sie importiert das Tool aus `cli/` und einzelne Befehle aus ihrem Feature:
+
+```ts
+import { tracker } from '../cli/tracker.ts';
+import { api } from '../core/tracker.ts';
+import { create } from '../tickets/create.ts';
+import { tickets } from '../tickets/list.ts';
+```
+
+Zuerst der Fake-Server, eine Tabelle von Routen:
 
 ```ts
 const ticket = {
@@ -1319,14 +1403,14 @@ const samples = {
 
 test('tracker keeps the agent rules', t => conformance(t, tracker, samples));
 
-test('the program keeps them too', t => conformance(t, ['node', 'tracker.ts'], samples));
+test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'], samples));
 ```
 
 ```ts
 test('a busy server is a retry', async () => {
   const busy = fake(api, { [`GET ${project}/tickets`]: reply(503) });
   const options = { ...samples, fakes: [busy] };
-  const answer = await list.invoke({ project: 'checkout-web' }, options);
+  const answer = await tickets.invoke({ project: 'checkout-web' }, options);
   assert.equal(answer.kind, 'retry');
   assert.equal(answer.issues?.[0]?.code, 'SERVER_BUSY');
   assert.equal(answer.state, 'Nothing was changed.');
@@ -1357,11 +1441,11 @@ $ node --test
   labels [ { name: 'bug', description: '' }, ... ]
 ```
 
-**`conformance` mit einer Kommandozeile** führt dieselben Prüfungen gegen das echte Programm aus, gestartet als Prozess in einem frischen Testordner für Home, Temp und Arbeitsverzeichnis. Es liest `tracker schema` und leitet jeden Aufruf daraus ab. So fängt es auch, was nur der Prozess tut, etwa ein Schreiben direkt auf `process.stdout`. Es stellt die Fakes auf einem lokalen Port bereit und richtet `TRACKER_URL` darauf. Ein Build-Schritt ist vorher nicht nötig: Node führt `tracker.ts` aus, wie es ist.
+**`conformance` mit einer Kommandozeile** führt dieselben Prüfungen gegen das echte Programm aus, gestartet als Prozess in einem frischen Testordner für Home, Temp und Arbeitsverzeichnis. Es liest `tracker schema` und leitet jeden Aufruf daraus ab. So fängt es auch, was nur der Prozess tut, etwa ein Schreiben direkt auf `process.stdout`. Es stellt die Fakes auf einem lokalen Port bereit und richtet `TRACKER_URL` darauf. Ein Build-Schritt ist vorher nicht nötig: Node führt `bin/tracker.ts` aus, wie es ist.
 
 **Genannte Befehle.** Das Testkit zerlegt jeden Befehl, den das Tool nennt, in einem `next`-Schritt oder in einem Problem, mit `unbash` in Shell-Wörter. Dann prüft es, dass adx jeden Aufruf kennt: den Befehl, jede Option und jeden Wert. Ein Schritt ohne `needs` muss so laufen, wie er dasteht.
 
-**`invoke`** führt einen Befehl ohne argv und ohne stdout aus und antwortet mit demselben Objekt, das das Tool ausgibt. Es ist eine Methode des Befehls-Handles, also ist seine Eingabe typisiert: `list.invoke({ projekt: 'checkout-web' })` kompiliert nicht. Nutze es für die Fälle, die nur du kennst, etwa einen überlasteten Server. Seine Optionen nehmen die Samples, dazu `dryRun` und `replace` für die zwei Optionen eines Effekts.
+**`invoke`** führt einen Befehl ohne argv und ohne stdout aus und antwortet mit demselben Objekt, das das Tool ausgibt. Es ist eine Methode des Befehls-Handles, also ist seine Eingabe typisiert: `tickets.invoke({ projekt: 'checkout-web' })` kompiliert nicht. Ein Befehl läuft als Teil seines Tools. Darum importiert die Testdatei auch das Tool. Nutze es für die Fälle, die nur du kennst, etwa einen überlasteten Server. Seine Optionen nehmen die Samples, dazu `dryRun` und `replace` für die zwei Optionen eines Effekts.
 
 **Ein Tool mit einem Datenordner** nennt einen `seed`: einen Ordner mit den Dateien, die das Tool vorfinden soll. Das Testkit kopiert ihn in den Testordner jeder Prüfung:
 
@@ -1390,7 +1474,7 @@ Vier weitere Prüfungen laufen, wenn das Tool ihren Gegenstand hat:
 Dieselbe Prüfung läuft als Befehl, für CI oder für ein Tool, das jemand anderes auf adx gebaut hat:
 
 ```console
-$ pnpm exec adxcheck report --env TRACKER_TOKEN=test-token -- node tracker.ts
+$ pnpm exec adxcheck report --env TRACKER_TOKEN=test-token -- node bin/tracker.ts
 Raw JSON input      met
 Schema at run time  met
 JSON when piped     met
@@ -1416,7 +1500,7 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 - `tool <command> --help`: dieselben Tatsachen als Text für Menschen.
 - `tool --version`: die Version.
 
-Routing und Hilfe kommen aus der Befehlstabelle von adx, die deine Deklarationen füllen. Einen Hilfetext schreibst du nicht.
+Routing und Hilfe kommen aus der Befehlstabelle von adx, die die `commands` deines Tools füllen. Einen Hilfetext schreibst du nicht.
 
 **Optionen**
 
@@ -1513,7 +1597,7 @@ plan: async ({ name, lang }, { files }) => {
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
 - `bug`: `DECLARATION`, `UNKNOWN_ERROR`, `PANIC`
 
-`SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, oder ein `apply` ohne `look`. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
+`SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
 
 **Fehler, die du nicht zugeordnet hast**
 
@@ -1545,8 +1629,11 @@ Ja, aber adx kann nicht hindurchsehen. Das Senden gehört dann in `apply` mit `f
 **Braucht mein Tool einen Agent-Skill?**
 Nein. Das Tool läuft und besteht seine Tests ohne. Schreib einen Skill, wenn der Agent mehr wissen muss als Schritte: wann man das Tool nutzt, den Ablauf einer Aufgabe, wann man anhält und die Person fragt. Nenne ihn mit `skill`, und die Startantwort zeigt seinen Pfad.
 
+**Braucht adx einen bestimmten Ordneraufbau?**
+Nein. adx liest keinen Ordnernamen, keinen Dateinamen und keine Reihenfolge von Importen. Ein Befehl ist ein Wert, und die Tabelle des Tools nimmt ihn, wo immer er liegt. Ein kleines Tool ist eine Datei, wie `hello`. Ein größeres lässt sich nach Features schneiden, wie der [Tracker](#eine-remote-api-einbinden): `bin/` für den Einstieg, `cli/` für das Tool, ein Ordner pro Feature und `core/` für das, was Features teilen. Eine Regel, welcher Ordner welchen importieren darf, ist deine eigene. adx kennt und prüft sie nicht.
+
 **Wie wird ein Tool ausgeliefert und gestartet?**
-In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergänze `#!/usr/bin/env node` als erste Zeile, führe `chmod +x tracker.ts` aus und verlinke die Datei in deinen Pfad. Oder nenne sie unter `bin` in der `package.json` und führe `pnpm link --global` aus. Für npm kompilierst du zuerst nach JavaScript (`tsc` mit `rewriteRelativeImportExtensions` und einem `outDir`): Node entfernt keine Typen aus Dateien in `node_modules`, eine veröffentlichte `.ts`-Datei läuft also nicht. In beiden Fällen braucht die Maschine Node 24.2 oder neuer.
+In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergänze `#!/usr/bin/env node` als erste Zeile der Datei, die `main()` aufruft, führe `chmod +x bin/tracker.ts` aus und verlinke die Datei in deinen Pfad. Oder nenne sie unter `bin` in der `package.json` und führe `pnpm link --global` aus. Für npm kompilierst du zuerst nach JavaScript (`tsc` mit `rewriteRelativeImportExtensions` und einem `outDir`): Node entfernt keine Typen aus Dateien in `node_modules`, eine veröffentlichte `.ts`-Datei läuft also nicht. In beiden Fällen braucht die Maschine Node 24.2 oder neuer.
 
 ## 8. Bekannte Grenzen
 
@@ -1554,10 +1641,12 @@ In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergä
 - **Parallele Schreibvorgänge sind nicht abgedeckt.** Zwei Aufrufe, die dieselbe Datei im selben Moment schreiben, werden nicht abgestimmt. Der spätere Schreibvorgang gewinnt, und `files.update` kann eine Änderung verlieren, die zwischen seinem Lesen und seinem Schreiben geschieht.
 - **Ein Handler kann an adx vorbeigehen.** Ein Handler, der selbst `node:fs` oder `fetch` aufruft, kann eine halbe Datei schreiben oder in einem Probelauf senden. adx schützt nur, was durch `files` und einen Remote geht.
 - **Zwei Befehle, die einander nennen, brauchen einen Typ.** Nennt ein Befehl einen zweiten in `next` oder in `.command()`, und der zweite nennt den ersten, hält der Compiler mit "implicitly has type 'any'" an. `(): Step[] =>` an einer der beiden Funktionen behebt es, aber die Meldung sagt das nicht.
+- **Zwei Dateien, die einander beim Laden brauchen, scheitern an der Reihenfolge der Importe.** `detailOf(tickets)` und `keyOf(tickets)` lesen die Liste, wenn ihre Datei lädt. Importiert die Datei der Liste ihrerseits diese Datei, entscheidet die Datei, die zuerst lädt, ob es die Liste rechtzeitig gibt. Ein Befehl, der in einer Funktion genannt wird, etwa in `next`, `look` oder `run`, wird erst gelesen, wenn die Funktion läuft. Die Liste braucht keinen Import ihres Befehls für einen Eintrag: adx leitet diesen Schritt ab.
+- **Ein Hinweis und ein `look` nennen Befehle ihres eigenen Ordners.** `after` verlegt ein `next` über Ordner hinweg an das Tool. Das `.command(step)` eines Problems und das `look` eines Effekts stehen im Handler. Unter einer Regel, nach der Features einander nicht importieren, können sie keinen Befehl eines anderen Features nennen.
 - **Der Compiler weiß nicht, was adx geprüft hat.** adx hat ein unbekanntes `lang` schon abgelehnt, aber `byCode(lang)` gibt weiter eine Sprache oder `undefined` zurück. Der Code braucht also einen Zweig allein für den Compiler.
 - **Zwei Eingabetypen sind auseinanderzuhalten.** `example: { dir: '.' }` ist ein String, während `run` ein `Dir` bekommt. Ein Feld mit Standardwert ist in `example` optional und in `run` vorhanden.
-- **Ein Tippfehler in `needs` einer Quelle wird weit weg gemeldet.** Der Fehler steht an der `values`-Zeile, die die Quelle benutzt, in etwa zehn Zeilen und ohne Vorschlag.
-- **Manche Tatsachen zeigen sich erst beim Start oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt, ein Feld, das wie eine Option von adx heißt, ein `apply` ohne `look` und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
+- **Eine Quelle mit Namen und ohne `Source` meldet einen Tippfehler in `needs` weit weg.** Eine Quelle, die in `values` steht, und eine Quelle mit Namen und dem Typ `Source<...>` melden den Tippfehler an der Quelle. Eine Quelle mit Namen und einem eigenen Parametertyp meldet ihn an der `values`-Zeile, die die Quelle benutzt, in etwa zehn Zeilen und ohne Vorschlag.
+- **Manche Tatsachen zeigen sich erst beim Start oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt, ein Feld, das wie eine Option von adx heißt, ein `apply` ohne `look`, ein Befehl, der in `commands` fehlt, und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
 - **Eine gespeicherte Datei, die an ihrer Datenart vorbei geschrieben wurde, hat keine Nummer.** Einer Datei, die mit `JSON.stringify` statt mit `Friend.stringify` geschrieben wurde, fehlt `"version"`, und das nächste Lesen hält sie für Format 1.
 - **Ein Status eines Sendens wird von Hand zugeordnet.** `on` gibt es nur für `get`. Bei einem Senden fängst du den Fehler und liest `status(error)`.
 - **Ein Schalter lässt sich nicht mit einer Option auf false setzen.** Ein boolesches Feld mit dem Standardwert `true` wird nur über `--json` abgeschaltet.

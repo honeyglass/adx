@@ -20,7 +20,7 @@ Der Aufbau eines Befehls:
 7. `needs` eines Schritts leitet adx ab.
 8. Eine Quelle nennt mehrere fehlende Felder, und jedes bekommt ein Problem.
 9. `list` hat `check` und `next` wie die anderen Befehle.
-10. Die Startschritte sind ein Aufruf nach den Befehlen.
+10. Die Startschritte stehen im Tool.
 11. `global` gilt für jeden Befehl, und ein Befehl kann abweichen.
 12. Namen ändern sich: `multiline()`, `.command(step)`, `stringify`.
 13. Optionen und `--json` gehen in einem Aufruf zusammen.
@@ -56,6 +56,14 @@ Tests und das Innere von adx:
 34. adx liest die Argumente mit `util.parseArgs`.
 35. `api` läuft intern auf RxJS.
 
+Der Aufbau eines Tools:
+
+36. Ein Befehl ist ein Wert, und das Tool listet seine Befehle.
+37. `global()` deklariert die globale Eingabe.
+38. Ein Tool passt in Ordner.
+39. Ein Schritt über Ordner hinweg steht am Tool.
+40. Eine Quelle mit Namen trägt den Typ `Source`.
+
 Noch nicht abgedeckt, vorher wie nachher: eine gespeicherte Datei löschen, und zwei Aufrufe, die dieselbe Datei gleichzeitig schreiben.
 
 ## 1. Der Agent-Skill ist optional und nur ein Pfad
@@ -74,13 +82,7 @@ tool({ ..., skill: new URL('./SKILL.md', import.meta.url) }); // Pflicht
 Nachher:
 
 ```ts
-export const hello = tool({
-  name: 'hello',
-  version: '0.1.0',
-  does: 'greets people',
-  skill: 'SKILL.md',
-  roots: [home],
-});
+skill: 'SKILL.md',
 ```
 
 ```console
@@ -206,7 +208,7 @@ values: { code: detailOf(languages) },
 ```
 
 ```ts
-values: { id: keyOf(list), team: teams, milestone: milestones },
+values: { id: keyOf(tickets), team: teams, milestone: milestones },
 ```
 
 ## 7. `needs` eines Schritts leitet adx ab
@@ -274,23 +276,24 @@ run: async ({ dir, rule }, { page }) => paged(await findAll(dir, rule), page),
 next: out => (out.items.length > 0 ? [tell('fix the findings, then check again')] : []),
 ```
 
-## 10. Die Startschritte sind ein Aufruf nach den Befehlen
+## 10. Die Startschritte stehen im Tool
 
-`start` stand in `tool({...})`, bevor es einen Befehl gab. Mit einem Befehl darin kompilierte es nicht.
+`start` stand in `tool({...})`, bevor es einen Befehl gab, denn ein Befehl kam aus dem Tool. Mit einem Befehl darin kompilierte es nicht, und ein früherer Entwurf machte daraus einen Aufruf nach den Befehlen. Jetzt ist ein Befehl ein Wert, der vor dem Tool steht (Punkt 36). `start` ist eine Eigenschaft des Tools und kann jeden Befehl nennen.
 
 Vorher:
 
 ```ts
-const hello = tool({ ..., start: () => [greet.step()] });   // TS7022
+const hello = tool({ ..., start: () => [greet.step()] }); // TS7022
+hello.start(() => [greet.step()]); // später: ein Aufruf nach den Befehlen
 ```
 
 Nachher:
 
 ```ts
-hello.start(async () => {
+start: async () => {
   const friends = await friendNames();
   return friends.length === 0 ? [add.step()] : [greet.step()];
-});
+},
 ```
 
 ## 11. `global` gilt für jeden Befehl, und ein Befehl kann abweichen
@@ -711,7 +714,7 @@ const Issue = z.object({ id: id(), title: z.string(), ... });
 Nachher:
 
 ```ts
-const Ticket = z.object({
+export const Ticket = z.object({
   id: id().describe('the ticket key, such as CW-112'),
   title: z.string().describe('the one-line title'),
   state: z.enum(['open', 'closed']).describe('open or closed'),
@@ -736,7 +739,7 @@ Nachher:
 ```ts
 test('tracker keeps the agent rules', t => conformance(t, tracker, samples));
 
-test('the program keeps them too', t => conformance(t, ['node', 'tracker.ts'], samples));
+test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'], samples));
 ```
 
 ## 32. Das Testkit zerlegt genannte Befehle mit `unbash`
@@ -811,6 +814,140 @@ Nachher:
 const all = await api.get(['projects', project, 'labels'], Named);
 ```
 
+## 36. Ein Befehl ist ein Wert, und das Tool listet seine Befehle
+
+Vorher meldete sich jeder Befehl selbst am Tool an. Welche Befehle ein Tool hat, stand an keiner Stelle, und die Reihenfolge der Importe war die Anmeldung. Jetzt sind `read`, `list` und `effect` Funktionen von adx, die einen Befehl zurückgeben. Das Tool listet seine Befehle in `commands`: Ein Schlüssel ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe. Ein Befehl hat keinen `name` mehr.
+
+Ein Befehl und eine Gruppe können kein Wort teilen. `notes add indexed` heißt darum `notes add-indexed`.
+
+Vorher:
+
+```ts
+const add = hello.effect({ name: 'friends add', ... });
+hello.read({ name: 'friends count', ... });
+```
+
+Nachher:
+
+```ts
+commands: {
+  greet,
+  languages,
+  language,
+  friends: { add, count },
+},
+```
+
+```ts
+commands: { add, 'add-indexed': addIndexed, append, show },
+```
+
+## 37. `global()` deklariert die globale Eingabe
+
+Ein Befehl entsteht jetzt vor dem Tool. Er muss den Typ der globalen Eingabe kennen, ohne das Tool zu importieren. `global({...})` deklariert die Eingabe einmal und gibt `read`, `list` und `effect` aus, in denen das Projekt in jeden Handler typisiert ist. Das Tool nimmt denselben Wert. Ein Befehl, der ohne die globale Eingabe gemacht ist, kompiliert in der Tabelle eines solchen Tools nicht. `global: false` und `'optional'` an einem Befehl bleiben, wie Punkt 11 sie zeigt.
+
+Vorher:
+
+```ts
+export const tracker = tool({ ..., global: { input, example, values } });
+tracker.read({ ... }); // der Typ von project kam aus dem Tool
+```
+
+Nachher:
+
+```ts
+export const project = global({
+  input: z.object({
+    project: id().describe('the project key, such as checkout-web'),
+  }),
+  example: { project: 'checkout-web' },
+  values: { project: projects },
+});
+
+// read, list and effect, with the project typed into every handler
+export const { read, list, effect } = project;
+```
+
+```ts
+global: project,
+```
+
+## 38. Ein Tool passt in Ordner
+
+Vorher musste ein Tool in mehreren Dateien dort liegen, wo jede Datei es importieren kann, und eine Datei, die niemand importierte, war ein Befehl, den es still nicht gab. Jetzt liest adx keinen Ordnernamen, keinen Dateinamen und keine Reihenfolge von Importen. Eine Datei geht, und ein Schnitt nach Features auch: `bin/` für den Einstieg, `cli/` für das Tool, ein Ordner pro Feature und `core/` für das, was Features teilen. Welcher Ordner welchen importieren darf, ist die Regel des Tools, nicht von adx.
+
+Vorher:
+
+```text
+tracker.ts            eine Datei, 254 Zeilen
+```
+
+Nachher:
+
+```text
+tracker/
+├── bin/tracker.ts          das Programm
+├── cli/tracker.ts          das Tool und die Tabelle seiner Befehle
+├── tickets/                ein Feature, eine Datei pro Befehl
+├── user/whoami.ts          ein zweites Feature
+└── core/tracker.ts         was Features teilen
+```
+
+```ts
+export const tracker = tool({
+  name: 'tracker',
+  version: '1.2.0',
+  does: 'reads and files tickets',
+  remotes: [api],
+  global: project,
+  commands: {
+    ticket: { list: tickets, show, create, schedule, close },
+    whoami,
+    stats,
+  },
+  next: [after(whoami, () => [tickets.step()])],
+  start: () => [tickets.step()],
+});
+```
+
+## 39. Ein Schritt über Ordner hinweg steht am Tool
+
+Ein `next` steht am Befehl. Führt ein Schritt zu einem Befehl eines anderen Ordners, müsste ein Feature das andere importieren. Jetzt steht ein solcher Schritt dort, wo die Features zusammenkommen: am Tool, mit `after`. Die Funktion bekommt, was `next` bekommt, und ihre Schritte folgen den eigenen des Befehls. Ein `next`, das im eigenen Ordner bleibt, steht weiter am Befehl.
+
+Vorher:
+
+```text
+kein Platz: ein Schritt von whoami zu ticket list brauchte einen Import von user/ nach tickets/
+```
+
+Nachher:
+
+```ts
+next: [after(whoami, () => [tickets.step()])],
+```
+
+```console
+$ tracker whoami | jq -c '.next[0]'
+{"does":"lists the tickets of a project","command":"tracker ticket list","needs":["project"]}
+```
+
+## 40. Eine Quelle mit Namen trägt den Typ `Source`
+
+Eine Quelle, die vor ihrem Befehl steht, brauchte einen eigenen Typ für die Felder, die sie liest, und ein Tippfehler in `needs` wurde weit weg gemeldet, an der `values`-Zeile. Jetzt trägt eine Quelle mit Namen den Typ `Source` von adx, und der Tippfehler wird an der Quelle gemeldet. Eine Quelle, die direkt in `values` steht, braucht keinen Typ: adx typisiert sie aus dem Befehl.
+
+Vorher:
+
+```ts
+type Known = { project?: string; team?: string };
+const milestones = async ({ project, team }: Known) => { ... };
+```
+
+Nachher:
+
+```ts
+const milestones: Source<{ project: string; team: string }> = async ({ project, team }) => {
+```
+
 ## Hello World vorher
 
 Vier Dinge: `hello.ts`, eine Skill-Datei, eine `tsconfig.json` mit sieben Optionen, und später 28 Zeilen für Codes.
@@ -821,19 +958,6 @@ export const hello = tool({
   version: '0.1.0',
   does: 'greets people',
   skill: new URL('./SKILL.md', import.meta.url),
-});
-// hello.read({...}) wie unten
-```
-
-## Hello World nachher
-
-Zwei Dinge: `hello.ts` und eine `tsconfig.json` mit einer Zeile.
-
-```ts
-export const hello = tool({
-  name: 'hello',
-  version: '0.1.0',
-  does: 'greets people',
 });
 ```
 
@@ -847,4 +971,24 @@ hello.read({
 });
 ```
 
-Der Befehl selbst bleibt gleich. Es entfallen die Skill-Datei, die lange `tsconfig.json` und die 28 Zeilen für Codes.
+## Hello World nachher
+
+Zwei Dinge: `hello.ts` und eine `tsconfig.json` mit einer Zeile.
+
+```ts
+export const hello = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'greets people',
+  commands: {
+    greet: read({
+      does: 'greets one person',
+      input: z.object({ name: z.string().describe('who to greet') }),
+      example: { name: 'Ada' },
+      run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+    }),
+  },
+});
+```
+
+Der Befehl steht in der Tabelle des Tools, und sein Wort ist der Schlüssel `greet`. Es entfallen die Skill-Datei, die lange `tsconfig.json` und die 28 Zeilen für Codes.

@@ -1,8 +1,6 @@
 // Guide, "Options and their values" and "Refusing bad input with a hint": greet before it has steps.
 import { z } from 'zod';
-import { code, tool } from '@honeyglass/adx';
-
-const hello = tool({ name: 'hello', version: '0.1.0', does: 'greets people' });
+import { code, read, tool } from '@honeyglass/adx';
 
 const LANGUAGES = [
   { code: 'ar', name: 'Arabic', hello: 'Marhaba', formal: 'As-salamu alaykum' },
@@ -22,16 +20,13 @@ const noFormal = code(
 );
 const blankName = code('BLANK_NAME', 'fix', 'Pass a name with a letter in it');
 
-const GreetIn = z.object({
-  name: z.string().describe('who to greet'),
-  lang: z.string().default('en').describe('the language code'),
-  style: z.enum(['casual', 'formal']).default('casual').describe('how to greet'),
-});
-
-const greet = hello.read({
-  name: 'greet',
+const greet = read({
   does: 'greets one person',
-  input: GreetIn,
+  input: z.object({
+    name: z.string().describe('who to greet'),
+    lang: z.string().default('en').describe('the language code'),
+    style: z.enum(['casual', 'formal']).default('casual').describe('how to greet'),
+  }),
   example: { name: 'Ada' },
   values: { lang: languageChoices },
   check: ({ name }) => (name.trim() === '' ? [blankName.at('name')] : []),
@@ -44,6 +39,13 @@ const greet = hello.read({
     return { greeting: `${word}, ${name}!` };
   },
   text: out => out.greeting,
+});
+
+const hello = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'greets people',
+  commands: { greet },
 });
 
 export { greet };

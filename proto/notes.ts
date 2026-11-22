@@ -1,15 +1,8 @@
 // Guide, "Files the call names".
 import { z } from 'zod';
-import { envDir, inFile, multiline, outFile, root, tool } from '@honeyglass/adx';
+import { effect, envDir, inFile, multiline, outFile, read, root, tool } from '@honeyglass/adx';
 
 const home = root('home', envDir('NOTES_HOME', '~/notes'));
-
-export const notes = tool({
-  name: 'notes',
-  version: '0.2.0',
-  does: 'keeps Markdown notes in a folder',
-  roots: [home],
-});
 
 type Note = { title: string; text: string };
 const render = (note: Note) => `# ${note.title}\n\n${note.text}\n`;
@@ -18,6 +11,7 @@ const LIMIT = 1_048_576; // no note of ours is larger than 1 MiB
 /** Your own function: the index text with the line of this note added or changed. */
 declare function indexWith(index: string, note: { title: string }): string;
 
+// Two commands read this schema, so it has a name.
 const NoteIn = z.object({
   file: outFile(home).describe('where the note goes, such as ideas/q3.md'),
   title: z.string().describe("the note's title"),
@@ -30,8 +24,7 @@ const sample = {
 };
 
 // One function: the plan stages the file, adx writes it, a dry run does not.
-notes.effect({
-  name: 'add',
+const add = effect({
   does: 'stores one note',
   input: NoteIn,
   example: sample,
@@ -39,8 +32,7 @@ notes.effect({
 });
 
 // A command whose purpose is to change a file: update, and no --replace.
-notes.effect({
-  name: 'append',
+const append = effect({
   does: 'adds text to the end of a note',
   input: z.object({
     file: inFile(home).describe('the note to add to'),
@@ -52,8 +44,7 @@ notes.effect({
 });
 
 // Several files in one commit.
-notes.effect({
-  name: 'add indexed',
+const addIndexed = effect({
   does: 'stores one note and updates the index',
   input: NoteIn,
   example: sample,
@@ -70,18 +61,23 @@ notes.effect({
 });
 
 // Reading a file the call names. A note can be long, so the answer has a schema.
-const NoteOut = z.object({
-  file: z.string().describe('the note, relative to the folder'),
-  text: multiline().describe('the note itself, Markdown'),
-});
-
-notes.read({
-  name: 'show',
+const show = read({
   does: 'shows one note',
   input: z.object({ file: inFile(home).describe('the note to show') }),
   example: { file: 'ideas/q3.md' },
-  output: NoteOut,
+  output: z.object({
+    file: z.string().describe('the note, relative to the folder'),
+    text: multiline().describe('the note itself, Markdown'),
+  }),
   run: async ({ file }) => ({ file: file.rel, text: await file.text(LIMIT) }),
+});
+
+export const notes = tool({
+  name: 'notes',
+  version: '0.2.0',
+  does: 'keeps Markdown notes in a folder',
+  roots: [home],
+  commands: { add, 'add-indexed': addIndexed, append, show },
 });
 
 if (import.meta.main) await notes.main();

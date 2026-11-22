@@ -100,6 +100,7 @@ The rules and how to check a tool against them:
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/book-open-dark.svg"><img src="brand/icons/book-open.svg" width="24" height="24" alt=""></picture> Docs
 
 - **[Guide](docs/guide.md)**
+- **[Cheat sheet](docs/cheatsheet.md)**
 - **[Leitfaden (Deutsch)](docs/guide.de.md)**
 - **[Spickzettel (Deutsch)](docs/cheatsheet.de.md)**
 

@@ -72,28 +72,24 @@ Node strips the types and runs the file. It does not check them. The compiler do
 
 ### One tool, one file
 
-The three blocks below are one file, `hello.ts`. First the tool:
+The two blocks below are one file, `hello.ts`. First the tool. Its one command stands in `commands`, the table of the tool's commands:
 
 ```ts
 import { z } from 'zod';
-import { tool } from '@honeyglass/adx';
+import { read, tool } from '@honeyglass/adx';
 
 export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-});
-```
-
-Then one command:
-
-```ts
-hello.read({
-  name: 'greet',
-  does: 'greets one person',
-  input: z.object({ name: z.string().describe('who to greet') }),
-  example: { name: 'Ada' },
-  run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+  commands: {
+    greet: read({
+      does: 'greets one person',
+      input: z.object({ name: z.string().describe('who to greet') }),
+      example: { name: 'Ada' },
+      run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+    }),
+  },
 });
 ```
 
@@ -157,7 +153,7 @@ The rest of this guide writes `hello` for `node hello.ts`. [How is a tool shippe
 
 ### What just happened
 
-1. `hello.read` registered a command that only reads. Its input is a Zod schema. `.describe()` gives each field the text that `schema` and `--help` print.
+1. `read` made a command that only reads, and the key `greet` in `commands` is the word that calls it. Its input is a Zod schema. `.describe()` gives each field the text that `schema` and `--help` print.
 2. `run` receives the parsed input. Its type, `{ name: string }`, comes from the schema. You never write it. Write `({ nmae })` and the compiler refuses it.
 3. adx made the option `--name` from the field `name`. A field without `.optional()` or `.default()` is required. The same input also goes in whole as `--json '{"name":"Ada"}'`.
 4. Your function returned a value. adx wrote it: text at a terminal, one JSON document when piped. Your code never writes to stdout itself.
@@ -171,29 +167,31 @@ This chapter grows `hello` one feature at a time. Each section shows only the ne
 
 ### A command that reads
 
-`hello.read` takes a function from input to output. Here `greet` learns three languages:
+`read` takes a function from input to output. Here `greet` learns three languages. The command moves out of the table into a constant, so that later sections can name it:
 
 ```ts
 const hellos = { en: 'Hello', de: 'Hallo', eo: 'Saluton' };
 
-const GreetIn = z.object({
-  name: z.string().describe('who to greet'),
-  lang: z.enum(['en', 'de', 'eo']).default('en').describe('the language code'),
-});
-```
-
-```ts
-const greet = hello.read({
-  name: 'greet',
+const greet = read({
   does: 'greets one person',
-  input: GreetIn,
+  input: z.object({
+    name: z.string().describe('who to greet'),
+    lang: z.enum(['en', 'de', 'eo']).default('en').describe('the language code'),
+  }),
   example: { name: 'Ada' },
   run: ({ name, lang }) => ({ greeting: `${hellos[lang]}, ${name}!` }),
   text: out => out.greeting,
 });
 ```
 
-- `hello.read` returns a handle to the command. Keep it in a `const`: later sections name the command through it, in next steps and in tests.
+The tool lists the constant under the word that calls it. `{ greet }` is short for `{ greet: greet }`:
+
+```ts
+commands: { greet },
+```
+
+- `read` returns the command. The constant is its handle: later sections name the command through it, in next steps and in tests.
+- The schema stands in the command, where you read it. A schema that several commands read gets a name of its own.
 - `lang` has a default, so `run` always sees one of the three codes, while `example` may leave it out. adx types `example` by what a caller writes, and `run` by what the schema answers.
 - `text` sets the terminal form. Without it, adx prints each field on a line.
 
@@ -338,7 +336,7 @@ Network and file system errors need no code of yours. adx sorts them into kinds 
 
 ### A command that returns a long list
 
-A list can grow without end, and every line an agent reads takes space it needs for the task. So `hello.list` answers an outline: the few fields each item shows by default. The caller names more fields with `--fields`, and long lists come in pages.
+A list can grow without end, and every line an agent reads takes space it needs for the task. So a `list` answers an outline: the few fields each item shows by default. The caller names more fields with `--fields`, and long lists come in pages.
 
 ```ts
 const Language = z.object({
@@ -350,8 +348,7 @@ const Language = z.object({
 ```
 
 ```ts
-const languages = hello.list({
-  name: 'languages',
+const languages = list({
   does: 'lists the languages hello speaks',
   item: Language,
   key: 'code',
@@ -366,6 +363,7 @@ const languages = hello.list({
 - `outline` lists the further fields of the outline. Both name fields of `Language`: `outline: ['nmae']` does not compile.
 - The `ctx` of a list holds `page`. `paged` cuts one page out of a whole array.
 - A command without input, like `languages`, leaves out `input` and `example`.
+- The constant of a list is named after what it lists, here `languages`, because `list` is already the function.
 
 ```console
 $ hello languages | jq -c '.result.items[0], .result.total'
@@ -383,8 +381,7 @@ const unknownLanguage = code('UNKNOWN_LANGUAGE', 'fix', 'Use a code the list ans
 ```
 
 ```ts
-const language = hello.read({
-  name: 'language',
+const language = read({
   does: 'shows one language in full',
   input: z.object({ code: id().describe('the language code') }),
   example: { code: 'de' },
@@ -408,7 +405,7 @@ $ hello languages --fields | jq -c '[.result.values[].value]'
 
 ### A command that changes something
 
-`hello.effect` takes a function `plan`. It runs every check, stages the files to write, and answers what will happen. adx writes the staged files after `plan` returns. On a dry run adx writes nothing.
+An `effect` takes a function `plan`. It runs every check, stages the files to write, and answers what will happen. adx writes the staged files after `plan` returns. On a dry run adx writes nothing.
 
 `hello` learns to remember friends and their language, one file per friend. The files lie in a root: a folder the tool may use. Declare it, and list it in the tool:
 
@@ -429,26 +426,29 @@ const friendNames = async () => (await home.list('friends', '.json')).map(f => f
 ```
 
 ```ts
-const FriendIn = z.object({
-  name: id().describe("the friend's short name"),
-  lang: z.string().describe("the friend's language code"),
-});
-```
-
-```ts
-const add = hello.effect({
-  name: 'friends add',
+const add = effect({
   does: 'remembers a friend',
-  input: FriendIn,
+  input: z.object({
+    name: id().describe("the friend's short name"),
+    lang: z.string().describe("the friend's language code"),
+  }),
   example: { name: 'ada', lang: 'de' },
   values: { name: fresh(friendNames) },
   plan: (friend, { files }) => files.write(friendFile(friend.name), JSON.stringify(friend)),
 });
 ```
 
+The table lists the command in a group. A group is a table inside the table:
+
+```ts
+commands: {
+  friends: { add },
+},
+```
+
 - `files.write` stages one file and answers `{ file, bytes, replaces }`. That is also the answer of the command.
 - `fresh` is the source for a new name. A new name has no list of valid values, but a list of names already taken. `fresh` answers those when `--name` comes without a value. It refuses nothing.
-- A space in `name` makes a group: `hello friends` alone lists its actions.
+- The group makes the call `hello friends add`, and `hello friends` alone lists its actions.
 
 ```console
 $ hello friends add --name ada --lang de --dry-run | jq -c '.applied, .result'
@@ -528,13 +528,13 @@ hello language --code eo
 
 `language` is declared further down the file than `greet`. That is fine, since `run` only uses it when it runs.
 
-The first steps of the tool itself come from `hello.start`. The call stands after the commands, so it can name them, and it can read the data folder:
+The first steps of the tool itself come from `start`, a property of the tool. The commands stand above the tool, so `start` can name them, and it can read the data folder:
 
 ```ts
-hello.start(async () => {
+start: async () => {
   const friends = await friendNames();
   return friends.length === 0 ? [add.step()] : [greet.step()];
-});
+},
 ```
 
 With no friend stored yet, the first step creates one:
@@ -544,13 +544,13 @@ $ hello | jq -c '.next[0]'
 {"does":"remembers a friend","command":"hello friends add","needs":["name","lang"]}
 ```
 
-Without the call, the start answer names the commands and the step to `schema`.
+Without `start`, the start answer names the commands and the step to `schema`.
 
 ### The tool explains itself
 
 A tool built on adx holds no guide text and no free help text. An agent learns it from four answers, all made from your declarations:
 
-- The tool alone names its commands and the first steps (`hello.start`).
+- The tool alone names its commands and the first steps (`start`).
 - `hello schema` names every command, every code with its kind and hint, and what each kind asks the caller to do.
 - Every success names its next steps.
 - Every refusal names the fix, and a command that helps.
@@ -563,7 +563,7 @@ $ hello schema | jq -c '.result.kinds.ask, .result.codes[0]'
 
 What is no step belongs in an agent skill: when to use the tool, the flow of a typical task, when to stop and ask the person. A skill is a Markdown manual for agents. It is the one Agent DX rule adx does not build in: the skill is yours, and the tool never opens, embeds or prints it.
 
-A tool can name its skill with `skill`, a path relative to the folder of its `package.json`:
+A tool can name its skill with `skill`, a path relative to the folder of its `package.json`. This is the tool of this chapter in full. `count` is one more command of the group `friends`: it counts the friends.
 
 ```ts
 export const hello = tool({
@@ -572,6 +572,16 @@ export const hello = tool({
   does: 'greets people',
   skill: 'SKILL.md',
   roots: [home],
+  commands: {
+    greet,
+    languages,
+    language,
+    friends: { add, count },
+  },
+  start: async () => {
+    const friends = await friendNames();
+    return friends.length === 0 ? [add.step()] : [greet.step()];
+  },
 });
 ```
 
@@ -641,9 +651,17 @@ Some commands exist to change a file: an edit, an update, an append. They use `f
 const friendChoices = async () => (await friendNames()).map(name => ({ value: name }));
 ```
 
+`friends edit` takes the same input as `friends add`. Four commands of this chapter read that schema, so it now has a name:
+
 ```ts
-hello.effect({
-  name: 'friends edit',
+const FriendIn = z.object({
+  name: id().describe("the friend's short name"),
+  lang: z.string().describe("the friend's language code"),
+});
+```
+
+```ts
+const edit = effect({
   does: "changes a friend's language",
   input: FriendIn,
   example: { name: 'ada', lang: 'en' },
@@ -701,13 +719,33 @@ Each use case below is a whole tool, shown piece by piece.
 
 `tracker` reads and files tickets in a ticket tracker over its JSON API. Most calls work on one project, here `checkout-web`.
 
-Three new parts appear:
+Four new parts appear:
 
 - **A remote**: `remote()` binds the tool to one host. Your code reads through it with `get`, and each answer passes a Zod schema before your code sees it. A request that changes something is built with `post` and sent only by `act.send` in `apply`, so a dry run cannot send it.
-- **A global input**: `global` adds input that every command shares, such as the project. adx carries it into every command it names.
+- **A global input**: `global()` declares input that every command shares, such as the project. adx carries it into every command it names.
 - **A long list as a source**: `detailOf` and `keyOf` point a field at `ticket list`, since ticket keys are too many to print.
+- **Folders**: `tracker` has seven commands, too many to read in one file. It is cut by feature, and one file holds the tool.
 
-The remote, with the variable for its address and the variable for its token:
+**The layout.** adx reads no folder name, no file name and no order of imports. A command is a value, and the table of the tool takes it from wherever it lies. So the cut is yours. This one keeps a simple rule: a feature folder imports only from `core/` and from itself, and only `cli/` puts features together.
+
+```text
+tracker/
+├── bin/tracker.ts          the program: runs the tool
+├── cli/tracker.ts          the tool and the table of its commands
+├── tickets/                one feature
+│   ├── ticket.schema.ts    the schema five commands read
+│   ├── list.ts             ticket list
+│   ├── show.ts             ticket show
+│   ├── create.ts           ticket create
+│   ├── schedule.ts         ticket schedule
+│   ├── close.ts            ticket close
+│   └── stats.ts            stats
+├── user/whoami.ts          a second feature: whoami
+├── core/tracker.ts         what features share: the server and the project
+└── tests/tracker.test.ts   the tests
+```
+
+**What the features share** lies in `core/tracker.ts`. First the remote, with the variable for its address and the variable for its token:
 
 ```ts
 export const api = remote('tracker', {
@@ -716,31 +754,25 @@ export const api = remote('tracker', {
 });
 ```
 
-What the server answers:
+Then the global input. `global()` declares it once and answers the three kinds of command, with the project typed into every handler. The features take `read`, `list` and `effect` from here, not from adx:
 
 ```ts
-const Ticket = z.object({
-  id: id().describe('the ticket key, such as CW-112'),
-  title: z.string().describe('the one-line title'),
-  state: z.enum(['open', 'closed']).describe('open or closed'),
-  labels: z.array(z.string()).describe('the labels'),
-  body: multiline().describe('the description, Markdown'),
+export const project = global({
+  input: z.object({
+    project: id().describe('the project key, such as checkout-web'),
+  }),
+  example: { project: 'checkout-web' },
+  values: { project: projects },
 });
+
+// read, list and effect, with the project typed into every handler
+export const { read, list, effect } = project;
 ```
 
-```ts
-const TicketPage = z.object({
-  items: z.array(Ticket),
-  next: z.string().optional(),
-  total: z.number(),
-});
-const Named = z.array(z.object({ name: z.string(), description: z.string().default('') }));
-```
-
-Two sources. A source that stands before its command names the fields it reads, here in the type `Known`. The labels belong to a project, so their source needs the project first and says so with `needs`:
+`projects` is the source of the project's values. It asks the server and answers choices:
 
 ```ts
-type Known = { project?: string; team?: string };
+export const Named = z.array(z.object({ name: z.string(), description: z.string().default('') }));
 
 const projects = async () =>
   (await api.get(['projects'], Named)).map(p => ({
@@ -749,37 +781,30 @@ const projects = async () =>
   }));
 ```
 
-```ts
-const labels = async ({ project }: Known) => {
-  if (project === undefined) return needs('project');
-  const all = await api.get(['projects', project, 'labels'], Named);
-  return all.map(l => ({ value: l.name, does: l.description }));
-};
-```
-
-The tool, with the project as global input:
+**What the server answers** for a ticket is a schema that five commands read. So it has a name and a file of its own in the feature, `tickets/ticket.schema.ts`:
 
 ```ts
-export const tracker = tool({
-  name: 'tracker',
-  version: '1.2.0',
-  does: 'reads and files tickets',
-  remotes: [api],
-  global: {
-    input: z.object({
-      project: id().describe('the project key, such as checkout-web'),
-    }),
-    example: { project: 'checkout-web' },
-    values: { project: projects },
-  },
+export const Ticket = z.object({
+  id: id().describe('the ticket key, such as CW-112'),
+  title: z.string().describe('the one-line title'),
+  state: z.enum(['open', 'closed']).describe('open or closed'),
+  labels: z.array(z.string()).describe('the labels'),
+  body: multiline().describe('the description, Markdown'),
 });
 ```
 
-The list. The server pages, and the handler passes its cursor through. `project` stands in the input beside the command's own fields:
+**The list**, in `tickets/list.ts`. The server pages, and the handler passes its cursor through. `project` stands in the input beside the command's own fields. Only this command reads the schema of a page, so it stands in this file:
 
 ```ts
-export const list = tracker.list({
-  name: 'ticket list',
+const TicketPage = z.object({
+  items: z.array(Ticket),
+  next: z.string().optional(),
+  total: z.number(),
+});
+```
+
+```ts
+export const tickets = list({
   does: 'lists the tickets of a project',
   input: z.object({
     state: z.enum(['open', 'closed']).default('open').describe('open or closed'),
@@ -794,19 +819,20 @@ export const list = tracker.list({
 });
 ```
 
-The command that shows one ticket:
+The constant is `tickets`, after what the command lists. The table of the tool gives the command its word, `list`.
+
+**The command that shows one ticket**, in `tickets/show.ts`:
 
 ```ts
 const noTicket = code('TICKET_NOT_FOUND', 'fix', 'Use a key the list command answers');
 ```
 
 ```ts
-const show = tracker.read({
-  name: 'ticket show',
+export const show = read({
   does: 'shows one ticket in full',
   input: z.object({ id: id().describe('the ticket key') }),
   example: { id: 'CW-112' },
-  values: { id: detailOf(list) },
+  values: { id: detailOf(tickets) },
   output: Ticket,
   run: async ({ project, id }, { refuse }) => {
     const path = ['projects', project, 'tickets', id];
@@ -820,23 +846,24 @@ const show = tracker.read({
 - `on` maps a status to the value `get` answers for it. With `{ 404: undefined }` the answer is a ticket or `undefined`. Any other status can stand there too, such as a 409. Without `on`, a 404 is a failure like any other.
 - `output` is the schema of the answer. A ticket can be long, so the command declares it: the caller can then cut the answer with `--fields`, and `schema` shows the shape. `run` must answer what `output` declares.
 
-The command that files a ticket. It sends, so it has `apply` beside `plan`:
+**The command that files a ticket**, in `tickets/create.ts`. It sends, so it has `apply` beside `plan`:
 
 ```ts
-const CreateIn = z.object({
-  title: z.string().describe('the one-line title'),
-  body: multiline().default('').describe('the description, Markdown'),
-  label: z.array(z.string()).default([]).describe('a label; may repeat'),
-});
-```
-
-```ts
-export const create = tracker.effect({
-  name: 'ticket create',
+export const create = effect({
   does: 'files a new ticket',
-  input: CreateIn,
+  input: z.object({
+    title: z.string().describe('the one-line title'),
+    body: multiline().default('').describe('the description, Markdown'),
+    label: z.array(z.string()).default([]).describe('a label; may repeat'),
+  }),
   example: { title: 'Pay button overlaps the footer', label: ['bug'] },
-  values: { label: labels },
+  values: {
+    label: async ({ project }) => {
+      if (project === undefined) return needs('project');
+      const all = await api.get(['projects', project, 'labels'], Named);
+      return all.map(l => ({ value: l.name, does: l.description }));
+    },
+  },
   replace: false,
   plan: ({ project, title, label }) => ({ project, title, labels: label }),
   apply: async ({ project, title, body, label }, { act }) => {
@@ -844,17 +871,50 @@ export const create = tracker.effect({
     const request = api.post(['projects', project, 'tickets'], data);
     return { ticket: await act.send('the new ticket', request, Ticket) };
   },
-  look: () => list.step(),
+  look: () => tickets.step(),
   next: ({ ticket }) => [show.step({ id: ticket.id })],
 });
 ```
 
+- The labels belong to a project, so their source needs the project first and says so with `needs`. The source stands in `values`, and adx types its input from the command: `project` is a string or `undefined`, and `needs('projekt')` does not compile.
 - `plan` answers what will be sent. That is the answer of the dry run.
 - `apply` returns only what the real run adds. adx answers `{ ...planned, ...applied }`: everything the dry run answered, plus `ticket`. So an agent that read the dry run can read the real answer with the same code.
 - `act` exists only in the `ctx` of `apply`, and adx never calls `apply` on a dry run. `act` only sends. Files are staged in `plan`, so no refusal for a file can come after a send.
 - `next` gets the merged answer, so `ticket` is there without a check.
 - `look` is the step adx names when it cannot know what a failed call left. adx refuses to start when a command has `apply` and no `look`.
 - `replace: false`: this command writes no file, so it takes no `--replace`.
+
+**The tool**, in `cli/tracker.ts`, is the only file that sees every feature:
+
+```ts
+export const tracker = tool({
+  name: 'tracker',
+  version: '1.2.0',
+  does: 'reads and files tickets',
+  remotes: [api],
+  global: project,
+  commands: {
+    ticket: { list: tickets, show, create, schedule, close },
+    whoami,
+    stats,
+  },
+  next: [after(whoami, () => [tickets.step()])],
+  start: () => [tickets.step()],
+});
+```
+
+- `global: project` gives every command the option `--project`. A command made without the global input does not compile in this table.
+- A key of `commands` is one word of the call, and a table inside the table is a group: `tracker ticket list`, `tracker ticket show`, `tracker whoami`.
+- A folder and a word are independent. `stats.ts` lies in `tickets/`, and its call is `tracker stats`.
+- `next` and `after` are shown at the end of this section, under "A step across folders".
+
+And `bin/tracker.ts` is the whole program:
+
+```ts
+import { tracker } from '../cli/tracker.ts';
+
+await tracker.main();
+```
 
 The token comes from `TRACKER_TOKEN`. The person sets it, and `tracker schema` names the variable, never its value. A test points `TRACKER_URL` at a fake server.
 
@@ -931,10 +991,10 @@ The label you gave `act.send`, "the new ticket", is how `state` names the reques
 
 **No token.** Without `TRACKER_TOKEN`, every call that reaches the server is refused with `ENV_MISSING`, kind `ask`.
 
-**A list that needs two fields.** The milestones of `tracker` belong to a team of a project. Their source names every field that is surely missing at that point:
+**A list that needs two fields.** The milestones of `tracker` belong to a team of a project. Their source stands in `tickets/schedule.ts`. It has a name, so it says which fields it reads, with adx's type `Source`. It names every field that is surely missing at that point:
 
 ```ts
-const milestones = async ({ project, team }: Known) => {
+const milestones: Source<{ project: string; team: string }> = async ({ project, team }) => {
   if (project === undefined && team === undefined) return needs('project', 'team');
   if (project === undefined) return needs('project');
   if (team === undefined) return needs('team');
@@ -943,10 +1003,10 @@ const milestones = async ({ project, team }: Known) => {
 };
 ```
 
-`ticket schedule` puts a ticket into a milestone. Its input `ScheduleIn` has the fields `id`, `team` and `milestone`. `keyOf(list)` says that `id` takes a key of the list. Unlike `detailOf`, it does not make this the command that shows one item. `team` has a source like `labels`:
+`ticket schedule` puts a ticket into a milestone. Its input has the fields `id`, `team` and `milestone`. `keyOf(tickets)` says that `id` takes a key of the list. Unlike `detailOf`, it does not make this the command that shows one item. `team` has a named source too, `teams`:
 
 ```ts
-values: { id: keyOf(list), team: teams, milestone: milestones },
+values: { id: keyOf(tickets), team: teams, milestone: milestones },
 ```
 
 It sends like `ticket create`. Its `look` is a function of the input, so it can name the item: after a dropped connection, the step is `tracker ticket show` with the key of the call.
@@ -967,21 +1027,20 @@ Give --project first: the teams depend on it
 
 adx asks the source of each missing field what that source needs in turn. The teams need the project, which is missing too. So the second issue has no `command`: adx names a command only when it runs as it stands. Once the project is given, the issue for `team` names `tracker ticket schedule --project checkout-web --team`.
 
-Name only what is surely missing. Whether a second field is needed can depend on the value of the first: if only some projects had teams, the source would return `needs('project')` first. `needs` takes fields of the command: `needs('tema')` does not compile where the source is used.
+Name only what is surely missing. Whether a second field is needed can depend on the value of the first: if only some projects had teams, the source would return `needs('project')` first. `needs` takes fields the source reads: `needs('tema')` does not compile, and the compiler reports it at the source.
 
-**A command without the project.** `global` holds for every command, and one command can deviate. `whoami` takes no global field. It has no input at all, so its refusal concerns no field and uses `.issue()`:
+**A command without the project.** `global` holds for every command, and one command can deviate. `whoami`, in `user/whoami.ts`, takes no global field. It has no input at all, so its refusal concerns no field and uses `.issue()`:
 
 ```ts
 const inactive = code('USER_INACTIVE', 'ask', 'Ask an admin to activate the account');
 ```
 
 ```ts
-export const whoami = tracker.read({
-  name: 'whoami',
+export const whoami = read({
   does: 'names the signed-in user',
   global: false,
   run: async (_, { refuse }) => {
-    const user = await api.get(['user'], User);
+    const user = await api.get(['user'], z.object({ login: z.string(), active: z.boolean() }));
     return user.active ? user : refuse(inactive.issue(`${user.login} is deactivated`));
   },
 });
@@ -1002,6 +1061,23 @@ global: { project: 'optional' },
 
 `tracker schema <command>` shows whether a command takes the option, and adx carries the value only into steps to commands that have it.
 
+**A step across folders.** A good step after `whoami` is the list of tickets. But `whoami` lies in `user/`, the list lies in `tickets/`, and by the rule of this layout one feature does not import another. So the step stands where the features meet: at the tool, with `after`.
+
+```ts
+next: [after(whoami, () => [tickets.step()])],
+```
+
+```console
+$ tracker whoami | jq -c '.next[0]'
+{"does":"lists the tickets of a project","command":"tracker ticket list","needs":["project"]}
+```
+
+- A `next` whose steps stay in the command's own folder stands at the command, as in `ticket create`. A `next` to a command of another folder stands at the tool.
+- `after` takes a command and a function like `next`. The function gets the answer of the real run and the input, both typed by the command.
+- Its steps follow the steps of the command's own `next`.
+- An `after` for a command the tool does not list is a `DECLARATION` error at startup.
+- In a larger tool the list of `next` gets a file of its own in `cli/`.
+
 ### A checker over a codebase
 
 `lintkit` checks the Go files of a folder against house rules. It only reads, and its answer grows with the code: 47 findings in one package is normal. Two new parts:
@@ -1011,13 +1087,6 @@ global: { project: 'optional' },
 
 ```ts
 const gomod = root('module', marker('go.mod'));
-
-export const lintkit = tool({
-  name: 'lintkit',
-  version: '0.4.0',
-  does: 'checks Go files against house rules',
-  roots: [gomod],
-});
 ```
 
 `Finding` is the Zod schema of one finding. Its fields are `id`, `rule`, `file`, `line`, `message` and `source`, the lines around the finding. One function reads the files and collects the findings:
@@ -1042,19 +1111,16 @@ The list, with a rule across two fields in `check` and a step of its own in `nex
 ```ts
 const noRule = code('NO_RULE', 'fix', 'Name a rule, or leave --strict out');
 const noFinding = code('FINDING_NOT_FOUND', 'fix', 'Run the check again and use an id it lists');
-
-const CheckIn = z.object({
-  dir: dir(gomod).describe('the folder to check'),
-  rule: z.array(z.enum(RULES)).default([]).describe('a rule; may repeat'),
-  strict: z.boolean().default(false).describe('refuse a check of all rules'),
-});
 ```
 
 ```ts
-const checkCmd = lintkit.list({
-  name: 'check',
+const findings = list({
   does: 'checks the Go files of a folder',
-  input: CheckIn,
+  input: z.object({
+    dir: dir(gomod).describe('the folder to check'),
+    rule: z.array(z.enum(RULES)).default([]).describe('a rule; may repeat'),
+    strict: z.boolean().default(false).describe('refuse a check of all rules'),
+  }),
   example: { dir: '.' },
   item: Finding,
   key: 'id',
@@ -1070,7 +1136,19 @@ A list's own steps come after the ones adx derives: the following page and the c
 The command `finding` shows one finding in full, as `language` does in `hello`. Its `id` takes a key of the check:
 
 ```ts
-values: { id: detailOf(checkCmd) },
+values: { id: detailOf(findings) },
+```
+
+The tool lists both. The constant of the list is `findings`, and its word is `check`:
+
+```ts
+export const lintkit = tool({
+  name: 'lintkit',
+  version: '0.4.0',
+  does: 'checks Go files against house rules',
+  roots: [gomod],
+  commands: { check: findings, finding },
+});
 ```
 
 **Checking one package.** The outline keeps 47 findings to a few fields each:
@@ -1111,13 +1189,6 @@ From a folder with no `go.mod` above it, every call is refused with `ROOT_NOT_FO
 
 ```ts
 const home = root('home', envDir('NOTES_HOME', '~/notes'));
-
-export const notes = tool({
-  name: 'notes',
-  version: '0.2.0',
-  does: 'keeps Markdown notes in a folder',
-  roots: [home],
-});
 ```
 
 ```ts
@@ -1134,8 +1205,7 @@ const sample = {
 ```
 
 ```ts
-notes.effect({
-  name: 'add',
+const add = effect({
   does: 'stores one note',
   input: NoteIn,
   example: sample,
@@ -1150,8 +1220,7 @@ A second `notes add` to the same file is refused with `ALREADY_EXISTS`, as in `h
 `notes append` exists to change a file, so it uses `files.update`:
 
 ```ts
-notes.effect({
-  name: 'append',
+const append = effect({
   does: 'adds text to the end of a note',
   input: z.object({
     file: inFile(home).describe('the note to add to'),
@@ -1170,7 +1239,7 @@ $ notes append --file ideas/q3.md --text '- ship gift cards' --dry-run | jq -c '
 
 `outFile`, `inFile` and `home.file(...)` answer one type, `File`. So any file handle can be read with a limit, and staged.
 
-**Several files.** Every file staged in one `plan` is written with the others, all or none. The command `add indexed` stores the note and keeps an index, a file of the tool's own. The index is created by the first note and updated by the later ones, because `update` never creates a file. `indexWith` is your own function: it answers the index text with the line of the note.
+**Several files.** Every file staged in one `plan` is written with the others, all or none. The command `add-indexed` stores the note and keeps an index, a file of the tool's own. The index is created by the first note and updated by the later ones, because `update` never creates a file. `indexWith` is your own function: it answers the index text with the line of the note.
 
 ```ts
 plan: async (note, { files }) => {
@@ -1184,10 +1253,16 @@ plan: async (note, { files }) => {
 },
 ```
 
+The table of `notes` lists both commands. `add` is a command, so it cannot be a group as well: the second command is one word, `add-indexed`. A key with a dash stands in quotes:
+
+```ts
+commands: { add, 'add-indexed': addIndexed, append, show },
+```
+
 adx writes every file whole beside its place, then renames them one after another. A crash or a full disk never leaves half a note. Two renames are not one atomic step, so if a later rename fails, `state` names the files already moved:
 
 ```console
-$ notes add indexed --file ideas/q4.md --title Q4 --text '- tbd' | jq -r '.state'
+$ notes add-indexed --file ideas/q4.md --title Q4 --text '- tbd' | jq -r '.state'
 Moved in: ideas/q4.md. Not moved: index.md. No temporary file is left.
 ```
 
@@ -1280,7 +1355,16 @@ The test kit guards the number. On its first run it writes a fingerprint of ever
 
 The test kit, `@honeyglass/adx/test`, probes every command of your tool for the behavior this guide describes: several mistakes in one call, each option left empty, unknown fields, a value outside each list, dry runs that change nothing, steps that run, hints that run. You give it what only you know: seed files, fake servers and variables. It runs on `node:test`, so nothing else needs installing.
 
-Here is the test file for `tracker`. First the fake server, a table of routes:
+Here is the test file for `tracker`, `tests/tracker.test.ts`. It imports the tool from `cli/`, and single commands from their feature:
+
+```ts
+import { tracker } from '../cli/tracker.ts';
+import { api } from '../core/tracker.ts';
+import { create } from '../tickets/create.ts';
+import { tickets } from '../tickets/list.ts';
+```
+
+First the fake server, a table of routes:
 
 ```ts
 const ticket = {
@@ -1319,14 +1403,14 @@ const samples = {
 
 test('tracker keeps the agent rules', t => conformance(t, tracker, samples));
 
-test('the program keeps them too', t => conformance(t, ['node', 'tracker.ts'], samples));
+test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'], samples));
 ```
 
 ```ts
 test('a busy server is a retry', async () => {
   const busy = fake(api, { [`GET ${project}/tickets`]: reply(503) });
   const options = { ...samples, fakes: [busy] };
-  const answer = await list.invoke({ project: 'checkout-web' }, options);
+  const answer = await tickets.invoke({ project: 'checkout-web' }, options);
   assert.equal(answer.kind, 'retry');
   assert.equal(answer.issues?.[0]?.code, 'SERVER_BUSY');
   assert.equal(answer.state, 'Nothing was changed.');
@@ -1357,11 +1441,11 @@ $ node --test
   labels [ { name: 'bug', description: '' }, ... ]
 ```
 
-**`conformance` with a command line** runs the same probes against the real program, started as a process in a fresh scratch folder for home, temp and working directory. It reads `tracker schema` and derives every call from it. So it also catches what only the process does, such as a write straight to `process.stdout`. It serves the fakes on a local port and points `TRACKER_URL` there. No build step comes first: Node runs `tracker.ts` as it is.
+**`conformance` with a command line** runs the same probes against the real program, started as a process in a fresh scratch folder for home, temp and working directory. It reads `tracker schema` and derives every call from it. So it also catches what only the process does, such as a write straight to `process.stdout`. It serves the fakes on a local port and points `TRACKER_URL` there. No build step comes first: Node runs `bin/tracker.ts` as it is.
 
 **Named commands.** The kit splits every command the tool names, in a `next` step or in an issue, into shell words with `unbash`. It then checks that adx knows each call: the command, every option and every value. A step without `needs` must run as it stands.
 
-**`invoke`** runs one command without argv or stdout, and answers the same object the tool prints. It is a method of the command handle, so its input is typed: `list.invoke({ projekt: 'checkout-web' })` does not compile. Use it for the cases that only you know, such as a busy server. Its options take the samples, and `dryRun` and `replace` for the two options of an effect.
+**`invoke`** runs one command without argv or stdout, and answers the same object the tool prints. It is a method of the command handle, so its input is typed: `tickets.invoke({ projekt: 'checkout-web' })` does not compile. A command runs as part of its tool, so the test file imports the tool as well. Use it for the cases that only you know, such as a busy server. Its options take the samples, and `dryRun` and `replace` for the two options of an effect.
 
 **A tool with a data folder** names a `seed`: a folder with the files the tool should find. The kit copies it into the scratch folder of every probe:
 
@@ -1390,7 +1474,7 @@ Four more checks run when the tool has their subject:
 The same engine runs as a command, for CI or for a tool built by someone else on adx:
 
 ```console
-$ pnpm exec adxcheck report --env TRACKER_TOKEN=test-token -- node tracker.ts
+$ pnpm exec adxcheck report --env TRACKER_TOKEN=test-token -- node bin/tracker.ts
 Raw JSON input      met
 Schema at run time  met
 JSON when piped     met
@@ -1416,7 +1500,7 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 - `tool <command> --help`: the same facts as text for people.
 - `tool --version`: the version.
 
-Routing and help come from adx's own command table, which your declarations fill. There is no help text to write.
+Routing and help come from adx's own command table, which the `commands` of your tool fill. There is no help text to write.
 
 **Options**
 
@@ -1513,7 +1597,7 @@ plan: async ({ name, lang }, { files }) => {
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
 - `bug`: `DECLARATION`, `UNKNOWN_ERROR`, `PANIC`
 
-`SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, or an `apply` without `look`. adx checks the setup at every start, so you see it on the first run.
+`SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run.
 
 **Errors you did not map**
 
@@ -1545,8 +1629,11 @@ Yes, but adx cannot see through it. Sends then belong in `apply` with `failed`, 
 **Does my tool need an agent skill?**
 No. The tool runs and passes its tests without one. Write a skill when the agent needs to know more than steps: when to use the tool, the flow of a task, when to stop and ask the person. Name it with `skill`, and the start answer shows its path.
 
+**Does adx need a certain folder layout?**
+No. adx reads no folder name, no file name and no order of imports. A command is a value, and the table of the tool takes it from wherever it lies. A small tool is one file, as `hello`. A larger one can be cut by feature, as the [tracker](#wrapping-a-remote-api): `bin/` for the entry, `cli/` for the tool, one folder per feature, and `core/` for what features share. A rule about which folder may import which is your own. adx neither knows nor checks it.
+
 **How is a tool shipped and run?**
-In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env node` as the first line, `chmod +x tracker.ts`, and link it onto your path, or name it under `bin` in `package.json` and run `pnpm link --global`. To publish on npm, compile to JavaScript first (`tsc` with `rewriteRelativeImportExtensions` and an `outDir`): Node does not strip types from files inside `node_modules`, so a published `.ts` file does not run. Either way the machine needs Node 24.2 or later.
+In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env node` as the first line of the file that calls `main()`, `chmod +x bin/tracker.ts`, and link it onto your path, or name it under `bin` in `package.json` and run `pnpm link --global`. To publish on npm, compile to JavaScript first (`tsc` with `rewriteRelativeImportExtensions` and an `outDir`): Node does not strip types from files inside `node_modules`, so a published `.ts` file does not run. Either way the machine needs Node 24.2 or later.
 
 ## 8. Known limits
 
@@ -1554,10 +1641,12 @@ In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env no
 - **Parallel writes are not covered.** Two calls that write the same file at the same moment are not coordinated. The later write wins, and `files.update` can lose a change made between its read and its write.
 - **A handler can go around adx.** A handler that calls `node:fs` or `fetch` itself can write half a file or send on a dry run. adx guards only what goes through `files` and a remote.
 - **Two commands that name each other need a type.** If one command names a second in `next` or in `.command()`, and the second names the first, the compiler stops with "implicitly has type 'any'". Writing `(): Step[] =>` on one of the two functions fixes it, but the message does not say so.
+- **Two files that need each other while they load break on the import order.** `detailOf(tickets)` and `keyOf(tickets)` read the list when their file loads. If the file of the list imports that file in turn, the file that loads first decides whether the list exists in time. A command named inside a function, such as `next`, `look` or `run`, is read only when the function runs. The list needs no import of its one-item command: adx derives that step.
+- **A hint and a `look` name commands of their own folder.** `after` moves a `next` across folders to the tool. The `.command(step)` of an issue and the `look` of an effect stand in the handler. Under a rule that features do not import each other, they cannot name a command of another feature.
 - **The compiler does not know what adx checked.** adx has already refused an unknown `lang`, but `byCode(lang)` still returns a language or `undefined`, so the code needs a branch for the compiler alone.
 - **Two input types to keep apart.** `example: { dir: '.' }` is a string, while `run` gets a `Dir`. A field with a default is optional in `example` and present in `run`.
-- **A typo in `needs` of a source is reported far from it.** The error stands at the `values` line that uses the source, in about ten lines and without a suggestion.
-- **Some facts only show at startup or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored`, a field named like one of adx's options, an `apply` without `look`, and a fake route that does not match the path in `api.get`.
+- **A named source without `Source` reports a typo in `needs` far from it.** A source written in `values`, and a named source typed with `Source<...>`, report the typo at the source. A named source with a parameter type of its own reports it at the `values` line that uses the source, in about ten lines and without a suggestion.
+- **Some facts only show at startup or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored`, a field named like one of adx's options, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
 - **A stored file written around its kind has no number.** A file written with `JSON.stringify` in place of `Friend.stringify` lacks `"version"`, and the next read takes it for format 1.
 - **A status of a send is mapped by hand.** `on` exists for `get` only. For a send, catch the error and read `status(error)`.
 - **A switch cannot be set to false by an option.** A boolean field with the default `true` is switched off through `--json` only.

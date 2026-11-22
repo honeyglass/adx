@@ -10,26 +10,24 @@ Von den 16 Agent-DX-Regeln sind 15 eingebaut. Regel 6, der Agent-Skill, ist Sach
 
 ## Das kleinste Tool
 
-Die drei Blöcke sind zusammen eine Datei, `hello.ts`.
+Die zwei Blöcke sind zusammen eine Datei, `hello.ts`. Der Befehl steht in `commands`, der Tabelle der Befehle.
 
 ```ts
 import { z } from 'zod';
-import { tool } from '@honeyglass/adx';
+import { read, tool } from '@honeyglass/adx';
 
 export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-});
-```
-
-```ts
-hello.read({
-  name: 'greet',
-  does: 'greets one person',
-  input: z.object({ name: z.string().describe('who to greet') }),
-  example: { name: 'Ada' },
-  run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+  commands: {
+    greet: read({
+      does: 'greets one person',
+      input: z.object({ name: z.string().describe('who to greet') }),
+      example: { name: 'Ada' },
+      run: ({ name }) => ({ greeting: `Hello, ${name}!` }),
+    }),
+  },
 });
 ```
 
@@ -60,32 +58,46 @@ adx braucht Node 24.2 oder neuer.
 
 ### Das Tool
 
-- `tool({ name, version, does })`: legt das Tool an.
+- `tool({ name, version, does, commands })`: legt das Tool an.
+- `commands`: die Tabelle der Befehle. Ein Schlüssel ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `friends: { add }` ist `hello friends add`.
 - `skill`: optional, der Pfad zur Agent-Skill-Datei, relativ zum Ordner der `package.json`. Das Tool öffnet die Datei nie. Nur das Testkit liest ihr Frontmatter.
 - `roots`, `remotes`: die Ordner und Server, die das Tool nutzen darf.
 - `stored`: jede Datenart, die das Tool speichert, mit ihrer Formatnummer.
-- `global`: Eingabe, die jeder Befehl teilt (`input`, `example`, `values`).
-- `hello.start(fn)`: die ersten Schritte der Startantwort. Der Aufruf steht nach den Befehlen.
+- `global`: die Eingabe, die jeder Befehl teilt, deklariert mit `global({...})` (siehe unten).
+- `start`: die ersten Schritte der Startantwort, als Funktion.
+- `next`: Schritte nach einem Befehl, die in einen anderen Ordner führen, mit `after` (siehe Schritte).
 - `hello.main()`: führt einen Aufruf aus.
 
 ```ts
-hello.start(async () => {
-  const friends = await friendNames();
-  return friends.length === 0 ? [add.step()] : [greet.step()];
+export const hello = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'greets people',
+  skill: 'SKILL.md',
+  roots: [home],
+  commands: {
+    greet,
+    languages,
+    language,
+    friends: { add, count },
+  },
+  start: async () => {
+    const friends = await friendNames();
+    return friends.length === 0 ? [add.step()] : [greet.step()];
+  },
 });
 ```
 
 ### Die drei Arten von Befehlen
 
-- `hello.read({...})`: liest nur. Handler: `run`.
-- `hello.list({...})`: antwortet mit einer Liste. Handler: `run`. Braucht `item`, `key`, `outline`.
-- `hello.effect({...})`: ändert etwas. Handler: `plan`, bei einem Senden auch `apply`.
+- `read({...})`: liest nur. Handler: `run`.
+- `list({...})`: antwortet mit einer Liste. Handler: `run`. Braucht `item`, `key`, `outline`.
+- `effect({...})`: ändert etwas. Handler: `plan`, bei einem Senden auch `apply`.
 
-Jede gibt einen Handle zurück. Halte ihn in einer `const`, für Schritte und Tests.
+Jede gibt den Befehl zurück, einen Wert. Schreib ihn in die Tabelle, oder halte ihn in einer `const` über dem Tool: Sie ist sein Handle für Schritte und Tests. Die Konstante einer Liste heißt nach dem, was sie listet, etwa `languages`.
 
 ### Eigenschaften, die jede Art hat
 
-- `name`: der Befehl. Ein Leerzeichen bildet eine Gruppe (`'friends add'`).
 - `does`: ein Satz, was der Befehl tut.
 - `input`: das Zod-Schema der Eingabe. Jedes Feld ist auch eine Option.
 - `example`: eine gültige Eingabe. adx prüft sie beim Start, der Test ruft sie auf.
@@ -151,10 +163,16 @@ apply: async ({ project, title, body, label }, { act }) => {
 
 ### Globale Eingabe
 
-- `tool({ global: { input, example, values } })`: Jeder Befehl nimmt die Felder, etwa `--project`.
+- `const project = global({ input, example, values })`, und im Tool `global: project`: Jeder Befehl nimmt die Felder, etwa `--project`.
+- `project.read`, `project.list`, `project.effect`: die drei Arten, mit den globalen Feldern in jedem Handler typisiert. Ein Tool ohne globale Eingabe nimmt die drei direkt aus adx.
 - `global: false` an einem Befehl: Er nimmt kein globales Feld (etwa `whoami`).
 - `global: { project: 'optional' }`: Das Feld darf fehlen. `run` sieht `string | undefined`.
 - `schema` zeigt pro Befehl, ob er die Option nimmt. adx trägt den Wert nur in Schritte zu Befehlen, die sie haben.
+
+```ts
+// read, list and effect, with the project typed into every handler
+export const { read, list, effect } = project;
+```
 
 ```ts
 global: { project: 'optional' },
@@ -169,6 +187,7 @@ global: { project: 'optional' },
 - `detailOf(list)`: wie `keyOf`, und dieser Befehl zeigt einen Eintrag ganz.
 - `needs('project')`: Rückgabe einer Quelle, die erst ein anderes Feld braucht.
 - `needs('project', 'team')`: mehrere Felder. adx lehnt mit einem Problem `MISSING_VALUE` pro Feld ab, in einer Antwort.
+- `Source<{ project: string }>`: der Typ einer Quelle mit Namen. Er nennt die Felder, die sie liest. Eine Quelle direkt in `values` braucht keinen Typ.
 
 ```ts
 values: { name: fresh(friendNames), lang: languageChoices },
@@ -210,6 +229,11 @@ Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 - `.needs('style')`: nur für ein optionales Feld, das der Schritt noch braucht.
 - `tell('upload the file')`: ein Schritt für die Person, ohne Befehl.
 - Folgt nichts, gibt `next` keinen Schritt zurück.
+- `after(command, fn)` in `next` des Tools: Schritte nach einem Befehl, die zu einem Befehl eines anderen Ordners führen. `fn` bekommt, was `next` bekommt.
+
+```ts
+next: [after(whoami, () => [tickets.step()])],
+```
 
 ### Ordner und Dateien
 
@@ -237,8 +261,7 @@ Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 Faustregel: `add`, `create`, `save` nutzen `files.write`. `edit`, `update`, `append` nutzen `files.update`.
 
 ```ts
-hello.effect({
-  name: 'friends edit',
+const edit = effect({
   does: "changes a friend's language",
   input: FriendIn,
   example: { name: 'ada', lang: 'en' },
@@ -283,6 +306,30 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
 const ticket = await api.get(path, Ticket, { on: { 404: undefined } });
 ```
 
+### Ein Tool in Ordnern
+
+- adx setzt keinen Aufbau voraus. Eine Datei geht, und ein Schnitt nach Features auch.
+- `bin/`: der Einstieg, der `main()` aufruft. `cli/`: das Tool mit seiner Tabelle. Ein Ordner pro Feature. `core/`: was Features teilen, etwa der Remote und `global(...)`.
+- Ein Feature importiert nur aus `core/` und aus sich selbst, und nur `cli/` fügt Features zusammen. Das ist die Regel des Tools, nicht von adx.
+- Ein Schema, das ein Befehl liest, steht im Befehl. Eines, das mehrere lesen, bekommt einen Namen, im Feature etwa `ticket.schema.ts`.
+
+```ts
+export const tracker = tool({
+  name: 'tracker',
+  version: '1.2.0',
+  does: 'reads and files tickets',
+  remotes: [api],
+  global: project,
+  commands: {
+    ticket: { list: tickets, show, create, schedule, close },
+    whoami,
+    stats,
+  },
+  next: [after(whoami, () => [tickets.step()])],
+  start: () => [tickets.step()],
+});
+```
+
 ### Schemas von adx
 
 - `id()`: ein Name aus Buchstaben, Ziffern, `-` und `_`.
@@ -294,13 +341,13 @@ const ticket = await api.get(path, Ticket, { on: { 404: undefined } });
 ```ts
 test('tracker keeps the agent rules', t => conformance(t, tracker, samples));
 
-test('the program keeps them too', t => conformance(t, ['node', 'tracker.ts'], samples));
+test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'], samples));
 ```
 
 - `conformance`: prüft jeden Befehl gegen die 15 eingebauten Regeln, im Prozess oder als echtes Programm.
 - `fake(api, routes)`, `reply(503)`: ein Server für den Test, als Tabelle von Routen.
 - `samples`: `env`, `fakes`, `seed`. Das, was nur du weißt.
-- `list.invoke(input, options)`: ein Befehl ohne argv, mit typisierter Eingabe. Optionen: die Samples, `dryRun`, `replace`.
+- `tickets.invoke(input, options)`: ein Befehl ohne argv, mit typisierter Eingabe. Optionen: die Samples, `dryRun`, `replace`.
 - Das Testkit zerlegt jeden genannten Befehl (in `next` oder in einem Problem) mit `unbash` und prüft, dass adx ihn kennt.
 - Nennt das Tool einen `skill`, prüft das Testkit: Die Datei existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht.
 - Ein Effekt, der `--replace` listet und nie ein `files.write` vormerkt, schlägt fehl: `replace: false` ergänzen.
@@ -490,7 +537,7 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 11. Plan vor der Datei: `plan` ist die Antwort des Probelaufs.
 12. Hinweise, die laufen: adx füllt `command` aus der Quelle des Feldes und trägt den Datenordner hinein.
 13. Optionen, die listen: jede Quelle in `values` beantwortet auch die leere Option.
-14. Nächste Schritte: `start`, `next`, Schritte nur aus Befehlen, `needs` abgeleitet.
+14. Nächste Schritte: `start`, `next`, `after`, Schritte nur aus Befehlen, `needs` abgeleitet.
 15. Nichts geht still durch: adx prüft jedes Argument selbst.
 16. Sparsame Antworten: `outline`, `--fields`, `--page`, der Schritt zum `detailOf`-Befehl, `output` an einem `read`.
 
@@ -502,7 +549,8 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 - Alle Fehler eines Aufrufs kommen in einer Antwort.
 - Optionen und `--json` füllen ein Objekt. Ein Feld, das beide geben, wird abgelehnt (`REPEATED_OPTION`).
 - Ein Feld `dueDate` ist die Option `--due-date`. Ein boolesches Feld ist ein Schalter ohne Wert.
-- Routing und Hilfe kommen aus der Befehlstabelle von adx.
+- Routing und Hilfe kommen aus der Befehlstabelle von adx, die `commands` des Tools füllt.
+- adx setzt keinen Ordneraufbau voraus. Ein Befehl ist ein Wert, und die Tabelle nimmt ihn, wo immer er liegt.
 - Der Agent-Skill gehört nicht zum Toolkit. Das Tool liest ihn nie, bettet ihn nie ein und gibt ihn nie aus. Es nennt nur den Pfad, die Startantwort zeigt ihn.
 - Die Codes und Arten von adx stehen einmal in adx. Jedes Tool gibt sie mit `tool schema` aus.
 - Kein Anleitungstext und kein freier Hilfetext im Tool. Die ersten Schritte kommen aus `next` der Startantwort und aus den Hinweisen der Ablehnungen.
@@ -516,3 +564,5 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 - Ein Handler, der selbst `node:fs` oder `fetch` aufruft, steht außerhalb der Regeln.
 - Der Skill wird nicht gegen das Tool geprüft.
 - `on` gibt es nur für `get`. Den Status eines Sendens liest du mit `status(error)`.
+- Zwei Dateien, die einander beim Laden brauchen (`detailOf`, `keyOf`), scheitern an der Reihenfolge der Importe.
+- Ein Hinweis (`.command(step)`) und ein `look` nennen Befehle ihres eigenen Ordners. Nur ein `next` lässt sich mit `after` an das Tool verlegen.

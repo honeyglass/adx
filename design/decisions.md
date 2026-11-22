@@ -1,6 +1,6 @@
 # adx v2: decisions of the owner
 
-The owner's decisions on the v2 API, in the order they were made (2026-11-20 and 2026-11-21).
+The owner's decisions on the v2 API, in the order they were made (2026-11-20 to 2026-11-22).
 They override every other file in this folder. Each decision reads on its own; where a later one
 changes an earlier one, both say so.
 
@@ -15,7 +15,8 @@ changes an earlier one, both say so.
    words, and the kit checks that adx knows each call.
 4. **The agent skill is not part of the toolkit.** adx never reads, embeds or prints a skill.
 5. **No `guide` or `help` text in the tool.** The first steps come from `next` in the start answer
-   (rule 14, `hello.start(...)`) and from hints in refusals; care that is no step belongs in the skill.
+   (rule 14, `hello.start(...)`; since 65 the property `start` of the tool) and from hints in
+   refusals; care that is no step belongs in the skill.
 6. **RxJS under the hood of `api`.** Retries, timeouts and cancelling several requests run on RxJS
    inside adx; the author never sees it. `api` stays its own thing rather than plain `fetch`: it checks
    every answer against a schema, maps a status to a kind, sends only through `act.send` in `apply`
@@ -39,8 +40,9 @@ changes an earlier one, both say so.
     - `files.put` is renamed `files.write`, since "put" sounds like HTTP.
     - `--replace` is not one of the 16 rules. It implements design.md's "A command that replaces
       stored data needs a flag"; the name `--replace` is adx's choice.
-11. **`global` holds for every command, and one command can deviate**:
-    - `tool({ global: { input } })` gives every command the option, such as `--project`.
+11. **`global` holds for every command, and one command can deviate** (its form changed by 64):
+    - `tool({ global: { input } })` gives every command the option, such as `--project`. Since 64
+      the input is declared with `global({ input })`, and the tool takes that value.
     - A command with `global: false` does not take it (such as `whoami`).
     - A command can make a global field optional: `global: { project: 'optional' }`.
     - `schema` shows per command whether it takes the option; adx carries the value only into
@@ -71,7 +73,8 @@ changes an earlier one, both say so.
     - A missing folder is refused (`ROOT_NOT_FOUND`), never silently replaced; its kind: 32.
     - Every data folder can be moved with `--home`; there is no switch to turn the option off (28).
     - This lifts the earlier rule "no option can move a root".
-14. **A source names every field that is surely missing** (its answer shape changed by 27):
+14. **A source names every field that is surely missing** (its answer shape changed by 27, where
+    a typo is reported by 68):
     - `needs` may name several fields: `needs('project', 'team')`. It does not have to; the author
       names what is surely missing at that point. Whether a second field is needed can depend on the
       value of the first (project "shop" has teams, "blog" has none); then the source names only
@@ -87,7 +90,8 @@ changes an earlier one, both say so.
     - Type-checked in `proto/needs.ts`: `needs` with one and with two fields; `needs()` without a
       field does not compile; a typo `needs('project', 'tema')` does not compile. The typo's error
       stands at the `values` line that uses the source, not at the `needs` call, and it runs four
-      lines without a "Did you mean".
+      lines without a "Did you mean". Since 68 the examples type a named source with `Source`, and the
+      error stands at the source.
 15. **Two renames**:
     - `text()` becomes `multiline()`: the schema for text with line breaks.
     - `.run(step)` on an issue becomes `.command(step)`: it attaches a command as a proposal.
@@ -233,6 +237,74 @@ owner confirmed each recommendation, and the docs already show it).
     check; never "met".
 61. **`needs` keeps both uses** (what a source returns, and a method of a step); no rename.
 62. **The guide keeps its three use cases** (`tracker`, `lintkit`, `notes`) in full.
+
+The next six change the form of a tool (2026-11-22). The rules of 1 to 62 stay; where one of the six
+changes how an earlier decision is written, both say so.
+
+63. **A command is a value, and the tool lists its commands**:
+    - `read({...})`, `list({...})` and `effect({...})` are functions of adx. Each returns a command,
+      and nothing registers itself.
+    - `tool({ ..., commands: {...} })` takes the command table. A key is one word of the call, and a
+      nested table is a group: `ticket: { list, show }` makes `tracker ticket list` and
+      `tracker ticket show`. A group called alone lists its actions.
+    - A command has no `name` of its own. The tool that lists it sets `name`, such as `ticket list`.
+    - `tool()` returns the tool with `main()`. It has no `read`, `list` or `effect` any more, so the
+      earlier decisions' `hello.read(...)` now reads `read(...)`.
+    - Reasons: the order of the imports was the registration, and a module nobody imported was a
+      command that silently did not exist; a tool cut into folders had to keep the tool where every
+      feature could import it; and no place showed the commands of a tool at once.
+    - A command and a group cannot share a word, since both are one key. The guide's `notes add` and
+      `notes add indexed` become `add` and `add-indexed`.
+    - Three facts adx checks at startup, each a `DECLARATION` error: a key is one word of letters,
+      digits and `-`; a command stands in one tool, at one place; and a command that a step, `keyOf`
+      or `detailOf` names stands in the table.
+    - Type-checked in `proto/hello.ts` (the commands written inside the table) and in every other
+      file of `proto/` (the commands as constants above it).
+64. **`global({...})` declares the global input, and hands out the three kinds typed with it**
+    (changes the form of 11; its rules stay):
+    - `const project = global({ input, example, values })`. `project.read`, `project.list` and
+      `project.effect` are the three kinds with the global fields typed into every handler, and the
+      tool takes the same value: `tool({ global: project })`.
+    - Reason: with 63 a command is made before the tool, and it must know the type of the global
+      input without importing the tool.
+    - A tool without global input takes `read`, `list` and `effect` from adx itself.
+    - `global: false` and `global: { project: 'optional' }` at a command stay as 11 says.
+    - Type-checked in `proto/global.ts`: a command made without the global input does not compile in
+      the table of a tool that has one, and a command made for a global input does not compile in a
+      tool without it.
+65. **`start` is a property of the tool** (changes 5): `tool({ start: () => [list.step()] })`. It was a
+    call after the commands, because a command came from the tool, so the tool could not name it in
+    its own declaration (TS7022). With 63 the commands exist before the tool.
+66. **adx presupposes no folder layout.** adx reads no folder name, no file name and no order of
+    imports; the table takes values, wherever they come from. A tool in one file works, and so does a
+    tool cut by feature, with `bin/` for the entry, `cli/` for the tool and its table, one folder per
+    feature and `core/` for what features share, as the guide's `tracker` shows. An import rule
+    between such folders is the tool's own; adx neither knows nor checks it.
+67. **A `next` across folders stands at the tool, with `after(command, steps)`**:
+    - A `next` whose steps stay in the command's own folder stands at the command, as before.
+    - A step to a command of another folder stands where the tool is put together:
+      `tool({ next: [after(whoami, () => [tickets.step()])] })`. So a feature folder imports only
+      what features share and itself, with no exception; oriko keeps such steps in `cli/next.ts` for
+      the same reason.
+    - `after` gets what `next` gets: the answer of the real run, and the input. Like `next`, it runs
+      only after a success, and never on a dry run.
+    - Its steps follow the steps of the command's own `next`. Several entries for one command hold
+      in the order of the list.
+    - An `after` for a command the tool does not list is a `DECLARATION` error.
+    - Not covered: a command in an issue (`.command(step)`) and the `look` of an effect stand in the
+      handler, so they name commands of their own folder only. The guide names the gap under
+      "Known limits".
+    - Type-checked in `proto/tracker/tests/types.ts`: a typo in the answer does not compile, and
+      neither does a global field the command does not take.
+68. **How the examples place schemas and sources** (changes where 14 reports a typo):
+    - A schema that one command reads stands in that command. A schema that several commands read
+      gets a name; in a tool cut by feature it lies in the feature, in a file such as
+      `ticket.schema.ts`, or in `core/` when several features read it.
+    - A source written in `values` gets its fields from the command. A source with a name is typed
+      with adx's `Source`, such as `Source<{ project: string; team: string }>`. No example writes a
+      type of its own for the fields a source reads.
+    - With both, a typo in `needs` is reported at the source, not at the `values` line that uses it.
+      Type-checked in `proto/needs.ts`.
 
 ## Clarifications
 

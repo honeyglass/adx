@@ -256,8 +256,17 @@ type Merged<O, A> = [A] extends [void] ? O : O & A;
 /** The answer of either run: a dry run lacks what `apply` adds. */
 type Either<O, A> = [A] extends [void] ? O : O & Partial<A>;
 
-export interface Command<I extends Obj, O, G extends Obj = Empty, U = {}> {
+declare const builtFor: unique symbol;
+declare const realRun: unique symbol;
+/** A command as the command table sees it: only the global input it was built for counts. */
+export interface Entry<G extends Obj> {
+  readonly [builtFor]: (global: G) => G;
+}
+/** `R` is the answer of a real run, which `next` and `after` get. */
+export interface Command<I extends Obj, O, G extends Obj = Empty, U = {}, R = O> extends Entry<G> {
+  /** The words that call the command, such as `ticket list`. The tool that lists it sets them. */
   readonly name: string;
+  readonly [realRun]?: R;
   step(
     input?: Partial<Given<I> & UseGiven<Given<G>, U>>,
   ): CommandStep<Given<I> & UseGiven<Given<G>, U>>;
@@ -274,7 +283,6 @@ export interface ListCommand<
 
 // the properties every kind of command shares
 interface Common<I extends Obj, G extends Obj, U, R> {
-  name: string;
   does: string;
   input?: I;
   example?: Given<I>;
@@ -342,7 +350,8 @@ export interface EffectSpec<
   text?: (out: Either<O, A>) => string;
 }
 
-export interface Tool<G extends Obj> {
+/** The three kinds of command. A command is a value: it runs once a tool lists it in `commands`. */
+export interface Kinds<G extends Obj> {
   /** With `output`, `run` must answer what the schema declares. */
   read<
     I extends Obj = Empty,
@@ -362,9 +371,44 @@ export interface Tool<G extends Obj> {
     const U extends GlobalUse<G> = {},
   >(
     spec: EffectSpec<I, G, O, A, U>,
-  ): Command<I, Either<O, A>, G, U>;
-  /** The first steps of the start answer (the tool called alone); called after the commands exist. */
-  start(steps: () => Maybe<Step[]>): void;
+  ): Command<I, Either<O, A>, G, U, Merged<O, A>>;
+}
+/** For a tool without global input. A tool with one takes the three from its `global(...)`. */
+export const read: Kinds<Empty>['read'];
+export const list: Kinds<Empty>['list'];
+export const effect: Kinds<Empty>['effect'];
+
+/**
+ * The input every command of a tool shares, such as `--project`. Its `read`, `list` and `effect`
+ * type that input into every handler; the tool takes the same value as its `global`.
+ */
+export interface Global<G extends Obj> extends Kinds<G> {
+  readonly input: G;
+}
+export function global<G extends Obj>(spec: {
+  input: G;
+  example: Given<G>;
+  values?: Values<G, G>;
+}): Global<G>;
+
+/** The command table: a key is one word of the call, and a nested table is a group. */
+export interface Commands<G extends Obj> {
+  readonly [word: string]: Entry<G> | Commands<G>;
+}
+declare const follows: unique symbol;
+export interface After<G extends Obj> {
+  readonly [follows]: (global: G) => G;
+}
+/**
+ * Next steps for a command, given where the tool is put together. They follow the steps of the
+ * command's own `next`. For a step to a command that the command's own folder does not import.
+ */
+export function after<I extends Obj, O, G extends Obj, U, R>(
+  command: Command<I, O, G, U, R>,
+  next: (out: R, input: All<I, G, U>) => Step[],
+): After<G>;
+
+export interface Tool {
   main(): Promise<void>;
 }
 export interface ToolSpec<G extends Obj> {
@@ -380,6 +424,13 @@ export interface ToolSpec<G extends Obj> {
   remotes?: Remote[];
   /** Every kind of data the tool keeps, so `schema` shows its format number and the test kit checks it. */
   stored?: Stored<any, any>[];
-  global?: { input: G; example: Given<G>; values?: Values<G, G> };
+  /** Leave out for a tool whose commands share no input. */
+  global?: Global<G>;
+  /** Every command of the tool. A command built for another global input does not compile here. */
+  commands: Commands<NoInfer<G>>;
+  /** Steps `after` a command, for the steps that cross folders. */
+  next?: After<NoInfer<G>>[];
+  /** The first steps of the start answer (the tool called alone). */
+  start?: () => Maybe<Step[]>;
 }
-export function tool<G extends Obj = Empty>(spec: ToolSpec<G>): Tool<G>;
+export function tool<G extends Obj = Empty>(spec: ToolSpec<G>): Tool;

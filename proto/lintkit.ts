@@ -5,9 +5,11 @@ import {
   detailOf,
   dir,
   id,
+  list,
   marker,
   multiline,
   paged,
+  read,
   root,
   tell,
   tool,
@@ -16,13 +18,6 @@ import type { Dir } from '@honeyglass/adx';
 import { check, RULES } from './rules.ts';
 
 const gomod = root('module', marker('go.mod'));
-
-export const lintkit = tool({
-  name: 'lintkit',
-  version: '0.4.0',
-  does: 'checks Go files against house rules',
-  roots: [gomod],
-});
 
 const Finding = z.object({
   id: id().describe('a stable id for the same rule, file and line'),
@@ -47,16 +42,13 @@ async function findAll(folder: Dir, only: readonly string[]) {
 const noRule = code('NO_RULE', 'fix', 'Name a rule, or leave --strict out');
 const noFinding = code('FINDING_NOT_FOUND', 'fix', 'Run the check again and use an id it lists');
 
-const CheckIn = z.object({
-  dir: dir(gomod).describe('the folder to check'),
-  rule: z.array(z.enum(RULES)).default([]).describe('a rule; may repeat'),
-  strict: z.boolean().default(false).describe('refuse a check of all rules'),
-});
-
-const checkCmd = lintkit.list({
-  name: 'check',
+const findings = list({
   does: 'checks the Go files of a folder',
-  input: CheckIn,
+  input: z.object({
+    dir: dir(gomod).describe('the folder to check'),
+    rule: z.array(z.enum(RULES)).default([]).describe('a rule; may repeat'),
+    strict: z.boolean().default(false).describe('refuse a check of all rules'),
+  }),
   example: { dir: '.' },
   item: Finding,
   key: 'id',
@@ -66,26 +58,32 @@ const checkCmd = lintkit.list({
   next: out => (out.items.length > 0 ? [tell('fix the findings, then check again')] : []),
 });
 
-lintkit.read({
-  name: 'finding',
+const finding = read({
   does: 'shows one finding in full',
   input: z.object({
     dir: dir(gomod).describe('the folder that was checked'),
     id: id().describe('an id the check answered'),
   }),
   example: { dir: '.', id: 'f-7c2e91' },
-  values: { id: detailOf(checkCmd) },
+  values: { id: detailOf(findings) },
   run: async ({ dir, id }, { refuse }) => {
     const all = await findAll(dir, []);
     return all.find(f => f.id === id) ?? refuse(noFinding.at('id'));
   },
 });
 
+export const lintkit = tool({
+  name: 'lintkit',
+  version: '0.4.0',
+  does: 'checks Go files against house rules',
+  roots: [gomod],
+  commands: { check: findings, finding },
+});
+
 // A typo in a list's check does not compile.
-lintkit.list({
-  name: 'bad check',
+list({
   does: 'x',
-  input: CheckIn,
+  input: z.object({ dir: dir(gomod), rule: z.array(z.enum(RULES)).default([]) }),
   example: { dir: '.' },
   item: Finding,
   key: 'id',
