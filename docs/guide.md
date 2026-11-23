@@ -18,7 +18,7 @@ What a tool built on adx does, without code from you:
 - **Options that list their values.** `--lang` given without a value answers the languages the tool knows.
 - **A schema at run time.** `hello schema greet` prints the exact input the command accepts. `hello schema` prints every code and what each kind of refusal asks for.
 - **Dry runs.** Every command that changes something takes `--dry-run`. It runs the same checks, answers what would happen and changes nothing.
-- **Files written whole.** A command writes all of its files or none. A file that exists is replaced only with `--replace`, and a dry run shows what the replacement changes.
+- **Files written whole.** A command writes all of its files or none. A file that exists is replaced only with `--replace`, unless the tool builds it again from its data, and a dry run shows what the replacement changes.
 - **Next steps.** The tool alone says where to start. A success names the commands that can follow, ready to run.
 - **Short answers by default.** A long list answers an outline. The caller names the fields it wants, or asks for the next page.
 - **One answer shape.** Every adx tool answers the same JSON, with the same four kinds of refusal and the exit codes 0, 1 and 2. An agent learns it once.
@@ -60,9 +60,12 @@ adx needs Node 24.2 or later, which runs `.ts` files directly.
 ```console
 $ mkdir hello && cd hello
 $ pnpm init && pnpm pkg set type=module
-$ pnpm add @honeyglass/adx zod
+$ printf 'autoInstallPeers: false\nstrictPeerDependencies: true\n' >> pnpm-workspace.yaml
+$ pnpm add github:honeyglass/adx#<sha> github:honeyglass/utils#<sha> zod
 $ pnpm add -D typescript @types/node
 ```
+
+adx comes from GitHub, not from npm. Name it and `@honeyglass/utils`, which adx needs beside it, each by the full sha of a commit. The two settings make the install stop with "missing peer @honeyglass/utils" when utils is left out, instead of fetching it from GitHub on its own.
 
 Node strips the types and runs the file. It does not check them. The compiler does that, and it needs a `tsconfig.json`. One line is enough, because adx ships the base:
 
@@ -299,7 +302,14 @@ Every handler takes `(input, ctx)`. The input comes first, and `ctx` holds what 
 ```ts
 run: ({ name, lang, style }, { refuse }) => {
   const l = byCode(lang);
-  if (l === undefined) throw new Error(`no language ${lang}`);
+  if (l === undefined)
+    throw new RefusalError({
+      kind: 'bug',
+      step: 'greet',
+      reason: `no language ${lang}, though adx checked it against its list`,
+      next: 'report the bug to the maintainer of hello',
+      state: 'Nothing was greeted.',
+    });
   if (style === 'formal' && l.formal === undefined)
     return refuse(noFormal.at('style', `${l.name} has no formal greeting`));
   const word = style === 'formal' ? l.formal : l.hello;
@@ -315,8 +325,9 @@ $ hello greet --name Ada --lang eo --style formal | jq -c '.kind, .issues[0].mes
 
 - The field is checked. A refusal at `'styl'` does not compile, and the compiler reports it on the line of the typo.
 - The second argument of `.at()` is the message. Without it, the message repeats the hint of the code.
-- adx refused an unknown `lang` before `run`, since `lang` has a source. The compiler cannot know that, so the code throws in the branch adx has ruled out. A thrown error that is not a refusal is a bug: exit 2, kind `bug`.
+- adx refused an unknown `lang` before `run`, since `lang` has a source. The compiler cannot know that, so the code throws in the branch adx has ruled out. It throws a `RefusalError` of kind `bug` from `@honeyglass/utils`, never a bare `Error`, so the answer says who acts next: exit 2, kind `bug`.
 - A refusal that concerns no field, such as an account that is switched off, uses `.issue(message)` in place of `.at()`. It has no `path`. The [tracker](#wrapping-a-remote-api) shows one.
+- A field that holds a list or an object can be refused at one part of it. `.at()` then takes a list that starts with the field. [Input that has parts](#input-that-has-parts) shows it.
 
 When a code is raised at a field that has a source, adx fills in `command` for you: the call that lists the field's values. [Commands adx names](#6-what-every-tool-gets) says what such a command carries.
 
@@ -332,7 +343,7 @@ check: ({ name }) => (name.trim() === '' ? [blankName.at('name')] : []),
 
 adx checks in layers: the arguments, then the schema, then each value against its list, then your `check`, then your handler. Each layer collects all its issues, and a later layer runs only when the earlier ones passed.
 
-Network and file system errors need no code of yours. adx sorts them into kinds (see [Errors you did not map](#6-what-every-tool-gets)).
+Network and file system errors need no code of yours, and no `try`. adx sorts them into kinds (see [Errors you did not map](#6-what-every-tool-gets)).
 
 ### A command that returns a long list
 
@@ -491,7 +502,7 @@ next      hello friends add --name ada --lang en --replace
 
 Without `--dry-run` the same call replaces the file. Whether an agent may overwrite the person's data is for its skill to say. Most skills ask the person first.
 
-Every effect takes `--replace`. A call with `--replace` to a new name passes. A call with `--replace` whose plan stages no `files.write` is refused with `UNKNOWN_OPTION`. An effect that never replaces a file switches the option off with `replace: false`. `schema` then does not list it. If such a command still writes over an existing file, the hint is "pick another name", never "add --replace".
+Every effect takes `--replace`. A call with `--replace` to a new name passes. A call with `--replace` whose plan stages no `files.write` is refused with `UNKNOWN_OPTION`. An effect that never replaces a file switches the option off with `replace: false`. `schema` then does not list it. If such a command still writes over an existing file, the hint is "pick another name", never "add --replace". A file the tool builds again from its data needs no `--replace` at all: see [A file the tool builds again](#a-file-the-tool-builds-again).
 
 An effect that sends something, such as a request to a server, adds a second function, `apply`. On a dry run only `plan` runs. The [tracker](#wrapping-a-remote-api) shows it.
 
@@ -690,6 +701,35 @@ Which of the two a command uses follows from its purpose:
 | edits, updates, appends | `files.update` |
 
 Known CLIs make the same split: `docker context create` and `docker context update`, `gh alias set` with `--clobber`, `git config` with `--append` and `--replace-all`.
+
+### A file the tool builds again
+
+Some files are derived: the tool builds them again from what it stores, such as an export or a built document. Every call writes such a file anew. A `--replace` that every call needs is added without a thought, and then it guards nothing.
+
+`friends export` writes the names of all friends into a file for others to read. The command says `replace: 'always'`:
+
+```ts
+replace: 'always',
+plan: async ({ file }, { files }) => {
+  const names = (await friendNames()).join('\n');
+  return files.write(file, names, { mode: 0o644 });
+},
+```
+
+- Every `files.write` of the command replaces an existing file without `--replace`. The answer says so, as for every replace: `replaces: true`, and `changes`. A dry run answers the same, before the file is touched.
+- The command is the only place that says it. `files.write` takes no option for it, and `schema` reads the same line.
+- The command takes no `--replace`, as with `replace: false`.
+- It covers every file the command writes. A command that writes a derived file and a kept file in one call cannot use it: cut it into two commands, or leave it behind `--replace`.
+- It is for derived files only. Data that someone keeps, such as a friend, stays behind `--replace`.
+
+```console
+$ hello friends export --file public/friends.txt | jq -c '.result | {file, replaces}'
+{"file":"public/friends.txt","replaces":true}
+$ hello schema friends export | jq -c '.result.replace'
+"always"
+```
+
+`mode` is explained under [Files](#6-what-every-tool-gets).
 
 ### Reading a file
 
@@ -1078,6 +1118,22 @@ $ tracker whoami | jq -c '.next[0]'
 - An `after` for a command the tool does not list is a `DECLARATION` error at startup.
 - In a larger tool the list of `next` gets a file of its own in `cli/`.
 
+**A hint across folders.** The command of an issue has the same limit. `.command(step)` stands in the handler, so it names a command of the handler's own folder. `tracker` needs no more than that. A larger tool does. Say a tool that releases apps refuses a frozen environment with one code, `ENV_FROZEN`, from two features. The code lies in `core/`, and the command that helps, the list of environments, lies in the feature `env/`. Neither `core/` nor the other feature may import it. So the command stands at the tool, with `hint`, in a list of its own in `cli/`:
+
+```ts
+export const hints = [
+  // core/ to env/: the list of environments shows which are frozen
+  hint(frozen, () => envs.step()),
+];
+```
+
+The tool takes the list as `hints`, beside `next`.
+
+- `hint` takes a code and a function that answers one step to a command. adx adds that command to every issue of the code.
+- A `.command(step)` at the issue wins over the hint. The hint wins over the command adx derives from the source of the field.
+- The function gets nothing, so adx calls it at startup. A hint for a command the tool does not list is a `DECLARATION` error, and so is a second hint for one code.
+- A step from `tell` does not compile here: the `command` of an issue is a command.
+
 ### A checker over a codebase
 
 `lintkit` checks the Go files of a folder against house rules. It only reads, and its answer grows with the code: 47 findings in one package is normal. Two new parts:
@@ -1277,6 +1333,85 @@ $ notes add --file ideas/q5.md --title Q5 --text '- tbd' | jq -c '.kind, .state,
 
 The kind is `ask`: a full disk or a missing right is for the person to fix, not for the agent to retry.
 
+### Input that has parts
+
+`hello greet-all` greets several people in one call. Its input is a list of objects, so it goes in through `--json`. Two new parts:
+
+- **A path below a field**: `.at()` takes a list in place of a field. The first part is the field, and each further part is a key or an index. So an issue names the one part that is wrong.
+- **A shape**: a schema that a caller writes and no command takes whole. The tool registers it under a name, and `schema` prints it.
+
+One person is such a shape. The command takes a list of them:
+
+```ts
+const Person = z.object({
+  name: z.string().describe('who to greet'),
+  lang: z.enum(['en', 'de', 'eo']).default('en').describe('the language code'),
+});
+
+const twice = code('NAME_TWICE', 'fix', 'Name each person once');
+
+const greetAll = read({
+  does: 'greets several people',
+  input: z.object({ people: z.array(Person).describe('the people to greet') }),
+  example: { people: [{ name: 'Ada', lang: 'de' }] },
+  check: ({ people }) =>
+    people.flatMap((person, i) =>
+      people.findIndex(p => p.name === person.name) < i
+        ? [twice.at(['people', i, 'name'], `${person.name} is named twice`)]
+        : [],
+    ),
+  run: ({ people }) => ({
+    greetings: people.map(person => `${hellos[person.lang]}, ${person.name}!`),
+  }),
+});
+```
+
+The tool lists the shape in `shapes`, under the word that names it:
+
+```ts
+export const hello = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'greets people',
+  shapes: { person: Person },
+  commands: { 'greet-all': greetAll },
+});
+```
+
+**A name given twice.** The schema cannot say that rule, so `check` does, and it points at the second place the name stands:
+
+```console
+$ hello greet-all --json '{"people":[{"name":"Ada"},{"name":"Bob"},{"name":"Ada"}]}' | jq -c '.issues[0] | {code, path}'
+{"code":"NAME_TWICE","path":"people.2.name"}
+```
+
+- The answer writes the path with dots. An index is a number in the list and in the path.
+- The first part is checked like a flat path: `.at(['persons', 2, 'name'])` does not compile, in `check` and in `refuse`.
+- The flat form stays. `.at('people')` is the issue at the field itself.
+- When the field has a source, adx fills in `command` from it, as for a flat path.
+
+**The shape in `schema`.** `hello schema` lists the shapes beside the commands, and `hello schema person` prints one as JSON Schema:
+
+```console
+$ hello schema | jq -c '.result.shapes'
+["person"]
+$ hello schema person | jq -c '.result.shape.required'
+["name"]
+```
+
+**A part that fails its schema.** adx refuses it with `SCHEMA`, at the same kind of path. The part lies inside a shape, so the command of the issue shows that shape, not the whole input of the command:
+
+```console
+$ hello greet-all --json '{"people":[{"name":"Ada","lang":"xx"}]}' | jq -c '.issues[0] | {code, path, command}'
+{"code":"SCHEMA","path":"people.0.lang","command":"hello schema person"}
+```
+
+- adx knows the part by the schema value: the same `Person` stands in `shapes` and in the input.
+- The whole input of a command needs no shape. `hello schema greet-all` prints it already.
+- A shape is also the place for a file that someone edits by hand, so that `schema` shows what the file may hold.
+- A key of `shapes` is one word, and a shape and a command cannot share a word. That is a `DECLARATION` error at startup.
+- The start answer does not list shapes and holds no data of the tool: it names the commands and the first steps. Data comes from a command.
+
 ### Stored data that changes its format
 
 A tool changes, and with it the fields it stores. `hello` 0.2 stored one language per friend. `hello` 0.3 stores several. The person's folder then holds files of both formats.
@@ -1464,6 +1599,29 @@ test('a taken name needs --replace', async () => {
 });
 ```
 
+**`run`** runs one whole call in the process of the test, from the arguments to the exit code. It is one more import from `@honeyglass/adx/test`. Use it for what only a whole call shows: the text a person reads, input through stdin, a group called alone, the exit code. It answers `exit`, `out` and `err`, the exit code and what the call wrote to stdout and to stderr:
+
+```ts
+test('a person at a terminal reads text', async () => {
+  const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { ...samples, tty: true });
+  assert.equal(exit, 0);
+  assert.equal(out, 'Hello, Ada!\n');
+});
+
+test('the input can come through stdin', async () => {
+  const stdin = '{"name":"Ada","lang":"de"}';
+  const { out } = await run(hello, ['greet', '--json', '-'], { ...samples, stdin });
+  assert.equal(JSON.parse(out).result.greeting, 'Hallo, Ada!');
+});
+```
+
+- Its options take the samples and the three things a call gets from its surroundings.
+- `tty` says whether stdout is a terminal. `true` answers text. The default is `false`, so JSON.
+- `stdin` is the text the call reads. The default is `null`: nothing is piped in.
+- `cwd` is the working directory. The default is a fresh scratch folder.
+- The data folder is a scratch folder with the seed copied in, as in every probe.
+- `run` starts no program, so many calls cost little. It does not show what only the process does. `conformance` with a command line stays the test of the real program.
+
 Four more checks run when the tool has their subject:
 
 - **The skill.** If the tool names a `skill`, the file must exist and start with a frontmatter that has `name` and `description`.
@@ -1495,8 +1653,9 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 
 - `tool`: name, version, the path of the skill or `null`, the commands, and the first steps.
 - `tool <group>`: the actions of the group.
-- `tool schema`: every command, the shared options, the four kinds, every code with its kind and hint, the roots with their variable and option, the variables, the stored kinds with their format number, the limits.
-- `tool schema <command>`: the input schema, the global fields the command takes, the options it takes, which fields have lists, the key, fields and outline of a list, the fields of a `read` with `output`, the page size, the example.
+- `tool schema`: every command, the shapes, the shared options, the four kinds, every code with its kind and hint, the roots with their variable and option, the variables, the stored kinds with their format number, the limits.
+- `tool schema <command>`: the input schema, the global fields the command takes, the options it takes, which fields have lists, the key, fields and outline of a list, the fields of a `read` with `output`, the page size, `replace: 'always'` of an effect that replaces a derived file, the example.
+- `tool schema <shape>`: one shape as JSON Schema.
 - `tool <command> --help`: the same facts as text for people.
 - `tool --version`: the version.
 
@@ -1507,7 +1666,7 @@ Routing and help come from adx's own command table, which the `commands` of your
 - `--json '{...}'`, on every command: input as one object. `--json -` reads it from stdin.
 - `--output text` or `--output json`, on every command: forces the form. Otherwise text at a terminal, JSON when piped.
 - `--dry-run`, on every `effect`: runs `plan` only and answers `"applied": false`.
-- `--replace`, on an `effect` without `replace: false`: allows `files.write` to replace an existing file.
+- `--replace`, on an `effect` without `replace: false` or `replace: 'always'`: allows `files.write` to replace an existing file.
 - `--fields a,b`, on a `list` and on a `read` with `output`: the named fields, each whole. Alone, it lists the fields.
 - `--page <cursor>`, on a `list`: the page the previous answer named.
 - `--home <folder>`, on every command of a tool with such a root: moves the root. The option has the name of the root.
@@ -1526,7 +1685,8 @@ adx uses no CLI framework. It reads the arguments with Node's `util.parseArgs` i
 - An option may come again only for an array field, such as `--label bug --label payments`.
 - Options and `--json` fill one object. A field given by both is refused with `REPEATED_OPTION`.
 - Objects and arrays of objects go in through `--json` only.
-- A field must not take the name of one of adx's options (`json`, `output`, `dry-run`, `replace`, `fields`, `page`, `help`, `version`) or of a root, such as `home`. That is a `DECLARATION` error at startup. Rename the field, or the root.
+- A field must not take the name of an option adx gives its command. `json`, `output`, `dry-run`, `replace` and `help` are taken on every command, `page` on a `list`, and `fields` on a `list` and on a `read` with `output`. So an `effect` may name a field `page`. `version` is free on every command, since `--version` belongs to the tool called alone. A clash does not compile: the compiler reports it at `input`. A global field reaches every kind of command, so it takes none of these names.
+- A field must not take the name of a root either, such as `home`. That is a `DECLARATION` error at startup. Rename the field, or the root.
 
 **Commands adx names**
 
@@ -1557,7 +1717,7 @@ Every command in a step or in an issue is complete, so an agent can run it word 
 }
 ```
 
-`applied` appears only on commands that change something. The real run of an effect answers everything its dry run answered, plus what `apply` returned. A refusal holds issues only: `next` belongs to a success. An issue from `.issue()` has no `path`, and `command` stands only where a command helps. Exit codes: 0 success, 1 a refusal of kind `fix`, `ask` or `retry`, 2 kind `bug`.
+`applied` appears only on commands that change something. The real run of an effect answers everything its dry run answered, plus what `apply` returned. A refusal holds issues only: `next` belongs to a success. The `path` of an issue is a field, or a place below it written with dots, such as `people.2.name`. An issue from `.issue()` has no `path`, and `command` stands only where a command helps. Exit codes: 0 success, 1 a refusal of kind `fix`, `ask` or `retry`, 2 kind `bug`.
 
 **Files**
 
@@ -1609,6 +1769,22 @@ plan: async ({ name, lang }, { files }) => {
 
 A read is tried again up to 3 times before it is refused, with a growing pause, on a network error, a 429 or a 503. A send is never tried again by adx: the agent gets kind `retry` and the `look` step. Every refusal keeps the error that led to it as its `cause`.
 
+adx handles each of these errors inside itself, where the error starts. So a handler writes no `try` for anything that goes through adx: `api.get` answers a value, `files.update` hands over the text, and a failure ends the call with adx's refusal.
+
+Your own code can fail in a way you expect too: a status of a send, a file you read yourself, a parser that throws. Take such an error as a value, with `$try` for a promise and `trySync$` for a synchronous call that can throw. Both are imports from `@honeyglass/utils/ts`. Check the error on the next line, answer with `refuse`, and throw on what you did not expect. `ticket close` of the tracker expects a 409 while someone else works on the ticket, and refuses with its code `STILL_OPEN`:
+
+```ts
+const sent = await $try(act.send('the closed ticket', request, Ticket));
+if (sent.error === null) return { ticket: sent.data };
+// The server answers 409 while someone else works on the ticket. Any other error flies on.
+if (status(sent.error) === 409) return refuse(stillOpen.issue(`${id} is still open`));
+throw sent.error;
+```
+
+- Write no native `try` block and no `.catch`.
+- Put no `$try` around a bug, such as a typo in your own code. Let it fly.
+- adx catches a bug once, in `main()`, and answers `UNKNOWN_ERROR`, kind `bug`, with exit code 2.
+
 ## 7. FAQ
 
 **How does the type safety work?**
@@ -1642,13 +1818,13 @@ In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env no
 - **A handler can go around adx.** A handler that calls `node:fs` or `fetch` itself can write half a file or send on a dry run. adx guards only what goes through `files` and a remote.
 - **Two commands that name each other need a type.** If one command names a second in `next` or in `.command()`, and the second names the first, the compiler stops with "implicitly has type 'any'". Writing `(): Step[] =>` on one of the two functions fixes it, but the message does not say so.
 - **Two files that need each other while they load break on the import order.** `detailOf(tickets)` and `keyOf(tickets)` read the list when their file loads. If the file of the list imports that file in turn, the file that loads first decides whether the list exists in time. A command named inside a function, such as `next`, `look` or `run`, is read only when the function runs. The list needs no import of its one-item command: adx derives that step.
-- **A hint and a `look` name commands of their own folder.** `after` moves a `next` across folders to the tool. The `.command(step)` of an issue and the `look` of an effect stand in the handler. Under a rule that features do not import each other, they cannot name a command of another feature.
+- **A `look` names a command of its own folder.** `after` moves a `next` across folders to the tool, and `hint` moves the command of an issue there. The `look` of an effect stands in the handler. Under a rule that features do not import each other, it cannot name a command of another feature.
 - **The compiler does not know what adx checked.** adx has already refused an unknown `lang`, but `byCode(lang)` still returns a language or `undefined`, so the code needs a branch for the compiler alone.
 - **Two input types to keep apart.** `example: { dir: '.' }` is a string, while `run` gets a `Dir`. A field with a default is optional in `example` and present in `run`.
 - **A named source without `Source` reports a typo in `needs` far from it.** A source written in `values`, and a named source typed with `Source<...>`, report the typo at the source. A named source with a parameter type of its own reports it at the `values` line that uses the source, in about ten lines and without a suggestion.
-- **Some facts only show at startup or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored`, a field named like one of adx's options, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
+- **Some facts only show at startup or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored`, a field named like a root, a hint for a command no tool lists, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
 - **A stored file written around its kind has no number.** A file written with `JSON.stringify` in place of `Friend.stringify` lacks `"version"`, and the next read takes it for format 1.
-- **A status of a send is mapped by hand.** `on` exists for `get` only. For a send, catch the error and read `status(error)`.
+- **A status of a send is mapped by hand.** `on` exists for `get` only. For a send, take the error with `$try` and read `status(error)`, as [Errors you did not map](#6-what-every-tool-gets) shows.
 - **A switch cannot be set to false by an option.** A boolean field with the default `true` is switched off through `--json` only.
 - **`schema` shows no answer shape for an `effect`, or for a `read` without `output`.** Their answer type is inferred from your code.
 - **The skill is not checked against the tool.** The kit checks that the file is a skill. It does not notice a command or a code the skill names and the tool no longer has.

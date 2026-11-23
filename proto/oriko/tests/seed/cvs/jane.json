@@ -1,0 +1,74 @@
+{
+  "language": "en",
+  "person": {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "role": "Senior Backend Engineer",
+    "photo": "cvs/jane.png"
+  },
+  "contact": {
+    "title": "Contact",
+    "items": [
+      {
+        "icon": "pin",
+        "lines": ["Germany, Berlin"]
+      },
+      {
+        "icon": "mail",
+        "lines": ["jane@example.com"]
+      }
+    ]
+  },
+  "pages": 2,
+  "blocks": [
+    {
+      "id": "northwind",
+      "section": "Professional Experience",
+      "kind": "job",
+      "from": "03/2021",
+      "to": "today",
+      "title": "Senior Backend Engineer",
+      "place": "Berlin",
+      "employer": "Northwind",
+      "bullets": ["Runs the billing services", "Cut the cost of a deploy in half"]
+    },
+    {
+      "id": "freelance",
+      "section": "Professional Experience",
+      "kind": "job",
+      "from": "01/2018",
+      "to": "02/2021",
+      "title": "Backend Engineer",
+      "place": "Remote",
+      "employer": "Freelance",
+      "bullets": ["Built APIs for three shops"]
+    },
+    {
+      "id": "programming-languages",
+      "section": "Skills",
+      "kind": "rated",
+      "title": "Programming Languages",
+      "items": [
+        {
+          "name": "Go",
+          "level": 5
+        },
+        {
+          "name": "TypeScript",
+          "level": 4
+        }
+      ]
+    },
+    {
+      "id": "awards",
+      "section": "Awards",
+      "kind": "entries",
+      "items": [
+        {
+          "title": "Certified Kubernetes Administrator",
+          "note": "09/2022"
+        }
+      ]
+    }
+  ]
+}

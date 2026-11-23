@@ -87,5 +87,11 @@ tool({
   // @ts-expect-error a command built for a global needs a tool with that global
   commands: { labels },
 });
+// A global field goes to every kind of command, so it takes no name of an option adx gives one.
+global({
+  // @ts-expect-error a list has --page from adx, and a global field reaches every list
+  input: z.object({ page: z.number() }),
+  example: { page: 2 },
+});
 // @ts-expect-error a tool lists its commands
 tool({ name: 'tracker', version: '1.2.0', does: 'x' });

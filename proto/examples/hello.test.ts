@@ -1,7 +1,7 @@
 // Guide, "Testing your tool": a tool with a data folder.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { conformance } from '@honeyglass/adx/test';
+import { conformance, run } from '@honeyglass/adx/test';
 import { add, hello } from '../hello2.ts';
 
 const samples = { seed: 'test/seed' }; // holds the friend ada
@@ -15,4 +15,16 @@ test('a taken name needs --replace', async () => {
   const options = { ...samples, replace: true };
   const replaced = await add.invoke(friend, options);
   assert.equal(replaced.result?.replaces, true);
+});
+
+test('a person at a terminal reads text', async () => {
+  const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { ...samples, tty: true });
+  assert.equal(exit, 0);
+  assert.equal(out, 'Hello, Ada!\n');
+});
+
+test('the input can come through stdin', async () => {
+  const stdin = '{"name":"Ada","lang":"de"}';
+  const { out } = await run(hello, ['greet', '--json', '-'], { ...samples, stdin });
+  assert.equal(JSON.parse(out).result.greeting, 'Hallo, Ada!');
 });

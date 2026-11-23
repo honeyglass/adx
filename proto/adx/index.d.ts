@@ -29,8 +29,11 @@ export function tell(does: string): Step;
 // codes and refusals
 export class Issue<P extends string = string> {
   readonly code: string;
-  /** The field the issue stands at. An issue from `code.issue()` has none. */
-  readonly path?: P;
+  /**
+   * Where the issue stands: the field, then the parts below it, if any. The answer writes it with
+   * dots, such as `people.1.lang`. An issue from `code.issue()` has none.
+   */
+  readonly path?: readonly [P, ...(string | number)[]];
   /** Adds a command the agent can run as the next move. */
   command(step: Step): Issue<P>;
 }
@@ -38,8 +41,15 @@ export class Refused<P extends string = string> extends RefusalError {
   readonly issues: readonly Issue<P>[];
 }
 export interface Code {
-  /** An issue at one field of the input. */
+  /**
+   * An issue at one field of the input, or at a place below it. A place below a field is a list:
+   * the field first, then a key or an index per level, such as `['people', 1, 'lang']`.
+   */
   at<P extends string>(path: P, message?: string): Issue<P>;
+  at<const P extends string>(
+    path: readonly [P, ...(string | number)[]],
+    message?: string,
+  ): Issue<P>;
   /** An issue that concerns no field, such as a server in maintenance. It has no `path`. */
   issue(message?: string): Issue<never>;
 }
@@ -227,6 +237,7 @@ export interface Files {
   /**
    * For a command that creates something new. An existing file is refused unless the call says
    * `--replace`. A new file gets the mode `0600`, or the `mode` given; a replaced file keeps its mode.
+   * In a command that says `replace: 'always'`, the write replaces an existing file without the option.
    */
   write(file: File, data: string | Uint8Array, options?: { mode?: number }): Written;
   /**
@@ -255,6 +266,12 @@ type Out<O, I extends Obj, G extends Obj, U> = Maybe<O | Refused<Fields<I, G, U>
 type Merged<O, A> = [A] extends [void] ? O : O & A;
 /** The answer of either run: a dry run lacks what `apply` adds. */
 type Either<O, A> = [A] extends [void] ? O : O & Partial<A>;
+/** The options of adx that every command takes. A field of that name would be the same option. */
+type Always = 'json' | 'output' | 'help' | 'dryRun' | 'replace';
+/** An input compiles only when no field has the name of an option adx gives the command. */
+type Free<S extends Obj, Taken extends string> = [Extract<keyof z.output<S>, Taken>] extends [never]
+  ? unknown
+  : { readonly 'adx gives the command an option of this name': Extract<keyof z.output<S>, Taken> };
 
 declare const builtFor: unique symbol;
 declare const realRun: unique symbol;
@@ -281,10 +298,10 @@ export interface ListCommand<
   readonly item: T;
 }
 
-// the properties every kind of command shares
-interface Common<I extends Obj, G extends Obj, U, R> {
+// the properties every kind of command shares; `Taken` names the options adx gives the kind
+interface Common<I extends Obj, G extends Obj, U, R, Taken extends string> {
   does: string;
-  input?: I;
+  input?: I & Free<I, Taken>;
   example?: Given<I>;
   /** Leave out to take every global field as declared. */
   global?: U;
@@ -298,7 +315,7 @@ export interface ReadSpec<
   O,
   U = {},
   S extends z.ZodType = z.ZodType,
-> extends Common<I, G, U, O> {
+> extends Common<I, G, U, O, Always | (z.ZodType extends S ? never : 'fields')> {
   /**
    * The schema of the answer. With it the command takes `--fields`, and `schema` shows the answer.
    * A read that answers a long list or a large document needs it.
@@ -311,7 +328,8 @@ export interface ListSpec<I extends Obj, G extends Obj, T extends Obj, U = {}> e
   I,
   G,
   U,
-  Listing<In<T>>
+  Listing<In<T>>,
+  Always | 'page' | 'fields'
 > {
   item: T;
   key: Field<T>;
@@ -329,9 +347,14 @@ export interface EffectSpec<
   O,
   A extends object | void,
   U = {},
-> extends Common<I, G, U, Merged<O, A>> {
-  /** Every effect takes `--replace`. `false` switches the option off, and `schema` does not list it. */
-  replace?: false;
+> extends Common<I, G, U, Merged<O, A>, Always> {
+  /**
+   * Every effect takes `--replace`. `false` switches the option off, and `schema` does not list it.
+   * `'always'` switches it off too, and is for a command that writes derived files, ones the tool
+   * builds again from what it stores: every `files.write` of the command replaces an existing file
+   * without the option, and `schema` shows it.
+   */
+  replace?: false | 'always';
   /** Runs every check and stages every file. Its answer is the answer of the dry run. */
   plan: (
     input: All<I, G, U>,
@@ -386,7 +409,8 @@ export interface Global<G extends Obj> extends Kinds<G> {
   readonly input: G;
 }
 export function global<G extends Obj>(spec: {
-  input: G;
+  /** A global field goes to every kind of command, so it takes no name of an option of any kind. */
+  input: G & Free<G, Always | 'page' | 'fields'>;
   example: Given<G>;
   values?: Values<G, G>;
 }): Global<G>;
@@ -408,7 +432,22 @@ export function after<I extends Obj, O, G extends Obj, U, R>(
   next: (out: R, input: All<I, G, U>) => Step[],
 ): After<G>;
 
+declare const helps: unique symbol;
+export interface Hint {
+  readonly [helps]: Code;
+}
+/**
+ * The command that helps with a code, given where the tool is put together. adx adds it to every
+ * issue of that code that has no command of its own. For a command that the folder of the code does
+ * not import. The step names a command, so a step from `tell` does not compile.
+ */
+export function hint(code: Code, step: () => CommandStep<any>): Hint;
+
 export interface Tool {
+  /**
+   * Runs one call. It is the outermost function: a refusal that reaches it is answered by its
+   * kind, and any other error once, here, as a bug with exit code 2. It never rejects.
+   */
   main(): Promise<void>;
 }
 export interface ToolSpec<G extends Obj> {
@@ -428,8 +467,16 @@ export interface ToolSpec<G extends Obj> {
   global?: Global<G>;
   /** Every command of the tool. A command built for another global input does not compile here. */
   commands: Commands<NoInfer<G>>;
+  /**
+   * Schemas a caller writes and no command takes whole, each under the word that names it.
+   * `schema` lists the names, `schema <name>` prints one, and a `SCHEMA` issue inside one names
+   * that call.
+   */
+  shapes?: { readonly [name: string]: z.ZodType };
   /** Steps `after` a command, for the steps that cross folders. */
   next?: After<NoInfer<G>>[];
+  /** The command of a `hint` for a code, for the hints that cross folders. */
+  hints?: Hint[];
   /** The first steps of the start answer (the tool called alone). */
   start?: () => Maybe<Step[]>;
 }

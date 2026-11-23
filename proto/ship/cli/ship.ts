@@ -10,6 +10,7 @@ import { commands as env } from '../env/commands.ts';
 import { commands as release } from '../releases/commands.ts';
 import { releases } from '../releases/list.ts';
 import { rollback } from '../releases/rollback.ts';
+import { hints } from './hints.ts';
 import { next } from './next.ts';
 
 export const ship = tool({
@@ -28,5 +29,6 @@ export const ship = tool({
     whoami,
   },
   next,
+  hints,
   start: () => [apps.step(), releases.step()],
 });

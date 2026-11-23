@@ -1,5 +1,5 @@
 // What must NOT compile in tracker.
-import { after } from '@honeyglass/adx';
+import { after, code, hint, tell } from '@honeyglass/adx';
 import { api, effect, read } from '../core/tracker.ts';
 import { create } from '../tickets/create.ts';
 import { tickets } from '../tickets/list.ts';
@@ -60,3 +60,15 @@ after(create, ({ ticket }, { project }) => [tickets.step({ project, state: ticke
 after(create, ({ tikcet }) => [tickets.step({ state: tikcet })]);
 // @ts-expect-error whoami takes no project
 after(whoami, (_, { project }) => [tickets.step({ project })]);
+
+// A hint across folders: a code, and a function that answers the step to the command that helps.
+const noAccount = code('NO_ACCOUNT', 'ask', 'Ask an admin for an account');
+hint(noAccount, () => whoami.step());
+// @ts-expect-error a hint names a command, and a step for the person has none
+hint(noAccount, () => tell('ask an admin'));
+// @ts-expect-error a hint takes the code, not its name
+hint('NO_ACCOUNT', () => whoami.step());
+// @ts-expect-error a hint stands for a code, not for one issue of it
+hint(noAccount.issue(), () => whoami.step());
+// @ts-expect-error titel is no field of create
+hint(noAccount, () => create.step({ titel: 'x' }));

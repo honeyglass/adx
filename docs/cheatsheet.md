@@ -64,8 +64,10 @@ adx needs Node 24.2 or later.
 - `roots`, `remotes`: the folders and servers the tool may use.
 - `stored`: every kind of data the tool stores, with its format number.
 - `global`: the input every command shares, declared with `global({...})` (see below).
+- `shapes`: schemas a caller writes and no command takes whole, each under a name (see Refusals).
 - `start`: the first steps of the start answer, as a function.
 - `next`: steps after a command that lead into another folder, with `after` (see Steps).
+- `hints`: the command that helps with a code and lies in another folder, with `hint` (see Steps).
 - `hello.main()`: runs one call.
 
 ```ts
@@ -111,7 +113,7 @@ Each returns the command, a value. Write it into the table, or keep it in a `con
 
 - `read`: `output` (the schema of the answer). With it the command takes `--fields`, and `schema` shows the answer. A `read` that answers a long list or a large document needs it.
 - `list`: `item` (the schema of an item), `key` (the field that names an item), `outline` (the further fields of the outline), `pageSize`.
-- `effect`: `plan` (checks and plans), `apply` (sends), `look` (the call that shows whether a send took effect), `replace: false` (the command takes no `--replace`).
+- `effect`: `plan` (checks and plans), `apply` (sends), `look` (the call that shows whether a send took effect), `replace: false` (the command takes no `--replace`), `replace: 'always'` (the command takes none, and each of its `files.write` replaces without it).
 
 ```ts
 output: Ticket,
@@ -144,7 +146,16 @@ plan: ({ file, text }, { files }) => files.update(file, LIMIT, old => `${old}${t
 - `files.update(file, limit, old => next)`: stages a change. adx reads the file itself, up to the limit, and calls the function. Takes no `--replace`. A missing file: `FILE_NOT_FOUND`, kind `fix`.
 - Both answer `{ file, bytes, replaces }`, and `changes` too on a replace.
 - adx writes all staged files after `plan`, all or none. On a dry run adx writes nothing.
+- `replace: 'always'` on the command: for derived files, ones the tool builds again from its data. Every `files.write` of the command replaces without `--replace`, and the answer says `replaces: true`. It covers all files of the command, so a command that also writes a kept file cannot use it.
 - Files exist only in `plan`. There is no `files.remove` yet.
+
+```ts
+replace: 'always',
+plan: async ({ file }, { files }) => {
+  const names = (await friendNames()).join('\n');
+  return files.write(file, names, { mode: 0o644 });
+},
+```
 
 ### Sending in `apply`
 
@@ -203,8 +214,10 @@ Every `id()` field needs a source. Otherwise the tool does not start.
 
 - `code('NO_FORMAL_GREETING', 'fix', 'hint')`: declares a code with its kind and hint.
 - `.at('style', 'message')`: turns it into an issue at a field. Without a message, it repeats the hint.
+- `.at(['people', 2, 'name'], 'message')`: an issue at a place below a field. The list starts with a field of the input, then a key or an index per level. The answer writes `people.2.name`.
 - `.issue('message')`: an issue that concerns no field. It has no `path`.
 - `.command(step)`: adds a command that helps.
+- `shapes: { person: Person }` in the tool: `schema` lists the shape, `schema person` prints it, and a `SCHEMA` issue inside it names that call.
 - `refuse(...)` from `ctx`: refuses. The handler returns the result.
 - `failed(state, error)`: thrown in `apply`, with a sentence on the state.
 
@@ -220,6 +233,19 @@ const noFormal = code(
 return user.active ? user : refuse(inactive.issue(`${user.login} is deactivated`));
 ```
 
+```ts
+check: ({ people }) =>
+  people.flatMap((person, i) =>
+    people.findIndex(p => p.name === person.name) < i
+      ? [twice.at(['people', i, 'name'], `${person.name} is named twice`)]
+      : [],
+  ),
+```
+
+```ts
+shapes: { person: Person },
+```
+
 Layers: the arguments, the schema, each value against its list, `check`, the handler.
 
 ### Steps
@@ -230,9 +256,14 @@ Layers: the arguments, the schema, each value against its list, `check`, the han
 - `tell('upload the file')`: a step for the person, without a command.
 - When nothing follows, `next` returns no step.
 - `after(command, fn)` in the `next` of the tool: steps after a command that lead to a command of another folder. `fn` gets what `next` gets.
+- `hint(code, fn)` in the `hints` of the tool: the command for every issue of a code, when it lies in another folder. `fn` gets nothing and answers one step to a command. A `.command(step)` at the issue wins.
 
 ```ts
 next: [after(whoami, () => [tickets.step()])],
+```
+
+```ts
+hint(frozen, () => envs.step()),
 ```
 
 ### Folders and files
@@ -348,11 +379,20 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 - `fake(api, routes)`, `reply(503)`: a server for the test, as a table of routes.
 - `samples`: `env`, `fakes`, `seed`. What only you know.
 - `tickets.invoke(input, options)`: one command without argv, with typed input. Options: the samples, `dryRun`, `replace`.
+- `run(tool, argv, options)`: one whole call in the process of the test. Answers `{ exit, out, err }`. Options: the samples, `cwd`, `stdin` (a text or `null`), `tty` (text with `true`, JSON with `false`).
 - The test kit splits every named command (in `next` or in an issue) with `unbash` and checks that adx knows it.
 - If the tool names a `skill`, the test kit checks that the file exists and has a frontmatter with `name` and `description`. It reads nothing more.
 - An effect that lists `--replace` and never stages a `files.write` fails: add `replace: false`.
 - A `read` that answers a long list or a large document without `output` fails.
 - `adxcheck report` and `adxcheck run`: the same check as a command. Without a skill the report says "none named", not "met".
+
+```ts
+test('a person at a terminal reads text', async () => {
+  const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { ...samples, tty: true });
+  assert.equal(exit, 0);
+  assert.equal(out, 'Hello, Ada!\n');
+});
+```
 
 ## On the command line
 
@@ -497,7 +537,7 @@ What else adx gives every tool:
 
 - `--output text` or `--output json`: forces the form.
 - `--dry-run`: on every effect.
-- `--replace`: on every effect, except with `replace: false`. Allows `files.write` to replace a file.
+- `--replace`: on every effect, except with `replace: false` or `replace: 'always'`. Allows `files.write` to replace a file.
 - `--fields`: on every list and on every `read` with `output`.
 - `--home`: on every command of a tool with such a root.
 - `--help` and `--version`. The help comes from the command table. There is no help text to write.
@@ -525,17 +565,17 @@ Exit codes and kinds:
 adx builds in 15 rules. Rule 6 is the author's.
 
 1. Raw JSON input: `--json` fills the same schema as the options, also together with them.
-2. Schema at run time: `tool schema` prints the schema adx checks with, and the kinds, codes, roots and format numbers.
+2. Schema at run time: `tool schema` prints the schema adx checks with, and the kinds, codes, roots, shapes and format numbers.
 3. JSON when piped: only adx writes to stdout.
 4. Input hardening: `id()`, `dir`, `inFile`, `outFile`, every path stays in its root.
-5. Dry runs: `--dry-run` runs only `plan`. `act.send` exists only in `apply`. The real run answers the plan and what `apply` adds. Replacing needs `--replace` and shows `changes`.
+5. Dry runs: `--dry-run` runs only `plan`. `act.send` exists only in `apply`. The real run answers the plan and what `apply` adds. Replacing needs `--replace`, or `replace: 'always'` on a command for derived files, and shows `changes`.
 6. Agent skill: not built in. The author writes the skill. adx only checks that a named skill file exists and has a frontmatter.
 7. Checks in layers: the arguments, the schema, the lists, `check`, the handler.
 8. Errors with a hint: `code()` requires the hint, `.at()` the field.
 9. All or nothing: all files go through `write` and `update` in `plan`. adx writes them at the end.
 10. Exit codes 0, 1, 2: adx sets them from the kind of the code.
 11. Plan before the file: `plan` is the answer of the dry run.
-12. Hints that run: adx fills `command` from the source of the field and carries the data folder into it.
+12. Hints that run: adx fills `command` from the source of the field, or from a `hint` of the tool, and carries the data folder into it.
 13. Options that list: every source in `values` also answers the empty option.
 14. Next steps: `start`, `next`, `after`, steps only from commands, `needs` derived.
 15. Nothing passes silently: adx checks every argument itself.
@@ -549,12 +589,14 @@ adx builds in 15 rules. Rule 6 is the author's.
 - All mistakes of a call come back in one answer.
 - Options and `--json` fill one object. A field given by both is refused (`REPEATED_OPTION`).
 - A field `dueDate` is the option `--due-date`. A boolean field is a switch without a value.
+- A field takes no name of an option adx gives its command: `json`, `output`, `dry-run`, `replace` and `help` on every command, `page` on a list, `fields` on a list and on a `read` with `output`. A clash does not compile. `version` is free.
 - Routing and help come from adx's own command table, which the `commands` of the tool fill.
 - adx assumes no folder layout. A command is a value, and the table takes it from wherever it lies.
 - The agent skill is not part of the toolkit. The tool never reads it, never embeds it and never prints it. It only names the path, and the start answer shows it.
 - adx's codes and kinds stand once, in adx. Every tool prints them with `tool schema`.
 - No guide text and no free help text in the tool. The first steps come from the `next` of the start answer and from the hints of the refusals.
 - `api` runs on RxJS inside: retries, timeouts, the cancelling of several requests. The author sees none of it.
+- adx handles every expected error inside, with `$try` and `trySync$` from `@honeyglass/utils`. A handler writes no `try`. A bug is caught once, in `main()`: kind `bug`, exit code 2.
 - Node does not check types. The safety holds where `tsc --noEmit` runs: in the editor, before the commit and in CI.
 
 ## Known limits
@@ -563,6 +605,6 @@ adx builds in 15 rules. Rule 6 is the author's.
 - Two calls that write the same file at the same moment are not coordinated. The later one wins.
 - A handler that calls `node:fs` or `fetch` itself is outside the rules.
 - The skill is not checked against the tool.
-- `on` exists for `get` only. You read the status of a send with `status(error)`.
+- `on` exists for `get` only. You take the error of a send with `$try` and read its status with `status(error)`.
 - Two files that need each other while they load (`detailOf`, `keyOf`) break on the import order.
-- A hint (`.command(step)`) and a `look` name commands of their own folder. Only a `next` can be moved to the tool with `after`.
+- A `look` names a command of its own folder. A `next` can be moved to the tool with `after`, and the command of an issue with `hint`.

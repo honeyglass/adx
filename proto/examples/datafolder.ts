@@ -62,11 +62,13 @@ const change = effect({
   },
 });
 
-// A file for others to read: its own mode.
+// A file for others to read: its own mode. And a derived file: every export builds it again from
+// the friends, so the command says replace: 'always', and its write replaces without --replace.
 const exportNames = effect({
   does: 'writes the names of all friends for others to read',
   input: z.object({ file: outFile(home).describe('where the list goes') }),
   example: { file: 'public/friends.txt' },
+  replace: 'always',
   plan: async ({ file }, { files }) => {
     const names = (await friendNames()).join('\n');
     return files.write(file, names, { mode: 0o644 });
@@ -81,6 +83,24 @@ export const hello = tool({
   commands: {
     friends: { add, edit, show, switch: change, export: exportNames },
   },
+});
+
+// ---- what must NOT compile ----
+effect({
+  does: 'x',
+  input: FriendIn,
+  example: { name: 'ada', lang: 'de' },
+  replace: 'always',
+  // @ts-expect-error a write has no replaces option: the command says it, for all of its writes
+  plan: (friend, { files }) => files.write(friendFile(friend.name), 'x', { replaces: 'always' }),
+});
+effect({
+  does: 'x',
+  input: FriendIn,
+  example: { name: 'ada', lang: 'de' },
+  // @ts-expect-error replace takes false or 'always', and no other word
+  replace: 'never',
+  plan: (friend, { files }) => files.write(friendFile(friend.name), 'x'),
 });
 
 if (import.meta.main) await hello.main();

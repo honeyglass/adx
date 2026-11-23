@@ -1,6 +1,6 @@
 # adx v2: decisions of the owner
 
-The owner's decisions on the v2 API, in the order they were made (2026-11-20 to 2026-11-22).
+The owner's decisions on the v2 API, in the order they were made (2026-11-20 to 2026-11-23).
 They override every other file in this folder. Each decision reads on its own; where a later one
 changes an earlier one, both say so.
 
@@ -12,11 +12,13 @@ changes an earlier one, both say so.
    option is collected and reading goes on, all mistakes of a call come back in one answer.
    Routing and help come from adx's own command table.
 3. **`unbash` in the test kit** splits every command a tool names in `next` or in a hint into shell
-   words, and the kit checks that adx knows each call.
+   words, and the kit checks that adx knows each call. That holds for the command of a `hint` (73)
+   too. One whole call in the process of the test: 74.
 4. **The agent skill is not part of the toolkit.** adx never reads, embeds or prints a skill.
 5. **No `guide` or `help` text in the tool.** The first steps come from `next` in the start answer
    (rule 14, `hello.start(...)`; since 65 the property `start` of the tool) and from hints in
-   refusals; care that is no step belongs in the skill.
+   refusals; care that is no step belongs in the skill. What the start answer holds, and that a
+   tool adds no data to it: 72.
 6. **RxJS under the hood of `api`.** Retries, timeouts and cancelling several requests run on RxJS
    inside adx; the author never sees it. `api` stays its own thing rather than plain `fetch`: it checks
    every answer against a schema, maps a status to a kind, sends only through `act.send` in `apply`
@@ -34,7 +36,7 @@ changes an earlier one, both say so.
     - Whether a file is replaced is decided by the write alone, not by `fresh`. If the file exists,
       `files.write` refuses without `--replace`, with the hint "add --replace to overwrite <name>".
       With `--replace` it replaces, and the plan shows "replaces". The refusal already comes in
-      `plan`, so also in a dry run.
+      `plan`, so also in a dry run. A derived file is replaced without the flag since 70.
     - `fresh` refuses nothing any more. It only lists the taken names when `--name` comes without
       a value (rule 13).
     - `files.put` is renamed `files.write`, since "put" sounds like HTTP.
@@ -57,6 +59,7 @@ changes an earlier one, both say so.
     - adx supports both. Whether and how a tool uses them is decided by its use case.
     - `files.write`: for commands that create something new. If the file exists, adx refuses
       (`ALREADY_EXISTS`, hint "add --replace to overwrite <name>"); with `--replace` it replaces.
+      In a command that says `replace: 'always'` it replaces without it (70).
     - `files.update`: for commands whose purpose is to change (edit, update, append). No `--replace`.
       If the file is missing, adx refuses; `update` never creates anything silently. Its form: 29.
     - With both, `plan` shows what changes, and a dry run writes nothing.
@@ -95,6 +98,7 @@ changes an earlier one, both say so.
 15. **Two renames**:
     - `text()` becomes `multiline()`: the schema for text with line breaks.
     - `.run(step)` on an issue becomes `.command(step)`: it attaches a command as a proposal.
+      A command of another folder is attached at the tool, with `hint` (73).
     - Reason: each name names one thing. `text` was both a schema and the terminal form, `run` both
       the handler and this method. The renames change no behaviour.
     - Holds before the first release; afterwards it would break every author's code. More renames: 30.
@@ -106,6 +110,7 @@ it where needed.
     - Every effect takes `--replace`; `replace: false` switches it off, and `schema` then does not list it.
     - If such a command still writes over an existing file, adx's hint is "pick another name", never
       "add --replace".
+    - Since 70 `replace` takes a second value, `'always'`, for a command that writes a derived file.
 17. **File modes**:
     - Default `0600` for files and `0700` for folders; a replaced file keeps its mode.
     - `files.write(file, data, { mode: 0o644 })` deviates.
@@ -177,7 +182,8 @@ The next twelve answer the questions of `review-final.md` (2026-11-21).
 32. **`ROOT_NOT_FOUND` stays `ask`** (question 10, answer A), also after a wrong `--home`: one code, one
     kind, the safe side.
 33. **A refusal without a field** (question 11, answer A): a new `code.issue(message?)` for a refusal
-    that concerns no field; it has no `path`. `.at(field)` still always requires a field.
+    that concerns no field; it has no `path`. `.at(field)` still always requires a field. Since 69
+    it also takes a path below a field, as a list that starts with the field.
 34. **adx builds in 15 rules, not 16**: rule 6, the agent skill, is the author's; adx only checks that a
     named skill file exists and has a frontmatter (7). The cheat sheet and the guide say so.
 
@@ -221,6 +227,8 @@ owner confirmed each recommendation, and the docs already show it).
 50. **`failed(state, cause)`** takes kind and code from the cause, as for every unmapped error.
 51. **Field to option**: kebab case; a boolean is a switch without a value, and `false` goes through
     `--json` only; a field named like one of adx's options or like a root is a `DECLARATION` error.
+    Since 71 four of the names are reserved only where the command has the option, and the type
+    checker reports a clash.
 52. **What a derived command carries**: the fields of the call that the named command has under the same
     name (so the list call reads `hello greet --name Ada --lang`). A step the author wrote carries only
     its own fields, plus the global fields and the data folder.
@@ -230,7 +238,7 @@ owner confirmed each recommendation, and the docs already show it).
 56. **"A long list or a large document"** (26): more than 50 entries in an array, or more than 8 KiB of
     answer, in any probe of the test kit.
 57. **`output` on `read`** also lets `schema` show the answer's fields; with no field named, the read
-    still answers everything.
+    still answers everything. `schema` also prints the shapes a tool registers (72).
 58. **`on` is for `get` only for now**; on `act.send` it comes later and stands under "Known limits".
 59. **`apply` returns an object**, by type, since adx merges it into the plan (24).
 60. **The report line for a skill** is "none named" without one and "named" with one that passes the
@@ -291,9 +299,9 @@ changes how an earlier decision is written, both say so.
     - Its steps follow the steps of the command's own `next`. Several entries for one command hold
       in the order of the list.
     - An `after` for a command the tool does not list is a `DECLARATION` error.
-    - Not covered: a command in an issue (`.command(step)`) and the `look` of an effect stand in the
-      handler, so they name commands of their own folder only. The guide names the gap under
-      "Known limits".
+    - Not covered: the `look` of an effect stands in the handler, so it names a command of its own
+      folder only. The guide names the gap under "Known limits". The command in an issue
+      (`.command(step)`) was not covered either; since 73 it has `hint(code, step)` at the tool.
     - Type-checked in `proto/tracker/tests/types.ts`: a typo in the answer does not compile, and
       neither does a global field the command does not take.
 68. **How the examples place schemas and sources** (changes where 14 reports a typo):
@@ -305,6 +313,172 @@ changes how an earlier decision is written, both say so.
       type of its own for the fields a source reads.
     - With both, a typo in `needs` is reported at the source, not at the `values` line that uses it.
       Type-checked in `proto/needs.ts`.
+
+The next six come from the analysis of oriko's move onto adx (2026-11-23; the owner chose answer A
+for each). Where one changes an earlier decision, both say so.
+
+69. **An issue can stand below a field: `.at` takes a path as a list** (changes 33):
+    - `.at(['blocks', 'nobody'], message)` names a place below a field. The first part is a field
+      of the input. Each further part is a key, as a string, or an index, as a number.
+    - The flat form stays valid: `.at('blocks')` is the issue at the field itself.
+    - The type checker allows only a path that starts with a field of the command.
+      `.at(['blokcs', 'nobody'])` does not compile, in `check` and in `refuse`, as `.at('blokcs')`
+      does not. An empty list does not compile either.
+    - The answer writes the path with dots: `"path": "blocks.nobody"`, or `"people.2.name"` with an
+      index. That is the form of the JSON paths in `changes` (40), and adx's own `SCHEMA` issues
+      name a part of the input the same way.
+    - adx fills `command` from the source of the first part, as it does for a flat path.
+    - Reason: a field given through `--json` can hold a list or an object. An issue at the field
+      alone does not say which part is wrong, and the agent has to search for it.
+    - Type-checked in `proto/examples/parts.ts`.
+70. **A derived file is replaced without `--replace`** (changes 10, 12 and 16):
+    - A derived file is one the tool builds again from what it stores, such as a built document or
+      an export. A command that writes such files says `replace: 'always'`, and every `files.write`
+      of that command then replaces an existing file without `--replace`.
+    - Data that someone keeps stays as 10 says: an existing file is refused without `--replace`. In
+      oriko these are the CVs, the profiles and the photos.
+    - The command is the only place that says it. `files.write` reads it from there and takes no
+      option of its own, so nothing is written twice, and `schema`, which cannot see a call inside
+      `plan`, reads the same declaration: `schema <command>` shows `"replace": "always"`. Such a
+      command takes no `--replace`, as with `replace: false` (16).
+    - The declaration covers every file the command writes. So a command that writes a derived file
+      and a kept file in one call cannot use it: it would replace the kept file without a word.
+      Such a command stays behind `--replace`, or it is cut into two commands. No command of
+      `proto/`, of the guide or of oriko writes both kinds in one call.
+    - `files.update` is not touched by it: it never needed `--replace` (12).
+    - The answer reports the replace as every write does: `replaces: true`, and `changes` (19). The
+      dry run answers the same, so an agent sees it before the file is touched.
+    - Reason: a build writes its output on every call. A `--replace` that every call needs is added
+      without a thought, and then it no longer guards the data that someone keeps.
+    - For oriko's move, a deliberate change: `photo set` will need `--replace` when a photo is
+      already there.
+    - Type-checked in `proto/examples/datafolder.ts`: `files.write` takes no `replaces` option, and
+      `replace` takes `false` or `'always'` and no other value.
+71. **A field name is reserved only where the command has adx's option** (changes 51):
+    - 51 refused a field named like any option of adx, on every command. For four of the names
+      that now holds only on a command that has the option from adx itself:
+      - `page`: on a `list`.
+      - `fields`: on a `list`, and on a `read` with `output` (26).
+      - `help`: on every command, since every command takes `--help`.
+      - `version`: on no command, since `--version` belongs to the tool called alone.
+    - So an `effect` may name a field `page`, as oriko's `block move` does.
+    - `json`, `output`, `dry-run` and `replace` stay reserved on every command, and so does the
+      name of a root, such as `home`.
+    - The type checker reports a clash at the declaration: the `input` of the command does not
+      compile. A global input reaches every kind of command, so it takes none of the names.
+    - The name of a root stays a `DECLARATION` error at startup, since a command does not know the
+      roots of its tool.
+    - Type-checked in `proto/hello2.ts` and `proto/global.ts`.
+72. **A tool registers shapes, and `schema` prints them** (see 5 for the start answer):
+    - A shape is a schema that a caller writes and no command takes whole: a part of an input, or
+      a file that someone edits by hand. `tool({ shapes: { person: Person } })` registers it under
+      a name.
+    - `tool schema` lists the names of the shapes beside the commands, and `tool schema person`
+      prints the shape as JSON Schema. The whole input of a command needs no shape:
+      `tool schema <command>` prints it already.
+    - A `SCHEMA` issue names the shape. When the part of the input that fails lies inside a shape,
+      the `command` of the issue is `tool schema person`, else `tool schema <command>`. adx knows
+      the part by the schema value: the same value stands in `shapes` and in the input. Of two
+      shapes on the path, the inner one counts.
+    - Every tool registers its own shapes. adx brings none.
+    - A key is one word, as in `commands` (63). A shape and a command cannot share a name. Both
+      are `DECLARATION` errors. A shape may share its word with a group: `tool schema profile`
+      prints the shape, and `tool schema profile set` the command.
+    - The start answer stays what 5, 36 and 65 make it: the name, the version, the path of the
+      skill, the commands and the first steps. A tool adds no data of its own to it. Data comes
+      from a command, such as a list.
+    - For oriko's move, a deliberate change: its start answer loses `home`, `cvs` and `profiles`.
+      `oriko cvs` and `oriko profiles` answer them.
+    - Type-checked in `proto/examples/parts.ts`.
+73. **A hint across folders stands at the tool, with `hint(code, step)`** (changes 67):
+    - A command in an issue whose target lies in the handler's own folder stands at the issue, with
+      `.command(step)`, as before (15).
+    - A command of another folder stands where the tool is put together:
+      `tool({ hints: [hint(noCv, () => init.step())] })`. adx adds the command to every issue of
+      that code. So the import rule of a tool cut by feature holds with no exception, also for a
+      code in `core/` that two features raise.
+    - `hint` takes a code the tool declared with `code()`, and a function that answers one step to
+      a command. A step from `tell` does not compile, since the `command` of an issue is a command.
+    - The function gets nothing. So adx can call it at startup and check that the named command
+      stands in the table of the tool. A command that does not, and a second hint for one code,
+      are `DECLARATION` errors.
+    - The step carries what a step the author wrote carries (52): its own fields, the global
+      fields of the call and the data folder.
+    - Three places can name the command of an issue. The `.command(step)` at the issue wins, then
+      the hint of the tool, then the command adx derives from the source of the field.
+    - Still not covered: the `look` of an effect stands in the handler and names a command of its
+      own folder.
+    - Type-checked in `proto/ship/cli/hints.ts` and `proto/tracker/tests/types.ts`.
+74. **The test kit runs one whole call in the process of the test, with `run`** (see 3):
+    - `run(tool, argv, options)` from `@honeyglass/adx/test` runs one call as the program would:
+      `run(hello, ['greet', '--name', 'Ada'], { tty: true, seed })`. It goes from the arguments
+      through the routing and the handler to the written answer and the exit code.
+    - It answers `{ exit, out, err }`: the exit code, and what the call wrote to stdout and to
+      stderr.
+    - The options are the samples of `conformance` (`env`, `fakes`, `seed`) and the three things a
+      call gets from its surroundings:
+      - `cwd`: the working directory. Without it, a fresh scratch folder.
+      - `stdin`: the text the call reads, or `null` when nothing is piped in. The default is `null`.
+      - `tty`: whether stdout is a terminal. `true` answers text, `false` JSON. The default is
+        `false`.
+    - The data folder is a fresh scratch folder with the seed copied in, as for every probe.
+    - `invoke` stays for one command with typed input and no arguments. `run` is for what only a
+      whole call shows: the text form, input through stdin, a group called alone, the exit code.
+    - `run` does not replace a test of the real program. `conformance` with a command line stays,
+      and so does a tool's own test over the real process, such as oriko's golden file.
+    - Reason: a call in the same process starts no program, so a tool can test many calls, and the
+      test can fake the server and seed the data folder.
+    - Type-checked in `proto/examples/hello.test.ts` and `proto/ship/tests/ship.test.ts`.
+75. **A tool gets adx from GitHub, and names `@honeyglass/utils` itself:**
+    - A tool names adx in its `package.json` as `"github:honeyglass/adx#<full sha>"`, the same way
+      as `@honeyglass/utils`. adx keeps its built `dist/` in the repository, so the install runs no
+      build step.
+    - adx names `@honeyglass/utils` twice, both with the full 40-character sha: as a
+      `peerDependency`, for the tools that use adx, and as a `devDependency`, for its own tests and
+      build.
+    - A tool that uses adx names adx and `@honeyglass/utils` directly in its `package.json`.
+    - The tool's `pnpm-workspace.yaml` sets `autoInstallPeers: false` and
+      `strictPeerDependencies: true`. A tool that names only adx then stops at the install with
+      `ERR_PNPM_PEER_DEP_ISSUES`, "missing peer @honeyglass/utils".
+    - adx also checks at its start that `@honeyglass/utils` is there, and answers a refusal of kind
+      `ask` that names the line to add, instead of Node's error for a missing module.
+    - Reason: `blockExoticSubdeps` lets a git dependency stand only directly in a `package.json`. A
+      `dependency` of adx on utils fails the install with `ERR_PNPM_EXOTIC_SUBDEP`, even when the
+      tool names utils itself. A `peerDependency` is resolved from the tool's own direct one.
+    - Reason for the two settings: with `autoInstallPeers` on, its default, pnpm fetches a missing
+      peer from GitHub without a word and so goes around `blockExoticSubdeps`. Every repository
+      closes that on its own, not only the tools that use adx.
+    - Measured on 2026-11-23 with pnpm 12.9.0 and oriko's `pnpm-workspace.yaml`, with
+      `honeyglass/actions` and a test package in place of adx.
+76. **adx catches every expected error inside, and a bug once, in `main()`** (see 6, 41, 50
+    and 75):
+    - The code of adx, of `proto/oriko` and of oriko follows the owner's coding rules in
+      `~/.claude/rules`, above all `errors.md` and `ecmascript/try-catch.md`.
+    - adx handles every expected error inside itself, so an author writes no `try`: with `$try`
+      for a promise, and with `trySync$` for a synchronous call that can throw. Both come from
+      `@honeyglass/utils`, as `RefusalError` does (75).
+    - The places:
+      - `api.get`, `api.post` and the other methods of a remote: the network, the status and the
+        JSON of the answer (6, 41).
+      - `files.update`: reading the file (29, 38).
+      - The writing after `plan`: the folder, the lock (20) and the rename.
+      - The raw JSON input from `--json` or from stdin (9).
+    - At each place adx takes the raw error where it starts and answers with its own refusal:
+      one of adx's codes, its kind, the `state`, and the raw error whole as `cause`. Which error
+      gets which code and kind is not decided here: the guide lists it under "Errors you did not
+      map", and 41 says what is tried again.
+    - A bug, such as one in a handler of oriko, is not caught below. No `$try` of adx stands
+      around a handler, so a programming error flies on.
+    - `main()` is the outermost function. It catches once, with one `$try` around its whole body.
+      A refusal that reaches it is answered by its kind. Any other error is a bug: adx answers
+      `UNKNOWN_ERROR`, kind `bug`, with exit code 2 (rule 10), in the one error shape (27).
+    - What that means for an author: a handler writes no `try` for anything that goes through
+      adx. Where its own code can fail in an expected way, such as a file it reads itself or the
+      status of a send it expects, it takes the error with `$try` or `trySync$`, checks it on the
+      next line, and answers with `refuse(...)` or throws `failed(state, error)` (50). It writes
+      no native `try` and no `.catch`. An error it did not expect it throws on.
+    - Type-checked in `proto/tracker/tickets/close.ts`, `proto/oriko/read/sources.ts` and
+      `proto/oriko/classic/images.ts`. No file of `proto/` holds a native `try`.
 
 ## Clarifications
 

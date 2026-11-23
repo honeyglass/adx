@@ -13,6 +13,7 @@ import {
   root,
   tool,
 } from '@honeyglass/adx';
+import { RefusalError } from '@honeyglass/utils/ts';
 
 const home = root('home', envDir('HELLO_HOME'));
 
@@ -51,7 +52,14 @@ const greet = read({
   check: ({ name }) => (name.trim() === '' ? [blankName.at('name')] : []),
   run: ({ name, lang, style }, { refuse }) => {
     const l = byCode(lang);
-    if (l === undefined) throw new Error(`no language ${lang}`);
+    if (l === undefined)
+      throw new RefusalError({
+        kind: 'bug',
+        step: 'greet',
+        reason: `no language ${lang}, though adx checked it against its list`,
+        next: 'report the bug to the maintainer of hello',
+        state: 'Nothing was greeted.',
+      });
     if (style === 'formal' && l.formal === undefined)
       return refuse(
         noFormal
@@ -215,7 +223,7 @@ effect({
   does: 'x',
   input: z.object({ name: id() }),
   example: { name: 'ada' },
-  // @ts-expect-error replace can only be switched off
+  // @ts-expect-error replace takes false or 'always'; without it the command takes --replace
   replace: true,
   plan: ({ name }) => ({ name }),
 });
@@ -250,6 +258,49 @@ read({
 });
 // @ts-expect-error .at() always names a field
 noFriends.at();
+
+// A field named like an option adx gives the command does not compile.
+list({
+  does: 'x',
+  // @ts-expect-error a list has --page from adx
+  input: z.object({ page: z.number() }),
+  example: { page: 2 },
+  item: Language,
+  key: 'code',
+  outline: ['name'],
+  run: (_, { page }) => paged(LANGUAGES, page),
+});
+read({
+  does: 'x',
+  // @ts-expect-error a read with output has --fields from adx
+  input: z.object({ fields: z.string() }),
+  example: { fields: 'name' },
+  output: Language,
+  run: () => ({ code: 'de', name: 'German', hello: 'Hallo' }),
+});
+read({
+  does: 'x',
+  // @ts-expect-error every command has --help from adx
+  input: z.object({ help: z.string() }),
+  example: { help: 'x' },
+  run: ({ help }) => ({ help }),
+});
+// An effect has no --page, and no command has --version: both names are free there.
+effect({
+  does: 'x',
+  input: z.object({ name: id(), page: z.number(), version: z.string() }),
+  example: { name: 'ada', page: 2, version: '3' },
+  replace: false,
+  plan: ({ name, page, version }) => ({ name, page, version }),
+});
+// A read without output has no --fields.
+read({
+  does: 'x',
+  input: z.object({ fields: z.string() }),
+  example: { fields: 'name' },
+  run: ({ fields }) => ({ fields }),
+});
+
 // @ts-expect-error oneOf was renamed detailOf
 import { oneOf } from '@honeyglass/adx';
 // @ts-expect-error listedBy was renamed keyOf

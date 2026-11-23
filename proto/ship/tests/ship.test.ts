@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { conformance, fake } from '@honeyglass/adx/test';
+import { conformance, fake, run } from '@honeyglass/adx/test';
 import { ship } from '../cli/ship.ts';
 import { api } from '../core/server.ts';
 import { draft } from '../releases/notes/draft.ts';
@@ -58,6 +58,8 @@ test('a frozen environment stops a promotion', async () => {
   const answer = await promote.invoke(input, { ...samples, fakes: [frozen], dryRun: true });
   assert.equal(answer.kind, 'ask');
   assert.equal(answer.issues?.[0]?.code, 'ENV_FROZEN');
+  // the hint of cli/hints.ts: releases/ refuses, and the command lies in env/
+  assert.match(answer.issues?.[0]?.command ?? '', /^ship env list --app shop-web/);
 });
 
 test('a taken draft name needs --replace', async () => {
@@ -66,4 +68,10 @@ test('a taken draft name needs --replace', async () => {
   assert.equal(refused.issues?.[0]?.code, 'ALREADY_EXISTS');
   const replaced = await draft.invoke(input, { ...samples, replace: true });
   assert.equal(replaced.result?.replaces, true);
+});
+
+test('a mistyped command exits with 1', async () => {
+  const { exit, out } = await run(ship, ['relase', 'list', '--app', 'shop-web'], samples);
+  assert.equal(exit, 1);
+  assert.equal(JSON.parse(out).issues[0].code, 'UNKNOWN_COMMAND');
 });

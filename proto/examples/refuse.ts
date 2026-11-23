@@ -1,6 +1,7 @@
 // Guide, "Options and their values" and "Refusing bad input with a hint": greet before it has steps.
 import { z } from 'zod';
 import { code, read, tool } from '@honeyglass/adx';
+import { RefusalError } from '@honeyglass/utils/ts';
 
 const LANGUAGES = [
   { code: 'ar', name: 'Arabic', hello: 'Marhaba', formal: 'As-salamu alaykum' },
@@ -32,7 +33,14 @@ const greet = read({
   check: ({ name }) => (name.trim() === '' ? [blankName.at('name')] : []),
   run: ({ name, lang, style }, { refuse }) => {
     const l = byCode(lang);
-    if (l === undefined) throw new Error(`no language ${lang}`);
+    if (l === undefined)
+      throw new RefusalError({
+        kind: 'bug',
+        step: 'greet',
+        reason: `no language ${lang}, though adx checked it against its list`,
+        next: 'report the bug to the maintainer of hello',
+        state: 'Nothing was greeted.',
+      });
     if (style === 'formal' && l.formal === undefined)
       return refuse(noFormal.at('style', `${l.name} has no formal greeting`));
     const word = style === 'formal' ? l.formal : l.hello;

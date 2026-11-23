@@ -3,14 +3,16 @@
 `ship` releases apps to their environments. It lists apps, builds releases from commits, promotes
 a release to an environment and rolls it back, and changes the variables and host names of an
 environment. All of it goes through one server, and notes drafts are kept in a data folder. The
-example shows the tool API of adx on a CLI of realistic size: 38 TypeScript files and 16
+example shows the tool API of adx on a CLI of realistic size: 39 TypeScript files and 16
 commands, cut by feature as in oriko. It has types only: `pnpm run typecheck` checks it against
 `../adx/index.d.ts` and `../adx/test.d.ts`, and nothing runs.
 
 In adx a command is a value made by `read({...})`, `list({...})` or `effect({...})`. The
 tool is one `tool({...})` literal whose `commands` table nests the command words. Each feature
 folder brings its own table, and `cli/ship.ts` hangs them in. A step from a command of one feature
-to a command of another stands in `cli/next.ts`, made with `after(command, steps)`.
+to a command of another stands in `cli/next.ts`, made with `after(command, steps)`. A command
+that helps with a refusal and lies in another feature stands in `cli/hints.ts`, made with
+`hint(code, step)`.
 
 ## Folders
 
@@ -20,7 +22,8 @@ ship/
 │   └── ship.ts               the program: runs the tool on the arguments of the call
 ├── cli/
 │   ├── ship.ts               the tool: name, data folder, server, global input, command table, start
-│   └── next.ts               the steps that lead from one feature into another
+│   ├── next.ts               the steps that lead from one feature into another
+│   └── hints.ts              the commands that help with a refusal and lie in another feature
 ├── core/                     what several features share; imports only core/
 │   ├── app.ts                the global input --app, and read, list, effect typed with it
 │   ├── server.ts             the server every feature talks to (SHIP_URL, SHIP_TOKEN)
@@ -64,7 +67,7 @@ ship/
 │       ├── show.ts           release notes show
 │       └── drafts.ts         where drafts lie in ~/.ship, which exist, and draftChoices
 └── tests/
-    ├── ship.test.ts          conformance of the tool and of the program, and two command tests
+    ├── ship.test.ts          conformance of the tool and of the program, two command tests, one call
     └── seed/notes/shop-web/
         └── spring.md         a notes draft the tests find in the data folder
 ```
@@ -150,13 +153,15 @@ export const ship = tool({
     whoami,
   },
   next,
+  hints,
   start: () => [apps.step(), releases.step()],
 });
 ```
 
 `release` and `env` are the tables of `releases/commands.ts` and `env/commands.ts`, imported as
 `commands as release` and `commands as env`. A key is one word of the call, and a nested object is
-a group of commands. `next` is the list from `cli/next.ts`, see "Steps across features" below.
+a group of commands. `next` is the list from `cli/next.ts` and `hints` the list from
+`cli/hints.ts`, see "Steps across features" and "Hints across features" below.
 
 ### core/
 
@@ -336,6 +341,27 @@ input, typed by the command. Its steps follow the command's own. So `release pro
 `rollback --env staging` and then `env list`, and `env var set` answers its step for the person
 and then `release promote --env staging`, which still needs the release.
 
+### Hints across features
+
+A refusal can name a command that helps. When that command lies in the handler's own feature, the
+issue carries it with `.command(step)`. `ENV_FROZEN` is raised by `release promote` in
+`releases/` and by `env var set` in `env/`, and its code lies in `core/issues.ts`. The command that
+helps is `env list`, which shows which environments are frozen. `core/` imports no feature, and
+`releases/` may not import `env/`. So the command stands in `cli/hints.ts`, the list that
+`cli/ship.ts` hands to the tool as `hints`:
+
+```ts
+export const hints = [
+  // core/ to env/: the list of environments shows which are frozen
+  hint(frozen, () => envs.step()),
+];
+```
+
+`hint` takes a code and a function that answers one step to a command. adx adds that command to
+every issue of the code, so a frozen `release promote` answers `ship env list --app shop-web`. A
+`.command(step)` at the issue would win over it, and the hint wins over the command adx derives
+from the source of the field, here the list of values of `env`.
+
 ## Tests
 
 `tests/ship.test.ts` imports:
@@ -345,6 +371,7 @@ and then `release promote --env staging`, which still needs the release.
 - `api` from `core/server.ts`, to fake the server with a table of routes such as
   ``[`GET ${staging}`]: env``.
 - `draft` and `promote` from `releases/`, to call two commands on their own.
+- `run` from `@honeyglass/adx/test`, to run one whole call in the process of the test.
 
 The tool comes from `cli/` because only there do the commands have their words, the global input,
 the data folder and the server. `conformance(t, ship, samples)` checks the agent rules on the whole
@@ -354,9 +381,13 @@ holds the draft `spring` of `shop-web`.
 
 The two command tests call `.invoke(input, options)` with `app` in the input:
 
-- `promote` on a frozen staging, as a dry run, answers kind `ask` with `ENV_FROZEN`.
+- `promote` on a frozen staging, as a dry run, answers kind `ask` with `ENV_FROZEN`, and the
+  command of the issue is the hint from `cli/hints.ts`.
 - `draft` with the taken name `spring` is refused with `ALREADY_EXISTS`, and with `replace: true`
   answers `replaces: true`.
+
+The last test calls `run(ship, ['relase', 'list', '--app', 'shop-web'], samples)`: the whole call
+with a mistyped command, from the arguments to the exit code 1.
 
 ## The import rule
 
@@ -374,14 +405,15 @@ oriko. ship keeps it; the imports of `account/`, `apps/`, `env/` and `releases/`
 - `start` and the `app` table are in `cli/ship.ts`, the one place that may combine `apps/` and
   `releases/`.
 - The steps between `releases/` and `env/` are in `cli/next.ts`, for the same reason.
+- The command for `ENV_FROZEN` is in `cli/hints.ts`, for the same reason.
 
 ship has no test that checks the rule, as oriko's `tests/api/layout.api.spec.ts` does.
 
 ## Open points
 
-- A hint and a `look` across features have no place. `after` moves a `next` to `cli/`, as oriko
-  does in `cli/next.ts`. The `.command(step)` of an issue and the `look` of an effect stand in the
-  handler, so they name commands of their own feature only.
+- A `look` across features has no place. `after` moves a `next` to `cli/`, as oriko does in
+  `cli/next.ts`, and `hint` moves the command of an issue there. The `look` of an effect stands in
+  the handler, so it names a command of its own feature only.
 - `replace: false` stands on every sending effect: `env var set`, `env domain add`,
   `release create`, `release promote` and `rollback`. Only `release notes draft`, which writes a
   file, keeps `--replace`. The line stays because ship has a root, `home`: adx offers `--replace`

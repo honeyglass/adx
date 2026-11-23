@@ -35,14 +35,14 @@ guide compiles.
 - 🧭 **Every mistake at once**: all mistakes of a call come back in one answer, each with its fix and a command to run.
 - 🛑 **Nothing passes silently**: an unknown command, option, word or field is refused, never guessed.
 - 🧪 **Dry runs for free**: every command that changes something takes `--dry-run` and changes nothing.
-- 📄 **Files written whole**: a command writes all of its files or none, and replaces one only with `--replace`.
+- 📄 **Files written whole**: a command writes all of its files or none, and replaces a file the person keeps only with `--replace`.
 - ✍️ **Typos that do not compile**: every field you name in a command is checked by the TypeScript compiler.
 
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/terminal-dark.svg"><img src="brand/icons/terminal.svg" width="24" height="24" alt=""></picture> Quickstart
 
 ```bash
-# install adx and Zod into a new project (planned: the package is not published yet)
-pnpm add @honeyglass/adx zod
+# install adx, the utils it needs beside it, and Zod from GitHub (planned: adx is not built yet)
+pnpm add github:honeyglass/adx#<sha> github:honeyglass/utils#<sha> zod
 
 # run a tool written with adx, here the guide's hello.ts
 node hello.ts greet --name Ada

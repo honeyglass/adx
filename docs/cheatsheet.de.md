@@ -64,8 +64,10 @@ adx braucht Node 24.2 oder neuer.
 - `roots`, `remotes`: die Ordner und Server, die das Tool nutzen darf.
 - `stored`: jede Datenart, die das Tool speichert, mit ihrer Formatnummer.
 - `global`: die Eingabe, die jeder Befehl teilt, deklariert mit `global({...})` (siehe unten).
+- `shapes`: Schemas, die ein Aufrufer schreibt und die kein Befehl als Ganzes nimmt, jedes unter einem Namen (siehe Ablehnungen).
 - `start`: die ersten Schritte der Startantwort, als Funktion.
 - `next`: Schritte nach einem Befehl, die in einen anderen Ordner führen, mit `after` (siehe Schritte).
+- `hints`: der Befehl, der bei einem Code hilft und in einem anderen Ordner liegt, mit `hint` (siehe Schritte).
 - `hello.main()`: führt einen Aufruf aus.
 
 ```ts
@@ -111,7 +113,7 @@ Jede gibt den Befehl zurück, einen Wert. Schreib ihn in die Tabelle, oder halte
 
 - `read`: `output` (das Schema der Antwort). Damit nimmt der Befehl `--fields`, und `schema` zeigt die Antwort. Ein `read`, das mit einer langen Liste oder einem großen Dokument antwortet, braucht es.
 - `list`: `item` (Schema eines Eintrags), `key` (das Feld, das einen Eintrag benennt), `outline` (weitere Felder der Kurzform), `pageSize`.
-- `effect`: `plan` (prüft und plant), `apply` (sendet), `look` (der Aufruf, der zeigt, ob ein Senden gewirkt hat), `replace: false` (der Befehl nimmt kein `--replace`).
+- `effect`: `plan` (prüft und plant), `apply` (sendet), `look` (der Aufruf, der zeigt, ob ein Senden gewirkt hat), `replace: false` (der Befehl nimmt kein `--replace`), `replace: 'always'` (der Befehl nimmt keines, und jedes seiner `files.write` ersetzt ohne es).
 
 ```ts
 output: Ticket,
@@ -144,7 +146,16 @@ plan: ({ file, text }, { files }) => files.update(file, LIMIT, old => `${old}${t
 - `files.update(file, limit, old => next)`: merkt eine Änderung vor. adx liest die Datei selbst, bis zur Grenze, und ruft die Funktion auf. Nimmt kein `--replace`. Fehlt die Datei: `FILE_NOT_FOUND`, Art `fix`.
 - Beide antworten `{ file, bytes, replaces }`, beim Ersetzen auch `changes`.
 - adx schreibt alle vorgemerkten Dateien nach `plan`, alle oder keine. Im Probelauf schreibt adx nichts.
+- `replace: 'always'` am Befehl: für abgeleitete Dateien, die das Tool aus seinen Daten neu baut. Jedes `files.write` des Befehls ersetzt ohne `--replace`, und die Antwort meldet `replaces: true`. Es gilt für alle Dateien des Befehls, also kann ein Befehl, der auch eine gepflegte Datei schreibt, es nicht nutzen.
 - Dateien gibt es nur in `plan`. Ein `files.remove` gibt es noch nicht.
+
+```ts
+replace: 'always',
+plan: async ({ file }, { files }) => {
+  const names = (await friendNames()).join('\n');
+  return files.write(file, names, { mode: 0o644 });
+},
+```
 
 ### Senden in `apply`
 
@@ -203,8 +214,10 @@ Jedes `id()`-Feld braucht eine Quelle. Sonst startet das Tool nicht.
 
 - `code('NO_FORMAL_GREETING', 'fix', 'hint')`: legt einen Code mit Art und Hinweis an.
 - `.at('style', 'message')`: macht daraus ein Problem an einem Feld. Ohne Meldung wiederholt sie den Hinweis.
+- `.at(['people', 2, 'name'], 'message')`: ein Problem an einer Stelle unterhalb eines Feldes. Die Liste beginnt mit einem Feld der Eingabe, dann folgt ein Schlüssel oder ein Index pro Ebene. Die Antwort schreibt `people.2.name`.
 - `.issue('message')`: ein Problem, das kein Feld betrifft. Es hat keinen `path`.
 - `.command(step)`: hängt einen Befehl an, der weiterhilft.
+- `shapes: { person: Person }` im Tool: `schema` listet das Shape, `schema person` gibt es aus, und ein `SCHEMA`-Problem darin nennt diesen Aufruf.
 - `refuse(...)` aus `ctx`: lehnt ab. Der Handler gibt das Ergebnis zurück.
 - `failed(state, error)`: wird in `apply` geworfen, mit einem Satz zum Zustand.
 
@@ -220,6 +233,19 @@ const noFormal = code(
 return user.active ? user : refuse(inactive.issue(`${user.login} is deactivated`));
 ```
 
+```ts
+check: ({ people }) =>
+  people.flatMap((person, i) =>
+    people.findIndex(p => p.name === person.name) < i
+      ? [twice.at(['people', i, 'name'], `${person.name} is named twice`)]
+      : [],
+  ),
+```
+
+```ts
+shapes: { person: Person },
+```
+
 Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 
 ### Schritte
@@ -230,9 +256,14 @@ Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 - `tell('upload the file')`: ein Schritt für die Person, ohne Befehl.
 - Folgt nichts, gibt `next` keinen Schritt zurück.
 - `after(command, fn)` in `next` des Tools: Schritte nach einem Befehl, die zu einem Befehl eines anderen Ordners führen. `fn` bekommt, was `next` bekommt.
+- `hint(code, fn)` in `hints` des Tools: der Befehl für jedes Problem eines Codes, wenn er in einem anderen Ordner liegt. `fn` bekommt nichts und antwortet mit einem Schritt zu einem Befehl. Ein `.command(step)` am Problem gewinnt.
 
 ```ts
 next: [after(whoami, () => [tickets.step()])],
+```
+
+```ts
+hint(frozen, () => envs.step()),
 ```
 
 ### Ordner und Dateien
@@ -348,11 +379,20 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 - `fake(api, routes)`, `reply(503)`: ein Server für den Test, als Tabelle von Routen.
 - `samples`: `env`, `fakes`, `seed`. Das, was nur du weißt.
 - `tickets.invoke(input, options)`: ein Befehl ohne argv, mit typisierter Eingabe. Optionen: die Samples, `dryRun`, `replace`.
+- `run(tool, argv, options)`: ein ganzer Aufruf im Prozess des Tests. Antwortet mit `{ exit, out, err }`. Optionen: die Samples, `cwd`, `stdin` (ein Text oder `null`), `tty` (Text mit `true`, JSON mit `false`).
 - Das Testkit zerlegt jeden genannten Befehl (in `next` oder in einem Problem) mit `unbash` und prüft, dass adx ihn kennt.
 - Nennt das Tool einen `skill`, prüft das Testkit: Die Datei existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht.
 - Ein Effekt, der `--replace` listet und nie ein `files.write` vormerkt, schlägt fehl: `replace: false` ergänzen.
 - Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.
 - `adxcheck report` und `adxcheck run`: dieselbe Prüfung als Befehl. Ohne Skill meldet der Bericht "none named", nicht "met".
+
+```ts
+test('a person at a terminal reads text', async () => {
+  const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { ...samples, tty: true });
+  assert.equal(exit, 0);
+  assert.equal(out, 'Hello, Ada!\n');
+});
+```
 
 ## Auf der Kommandozeile
 
@@ -497,7 +537,7 @@ Was adx jedem Tool noch gibt:
 
 - `--output text` oder `--output json`: erzwingt die Form.
 - `--dry-run`: an jedem Effekt.
-- `--replace`: an jedem Effekt, außer mit `replace: false`. Erlaubt `files.write`, eine Datei zu ersetzen.
+- `--replace`: an jedem Effekt, außer mit `replace: false` oder `replace: 'always'`. Erlaubt `files.write`, eine Datei zu ersetzen.
 - `--fields`: an jeder Liste und an jedem `read` mit `output`.
 - `--home`: an jedem Befehl eines Tools mit einem solchen Root.
 - `--help` und `--version`. Die Hilfe kommt aus der Befehlstabelle, einen Hilfetext schreibst du nicht.
@@ -525,17 +565,17 @@ Exit-Codes und Arten:
 adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 
 1. Rohes JSON als Eingabe: `--json` füllt dasselbe Schema wie die Optionen, auch zusammen mit ihnen.
-2. Schema zur Laufzeit: `tool schema` gibt das Schema aus, mit dem adx prüft, dazu Arten, Codes, Roots und Formatnummern.
+2. Schema zur Laufzeit: `tool schema` gibt das Schema aus, mit dem adx prüft, dazu Arten, Codes, Roots, Shapes und Formatnummern.
 3. JSON in der Pipe: nur adx schreibt auf stdout.
 4. Harte Eingaben: `id()`, `dir`, `inFile`, `outFile`, jeder Pfad bleibt in seinem Root.
-5. Probeläufe: `--dry-run` führt nur `plan` aus. `act.send` gibt es nur in `apply`. Der echte Lauf antwortet mit dem Plan und dem, was `apply` hinzufügt. Ersetzen braucht `--replace` und zeigt `changes`.
+5. Probeläufe: `--dry-run` führt nur `plan` aus. `act.send` gibt es nur in `apply`. Der echte Lauf antwortet mit dem Plan und dem, was `apply` hinzufügt. Ersetzen braucht `--replace`, oder `replace: 'always'` an einem Befehl für abgeleitete Dateien, und zeigt `changes`.
 6. Agent-Skill: nicht eingebaut. Den Skill schreibt der Autor. adx prüft nur, dass eine genannte Skill-Datei existiert und ein Frontmatter hat.
 7. Prüfungen in Schichten: Argumente, Schema, Listen, `check`, Handler.
 8. Fehler mit Hinweis: `code()` verlangt den Hinweis, `.at()` das Feld.
 9. Alles oder nichts: alle Dateien gehen durch `write` und `update` in `plan`. adx schreibt sie am Ende.
 10. Exit-Codes 0, 1, 2: adx setzt sie aus der Art des Codes.
 11. Plan vor der Datei: `plan` ist die Antwort des Probelaufs.
-12. Hinweise, die laufen: adx füllt `command` aus der Quelle des Feldes und trägt den Datenordner hinein.
+12. Hinweise, die laufen: adx füllt `command` aus der Quelle des Feldes, oder aus einem `hint` des Tools, und trägt den Datenordner hinein.
 13. Optionen, die listen: jede Quelle in `values` beantwortet auch die leere Option.
 14. Nächste Schritte: `start`, `next`, `after`, Schritte nur aus Befehlen, `needs` abgeleitet.
 15. Nichts geht still durch: adx prüft jedes Argument selbst.
@@ -549,12 +589,14 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 - Alle Fehler eines Aufrufs kommen in einer Antwort.
 - Optionen und `--json` füllen ein Objekt. Ein Feld, das beide geben, wird abgelehnt (`REPEATED_OPTION`).
 - Ein Feld `dueDate` ist die Option `--due-date`. Ein boolesches Feld ist ein Schalter ohne Wert.
+- Ein Feld nimmt keinen Namen einer Option, die adx seinem Befehl gibt: `json`, `output`, `dry-run`, `replace` und `help` an jedem Befehl, `page` an einer Liste, `fields` an einer Liste und an einem `read` mit `output`. Ein Zusammenstoß kompiliert nicht. `version` ist frei.
 - Routing und Hilfe kommen aus der Befehlstabelle von adx, die `commands` des Tools füllt.
 - adx setzt keinen Ordneraufbau voraus. Ein Befehl ist ein Wert, und die Tabelle nimmt ihn, wo immer er liegt.
 - Der Agent-Skill gehört nicht zum Toolkit. Das Tool liest ihn nie, bettet ihn nie ein und gibt ihn nie aus. Es nennt nur den Pfad, die Startantwort zeigt ihn.
 - Die Codes und Arten von adx stehen einmal in adx. Jedes Tool gibt sie mit `tool schema` aus.
 - Kein Anleitungstext und kein freier Hilfetext im Tool. Die ersten Schritte kommen aus `next` der Startantwort und aus den Hinweisen der Ablehnungen.
 - `api` läuft intern auf RxJS: Wiederholungen, Zeitlimits, das Abbrechen mehrerer Anfragen. Der Autor sieht davon nichts.
+- adx behandelt jeden erwarteten Fehler intern, mit `$try` und `trySync$` aus `@honeyglass/utils`. Ein Handler schreibt kein `try`. Ein Bug wird einmal gefangen, in `main()`: Art `bug`, Exit-Code 2.
 - Node prüft keine Typen. Die Sicherheit gilt dort, wo `tsc --noEmit` läuft: im Editor, vor dem Commit und in CI.
 
 ## Bekannte Grenzen
@@ -563,6 +605,6 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 - Zwei Aufrufe, die dieselbe Datei im selben Moment schreiben, werden nicht abgestimmt. Der spätere gewinnt.
 - Ein Handler, der selbst `node:fs` oder `fetch` aufruft, steht außerhalb der Regeln.
 - Der Skill wird nicht gegen das Tool geprüft.
-- `on` gibt es nur für `get`. Den Status eines Sendens liest du mit `status(error)`.
+- `on` gibt es nur für `get`. Den Fehler eines Sendens nimmst du mit `$try` und liest seinen Status mit `status(error)`.
 - Zwei Dateien, die einander beim Laden brauchen (`detailOf`, `keyOf`), scheitern an der Reihenfolge der Importe.
-- Ein Hinweis (`.command(step)`) und ein `look` nennen Befehle ihres eigenen Ordners. Nur ein `next` lässt sich mit `after` an das Tool verlegen.
+- Ein `look` nennt einen Befehl seines eigenen Ordners. Ein `next` lässt sich mit `after` an das Tool verlegen, und der Befehl eines Problems mit `hint`.

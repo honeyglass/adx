@@ -64,6 +64,15 @@ Der Aufbau eines Tools:
 39. Ein Schritt über Ordner hinweg steht am Tool.
 40. Eine Quelle mit Namen trägt den Typ `Source`.
 
+Teile einer Eingabe, abgeleitete Dateien, Hinweise und Tests:
+
+41. Ein Problem kann unterhalb eines Feldes stehen.
+42. Eine abgeleitete Datei wird ohne `--replace` ersetzt.
+43. Ein Feldname ist nur dort reserviert, wo der Befehl die Option hat.
+44. Das Tool meldet Shapes an, und `schema` gibt sie aus.
+45. Ein Hinweis über Ordner hinweg steht am Tool.
+46. Das Testkit führt einen ganzen Aufruf im selben Prozess aus.
+
 Noch nicht abgedeckt, vorher wie nachher: eine gespeicherte Datei löschen, und zwei Aufrufe, die dieselbe Datei gleichzeitig schreiben.
 
 ## 1. Der Agent-Skill ist optional und nur ein Pfad
@@ -946,6 +955,158 @@ Nachher:
 
 ```ts
 const milestones: Source<{ project: string; team: string }> = async ({ project, team }) => {
+```
+
+## 41. Ein Problem kann unterhalb eines Feldes stehen
+
+Ein Problem nannte ein Feld. Hält das Feld eine Liste oder ein Objekt, sagte das Problem nicht, welcher Teil falsch ist, und der Agent musste ihn suchen. Jetzt nimmt `.at()` auch eine Liste: Der erste Teil ist ein Feld der Eingabe, jeder weitere ein Schlüssel oder ein Index. Die Antwort schreibt den Pfad mit Punkten.
+
+Die flache Form bleibt gültig. Ein Pfad, der nicht mit einem echten Feld beginnt, kompiliert nicht.
+
+Vorher:
+
+```ts
+check: ({ people }) => [twice.at('people', 'Ada is named twice')], // welche der Personen?
+```
+
+Nachher:
+
+```ts
+check: ({ people }) =>
+  people.flatMap((person, i) =>
+    people.findIndex(p => p.name === person.name) < i
+      ? [twice.at(['people', i, 'name'], `${person.name} is named twice`)]
+      : [],
+  ),
+```
+
+```console
+$ hello greet-all --json '{"people":[{"name":"Ada"},{"name":"Bob"},{"name":"Ada"}]}' | jq -c '.issues[0] | {code, path}'
+{"code":"NAME_TWICE","path":"people.2.name"}
+```
+
+## 42. Eine abgeleitete Datei wird ohne `--replace` ersetzt
+
+Jedes `files.write` lehnte eine vorhandene Datei ohne `--replace` ab, auch eine, die das Tool bei jedem Aufruf aus seinen Daten neu baut, etwa einen Export oder ein gebautes Dokument. Ein `--replace`, das jeder Aufruf braucht, wird ohne Nachdenken angehängt und schützt dann auch die gepflegten Daten nicht mehr.
+
+Jetzt sagt ein Befehl, der abgeleitete Dateien schreibt, `replace: 'always'`. Jedes `files.write` des Befehls ersetzt dann ohne `--replace`, und `schema` zeigt es. Die Antwort meldet `replaces: true`, auch im Probelauf. Gepflegte Daten brauchen weiter `--replace`. Die Deklaration gilt für jede Datei des Befehls: Ein Befehl, der in einem Aufruf eine abgeleitete und eine gepflegte Datei schreibt, kann sie nicht nutzen.
+
+Vorher:
+
+```console
+$ hello friends export --file public/friends.txt | jq -r '.issues[0].code'
+ALREADY_EXISTS
+```
+
+Nachher:
+
+```ts
+replace: 'always',
+plan: async ({ file }, { files }) => {
+  const names = (await friendNames()).join('\n');
+  return files.write(file, names, { mode: 0o644 });
+},
+```
+
+```console
+$ hello friends export --file public/friends.txt | jq -c '.result | {file, replaces}'
+{"file":"public/friends.txt","replaces":true}
+$ hello schema friends export | jq -c '.result.replace'
+"always"
+```
+
+## 43. Ein Feldname ist nur dort reserviert, wo der Befehl die Option hat
+
+Vorher durfte kein Feld wie eine Option von adx heißen, an keinem Befehl, und der Fehler kam erst beim Start. Jetzt sind `page` und `fields` nur dort vergeben, wo der Befehl die Option von adx hat: `page` an einem `list`, `fields` an einem `list` und an einem `read` mit `output`. `help` bleibt an jedem Befehl vergeben, denn jeder Befehl nimmt `--help`. `version` ist an jedem Befehl frei, denn `--version` gehört zum Tool allein. `json`, `output`, `dry-run` und `replace` bleiben überall vergeben.
+
+Ein Zusammenstoß kompiliert nicht: Der Compiler meldet ihn an `input`.
+
+Vorher:
+
+```text
+ein effect mit dem Feld page: DECLARATION-Fehler beim Start
+```
+
+Nachher:
+
+```ts
+input: z.object({ name: id(), page: z.number(), version: z.string() }),
+```
+
+```ts
+// @ts-expect-error a list has --page from adx
+input: z.object({ page: z.number() }),
+```
+
+## 44. Das Tool meldet Shapes an, und `schema` gibt sie aus
+
+`schema` zeigte die ganze Eingabe eines Befehls. Ein Schema, das ein Aufrufer schreibt und das kein Befehl als Ganzes nimmt, hatte keinen Namen: ein Teil einer Eingabe, oder eine Datei, die jemand von Hand bearbeitet. Jetzt meldet das Tool ein solches Schema als Shape an. `schema` listet die Shapes, `schema person` gibt eines aus, und ein `SCHEMA`-Problem in einem Shape nennt diesen Aufruf.
+
+Die Startantwort bleibt, wie sie ist: Sie nennt die Befehle und die ersten Schritte und hält keine Daten des Tools.
+
+Vorher:
+
+```console
+$ hello greet-all --json '{"people":[{"name":"Ada","lang":"xx"}]}' | jq -r '.issues[0].command'
+hello schema greet-all
+```
+
+Nachher:
+
+```ts
+shapes: { person: Person },
+```
+
+```console
+$ hello schema | jq -c '.result.shapes'
+["person"]
+$ hello greet-all --json '{"people":[{"name":"Ada","lang":"xx"}]}' | jq -c '.issues[0] | {code, path, command}'
+{"code":"SCHEMA","path":"people.0.lang","command":"hello schema person"}
+```
+
+## 45. Ein Hinweis über Ordner hinweg steht am Tool
+
+Der Befehl eines Problems steht mit `.command(step)` im Handler. Liegt der Befehl, der hilft, in einem anderen Ordner, müsste ein Feature das andere importieren, und ein Code in `core/` könnte gar kein Feature nennen. Jetzt steht ein solcher Befehl am Tool, mit `hint(code, step)` in `hints`. adx hängt ihn an jedes Problem mit dem Code und prüft beim Start, dass der Befehl in der Tabelle steht. Ein `.command(step)` am Problem gewinnt.
+
+Vorher:
+
+```text
+kein Platz: ENV_FROZEN liegt in core/, und env list liegt im Feature env/
+```
+
+Nachher:
+
+```ts
+export const hints = [
+  // core/ to env/: the list of environments shows which are frozen
+  hint(frozen, () => envs.step()),
+];
+```
+
+## 46. Das Testkit führt einen ganzen Aufruf im selben Prozess aus
+
+`invoke` führt einen Befehl mit typisierter Eingabe aus, ohne argv. `conformance` mit einer Kommandozeile startet das echte Programm. Dazwischen fehlte ein ganzer Aufruf im Prozess des Tests: mit Argumenten, Arbeitsverzeichnis, stdin, Terminal oder Pipe und einem Seed. Jetzt gibt es `run`. Es antwortet mit dem Exit-Code und dem, was der Aufruf geschrieben hat. Der Test des echten Programms bleibt daneben bestehen.
+
+Vorher:
+
+```text
+ein eigener Einstieg pro Tool, der argv, stdin und das Terminal in den Test reicht
+```
+
+Nachher:
+
+```ts
+test('a person at a terminal reads text', async () => {
+  const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { ...samples, tty: true });
+  assert.equal(exit, 0);
+  assert.equal(out, 'Hello, Ada!\n');
+});
+
+test('the input can come through stdin', async () => {
+  const stdin = '{"name":"Ada","lang":"de"}';
+  const { out } = await run(hello, ['greet', '--json', '-'], { ...samples, stdin });
+  assert.equal(JSON.parse(out).result.greeting, 'Hallo, Ada!');
+});
 ```
 
 ## Hello World vorher
