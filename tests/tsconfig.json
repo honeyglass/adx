@@ -1,0 +1,8 @@
+{
+  "extends": "@honeyglass/adx/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": false
+  },
+  "include": ["."]
+}
