@@ -3,8 +3,8 @@
 Builds the toolkit that `proto/adx/index.d.ts` and `proto/adx/test.d.ts` declare, so that every
 example under `proto/` runs. The design is settled in `design/decisions.md` (1 to 81); this plan
 only cuts the work into packages. The main session of Claude Code is the coordinator; per
-package it starts one Opus sub-agent as worker and one fresh Fable sub-agent at effort high as
-reviewer, one package at a time.
+package it starts one Opus sub-agent as worker and one fresh Opus sub-agent as
+reviewer, at effort high or medium by the package's complexity, one package at a time.
 
 ## Rules for the run
 
@@ -18,8 +18,8 @@ reviewer, one package at a time.
   file, only `node/` imports `node:` modules.
 - **Code rules.** `~/.claude/rules` in full; no native try, `.catch(` or `.then(`; `$try` and
   `trySync$` from `@honeyglass/utils/ts`; throw only `RefusalError` or rethrow.
-- **One review round.** After a package's tests and checks are green, one fresh Fable sub-agent
-  at effort high reads the package's diff for bugs and unexpected behavior. No
+- **One review round.** After a package's tests and checks are green, one fresh Opus sub-agent
+  (effort high or medium, by complexity) reads the package's diff for bugs and unexpected behavior. No
   red-team reviewer, no second round.
 - **The reviewer reports, it does not decide.** Each finding names file, line, the failing input
   and what happens. A finding that would change a decision goes to the person, not to the worker.
