@@ -142,8 +142,9 @@ plan: (note, { files }) => files.write(note.file, render(note)),
 plan: ({ file, text }, { files }) => files.update(file, LIMIT, old => `${old}${text}\n`),
 ```
 
-- `files.write(file, data)`: stages a new file. If the file exists already, the call needs `--replace`.
-- `files.update(file, limit, old => next)`: stages a change. adx reads the file itself, up to the limit, and calls the function. Takes no `--replace`. A missing file: `FILE_NOT_FOUND`, kind `fix`.
+- `files.write(file, data)`: stages a new file. If the file exists already, the call needs `--replace`. If the file holds the same bytes, nothing is written, the call needs no `--replace`, and the answer says `unchanged: true`.
+- `files.update(file, limit, old => next)`: stages a change. adx reads the file itself, up to the limit, and calls the function. Takes no `--replace`. A missing file: `FILE_NOT_FOUND`, kind `fix`. If the function answers the text the file holds, nothing is written, and the answer says `replaces: false` and `unchanged: true`.
+- A real run that writes nothing still answers `applied: true`. `unchanged` stands per file, `applied` for the whole call. A write that writes nothing sets no mode.
 - Both answer `{ file, bytes, replaces }`, and `changes` too on a replace.
 - adx writes all staged files after `plan`, all or none. On a dry run adx writes nothing.
 - `replace: 'always'` on the command: for derived files, ones the tool builds again from its data. Every `files.write` of the command replaces without `--replace`, and the answer says `replaces: true`. It covers all files of the command, so a command that also writes a kept file cannot use it.
@@ -218,6 +219,7 @@ Every `id()` field needs a source. Otherwise the tool does not start.
 - `.issue('message')`: an issue that concerns no field. It has no `path`.
 - `.command(step)`: adds a command that helps.
 - `shapes: { person: Person }` in the tool: `schema` lists the shape, `schema person` prints it, and a `SCHEMA` issue inside it names that call.
+- `check(shape, value, path)`: checks a part in the handler, such as one whose shape stored data picks. It answers `{ data, issues }`. The issues have the code `SCHEMA` and stand at the path, a list as for `.at`. For a shape in `shapes`, their command is `schema <name>`. A fourth argument `{ as: Item }` names a shape of `shapes` whose command the issues show in place of the checked one.
 - `refuse(...)` from `ctx`: refuses. The handler returns the result.
 - `failed(state, error)`: thrown in `apply`, with a sentence on the state.
 
@@ -246,6 +248,15 @@ check: ({ people }) =>
 shapes: { person: Person },
 ```
 
+```ts
+const said = check(ABOUT[friend.kind], about, ['about']);
+if (said.issues !== null) return refuse(...said.issues);
+```
+
+```ts
+check(ITEM[block.kind], value, ['value'], { as: Item });
+```
+
 Layers: the arguments, the schema, each value against its list, `check`, the handler.
 
 ### Steps
@@ -254,9 +265,12 @@ Layers: the arguments, the schema, each value against its list, `check`, the han
 - adx derives `needs`: the required fields the step leaves open.
 - `.needs('style')`: only for an optional field the step still needs.
 - `tell('upload the file')`: a step for the person, without a command.
+- `schema.step('person')`: a step to adx's own command `schema`, for a shape or a command. adx checks the name at startup.
 - When nothing follows, `next` returns no step.
-- `after(command, fn)` in the `next` of the tool: steps after a command that lead to a command of another folder. `fn` gets what `next` gets.
+- `after(command, fn)` in the `next` of the tool: steps after a command that lead to a command of another folder. `fn` gets what `next` gets. A list of commands in place of one gives each the same steps, and `fn` must fit every one of them.
 - `hint(code, fn)` in the `hints` of the tool: the command for every issue of a code, when it lies in another folder. `fn` gets nothing and answers one step to a command. A `.command(step)` at the issue wins.
+- `.carry('cv')` on a step: adx takes that field from the refused call only when the target command would accept the value in a real call: it passes the schema, it stands in the list of the field's source, and with `fresh` the name is not taken. When adx cannot check that, the field stays out: a source that answers `needs`, or one that calls a remote. adx blocks every remote while it answers a refusal, so a refusal never sends a request.
+- `.lists('block')` on a step: the step names the option without a value, so the call lists its values. Only for a field with a source in the `values` of the target command, so not for a global field, and not for a field the step gave a value. The field stays out of `needs`, and `.needs` and `.lists` of one field do not compile.
 
 ```ts
 next: [after(whoami, () => [tickets.step()])],
@@ -264,6 +278,14 @@ next: [after(whoami, () => [tickets.step()])],
 
 ```ts
 hint(frozen, () => envs.step()),
+```
+
+```ts
+hint(unknownBlock, () => show.step().carry('cv', 'profile').lists('block')),
+```
+
+```ts
+next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
 ```
 
 ### Folders and files

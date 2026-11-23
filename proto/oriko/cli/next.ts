@@ -1,11 +1,7 @@
 // The steps that lead from one folder into another. A feature imports no other feature, and
 // plan, preview and build live in cli/, so the `next` of a feature cannot name them: they stand
 // here, where the features meet.
-//
-// Not here: the steps to adx's own `schema` command. oriko names `oriko schema profile` after a
-// read posting and `oriko schema init` after an old CV was read. adx gives no step to its own
-// command (README, "What does not fit yet").
-import { after } from '@honeyglass/adx';
+import { after, schema } from '@honeyglass/adx';
 import { set as photoSet } from '../classic/photo.ts';
 import { init } from '../cv/init.ts';
 import { cvs } from '../cv/list.ts';
@@ -34,38 +30,45 @@ export const next = [
     block.add.step({ cv }),
     photoSet.step({ cv }),
   ]),
-  // profile/ to cli/
-  after(profiles, out => (out.items.length > 0 ? [plan.step().needs('profile')] : [])),
+  // profile/ to cli/, or to the shape of a profile when none is stored yet
+  after(profiles, out =>
+    out.items.length > 0 ? [plan.step().needs('profile')] : [schema.step('profile')],
+  ),
   after(profileSet, (out, { profile }) =>
     out.fits ? [preview.step({ profile }), build.step({ profile })] : [],
   ),
   after(profileShow, out => (out.profile === null ? [] : [plan.step({ profile: out.name })])),
   // classic/ to cli/
   after(photoSet, (_, { cv, profile }) => [build.step({ cv, profile })]),
-  // read/ to profile/ and cv/: a posting leads to storing its profile, notes to the CV they
-  // belong to, an old CV to a new one
+  // read/ to profile/ and cv/: a posting leads to the shape of a profile and to storing one,
+  // notes to the CV they belong to, an old CV to a new one and to the input init takes
   after(read, out => {
     const roles = out.read.map(document => document.role);
     const steps = [
       ...(roles.includes('posting') && out.profile !== undefined
-        ? [profileSet.step({ profile: out.profile })]
+        ? [schema.step('profile'), profileSet.step({ profile: out.profile })]
         : []),
       ...(roles.includes('notes') && out.cv !== undefined ? [show.step({ cv: out.cv })] : []),
     ];
-    return steps.length > 0 ? steps : [init.step()];
+    return steps.length > 0 ? steps : [init.step(), schema.step('init')];
   }),
-  // edit/ to cli/, one line per edit: `after` types each command on its own
-  after(block.add, fitted),
-  after(block.update, fitted),
-  after(block.remove, fitted),
-  after(block.move, fitted),
-  after(item.add, fitted),
-  after(item.update, fitted),
-  after(item.remove, fitted),
-  after(item.move, fitted),
-  after(cvEdit.update, fitted),
-  after(contact.add, fitted),
-  after(contact.update, fitted),
-  after(contact.remove, fitted),
-  after(contact.move, fitted),
+  // edit/ to cli/: the one step after each of the 13 edits
+  after(
+    [
+      block.add,
+      block.update,
+      block.remove,
+      block.move,
+      item.add,
+      item.update,
+      item.remove,
+      item.move,
+      cvEdit.update,
+      contact.add,
+      contact.update,
+      contact.remove,
+      contact.move,
+    ],
+    fitted,
+  ),
 ];

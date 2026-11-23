@@ -36,7 +36,8 @@ changes an earlier one, both say so.
     - Whether a file is replaced is decided by the write alone, not by `fresh`. If the file exists,
       `files.write` refuses without `--replace`, with the hint "add --replace to overwrite <name>".
       With `--replace` it replaces, and the plan shows "replaces". The refusal already comes in
-      `plan`, so also in a dry run. A derived file is replaced without the flag since 70.
+      `plan`, so also in a dry run. A derived file is replaced without the flag since 70. Since 81
+      a write of the same bytes writes nothing and needs no flag.
     - `fresh` refuses nothing any more. It only lists the taken names when `--name` comes without
       a value (rule 13).
     - `files.put` is renamed `files.write`, since "put" sounds like HTTP.
@@ -59,9 +60,11 @@ changes an earlier one, both say so.
     - adx supports both. Whether and how a tool uses them is decided by its use case.
     - `files.write`: for commands that create something new. If the file exists, adx refuses
       (`ALREADY_EXISTS`, hint "add --replace to overwrite <name>"); with `--replace` it replaces.
-      In a command that says `replace: 'always'` it replaces without it (70).
+      In a command that says `replace: 'always'` it replaces without it (70). When the file holds
+      the same bytes, adx writes nothing and refuses nothing (81).
     - `files.update`: for commands whose purpose is to change (edit, update, append). No `--replace`.
       If the file is missing, adx refuses; `update` never creates anything silently. Its form: 29.
+      A change that answers the text the file holds writes nothing (81).
     - With both, `plan` shows what changes, and a dry run writes nothing.
     - Models: docker context create/update, gh alias set --clobber, git config --append/--replace-all.
     - Rule of thumb for the later skill for building with adx: add/create/save → `write`,
@@ -231,8 +234,11 @@ owner confirmed each recommendation, and the docs already show it).
     checker reports a clash.
 52. **What a derived command carries**: the fields of the call that the named command has under the same
     name (so the list call reads `hello greet --name Ada --lang`). A step the author wrote carries only
-    its own fields, plus the global fields and the data folder.
-53. **A `mode` given to `files.write`** holds on a replace too.
+    its own fields, plus the global fields and the data folder. Since 79 it also carries the fields
+    of a refused call that it names with `.carry`, and it names the list call of a field itself,
+    with `.lists`.
+53. **A `mode` given to `files.write`** holds on a replace too. Since 81 a write that meets the
+    same bytes writes nothing and sets no mode.
 54. **The terminal form of a refusal**, as the quickstart shows it, stands as designed.
 55. **The fingerprint file** (37) is named `adx.stored.json`.
 56. **"A long list or a large document"** (26): more than 50 entries in an array, or more than 8 KiB of
@@ -288,7 +294,8 @@ changes how an earlier decision is written, both say so.
     tool cut by feature, with `bin/` for the entry, `cli/` for the tool and its table, one folder per
     feature and `core/` for what features share, as the guide's `tracker` shows. An import rule
     between such folders is the tool's own; adx neither knows nor checks it.
-67. **A `next` across folders stands at the tool, with `after(command, steps)`**:
+67. **A `next` across folders stands at the tool, with `after(command, steps)`** (since 80 `after`
+    also takes a list of commands):
     - A `next` whose steps stay in the command's own folder stands at the command, as before.
     - A step to a command of another folder stands where the tool is put together:
       `tool({ next: [after(whoami, () => [tickets.step()])] })`. So a feature folder imports only
@@ -403,7 +410,8 @@ for each). Where one changes an earlier decision, both say so.
       stands in the table of the tool. A command that does not, and a second hint for one code,
       are `DECLARATION` errors.
     - The step carries what a step the author wrote carries (52): its own fields, the global
-      fields of the call and the data folder.
+      fields of the call and the data folder. Since 79 it also takes fields of the refused call,
+      with `.carry`, and lists the values of a field, with `.lists`.
     - Three places can name the command of an issue. The `.command(step)` at the issue wins, then
       the hint of the tool, then the command adx derives from the source of the field.
     - Still not covered: the `look` of an effect stands in the handler and names a command of its
@@ -479,6 +487,158 @@ for each). Where one changes an earlier decision, both say so.
       no native `try` and no `.catch`. An error it did not expect it throws on.
     - Type-checked in `proto/tracker/tickets/close.ts`, `proto/oriko/read/sources.ts` and
       `proto/oriko/classic/images.ts`. No file of `proto/` holds a native `try`.
+
+The next five settle five points that did not fit when oriko was written on adx (2026-11-23).
+`proto/oriko/README.md` listed them under "What does not fit yet". Where one changes an earlier
+decision, both say so.
+
+77. **A step can lead to adx's own `schema` command, with `schema.step(name)`** (see 63 and 72):
+    - adx exports `schema`. `schema.step('person')` is a step to the call `tool schema person`.
+    - The name is what `schema` takes after its own word: a shape of the tool's `shapes`, or a
+      command by its words, such as `profile set`. Where a shape and a group share a word, the
+      name means the shape, as in 72.
+    - The step is a `Step`. So it stands wherever a step stands, such as in `next`, in `after`, in
+      `start` and in `.command(step)` at an issue.
+    - adx checks at startup that `schema` knows the name. A name it does not know is a
+      `DECLARATION` error, as a step to a command the tool does not list is (63). So a typo is an
+      error at startup, not a text in an answer that no call fits.
+    - Reason: a step came from a command value only, and `schema` is adx's own command, so no tool
+      has a value for it. A tool could not name the call that shows what the agent writes next.
+    - Use case, oriko: after a posting was read, the agent writes a profile. So `read` answers
+      `oriko schema profile` before `oriko profile set`, and `profiles` answers it when no profile
+      is stored. After an old CV was read, `read` answers `oriko schema init` after `oriko init`.
+      These steps were left out of `proto/oriko/cli/next.ts` and now stand there.
+    - Type-checked in `proto/examples/check.ts` and `proto/oriko/cli/next.ts`.
+78. **A handler checks a part against a schema with `check`, and the issues are `SCHEMA`** (see 69
+    and 72):
+    - adx exports `check(shape, value, path)`. It checks the value against the shape and answers
+      `{ data, issues }`: the checked value with `issues: null`, or `data: null` with one issue
+      per problem, at least one. An optional fourth argument is `{ as: shape }`.
+    - Every issue has the code `SCHEMA`, as the issues of adx's own check of the input have.
+    - The path is a list as in 69: a field of the command first, then a key or an index per
+      level. An issue stands at that path, plus the place inside the part:
+      `check(Colleague, about, ['about'])` answers an issue at `about.team`.
+    - When the shape stands in the tool's `shapes`, the `command` of every issue is
+      `tool schema <name>`. adx finds the shape by identity: the same value stands in `shapes` and
+      in the call of `check`, as in 72. Else the `command` is `tool schema <command>`, the schema
+      of the command that runs.
+    - With `{ as: shape }`, the issues name the schema command of that shape in place of the
+      checked one: `check(ITEM[kind], value, ['value'], { as: Item })` checks against `ITEM[kind]`
+      and answers `tool schema item`. adx finds the shape of `as` in `shapes` by identity, as it
+      finds the checked shape without it. `as` changes the `command` only, never what is checked.
+    - `as` is for a checked shape that stands in no `shapes`, such as the shape one kind takes,
+      where a registered shape shows the caller all of them.
+    - `check` refuses nothing itself. The handler reports the issues with `refuse(...issues)`.
+      Issues of several checks, and issues of the tool's own codes, go into one `refuse(...)`, so
+      one answer names them all (rule 7).
+    - `refuse` takes only an issue at a field of its command (69), so a path that starts with
+      another word does not compile there.
+    - Reason: adx checks the input before the handler runs. A part whose shape depends on stored
+      data says `unknown` in the schema of the input, and only the handler can check it. adx owns
+      the code `SCHEMA`, so the handler had to answer a code of its own, with a hint that names
+      the shapes by hand.
+    - Use case, oriko: the kind of a stored block picks the shape of an item, of the fields
+      `block update` sets and of a patch in a profile. `edit/apply.ts` and `profile/set.ts` check
+      these parts with `check`, and oriko's own code `WRONG_SHAPE` goes. The shapes by kind stand
+      in no `shapes`, so the check of an item says `{ as: Item }` and the check of a patch
+      `{ as: Block }`. The issues name `oriko schema item` and `oriko schema block`, as oriko
+      does today.
+    - Type-checked in `proto/examples/check.ts`, `proto/oriko/edit/apply.ts` and
+      `proto/oriko/profile/set.ts`.
+79. **A step takes fields of the refused call, with `.carry(...fields)`, and lists the values of
+    a field, with `.lists(field)`** (changes 52 and 73):
+    - `CommandStep` gets `.carry(...fields)`. It takes fields of the target command only:
+      `show.step().carry('cv')` compiles, and `show.step().carry('cvs')` does not.
+    - It is for a step that is the command of an issue, above all in a `hint`, whose function
+      gets nothing (73).
+    - The principle: `.carry` takes a value only when the target command would accept it in a
+      real call. When adx cannot check that, the value stays out.
+    - When adx answers the refusal, it takes the value of the field of the same name from the
+      refused call. It takes the value only when it passes the schema of the target command.
+    - Where the field has a source in the target command, adx also checks the value against
+      that source. A value outside the list stays out of the step.
+    - Where that source is `fresh(...)`, a name that is already taken stays out: the target
+      command would refuse it without `--replace`. A free name that passes the schema is taken
+      over.
+    - A source that answers `needs(...)` cannot list its values yet. adx cannot check the value
+      then, so it stays out.
+    - adx blocks every remote while it answers a refusal. When a source calls one in that time,
+      no request goes out, and the value stays out of the step. Nothing has to be declared for
+      that. A source that calls no remote, such as one that reads the data folder, runs as
+      always. So a refusal never sends a request.
+    - Otherwise the field stays out of the command: when the refused call has no field of that
+      name, when the call did not give it, and when its value fails the schema of the target. A
+      required field is then open, and adx derives `needs` from it as for every step.
+    - The function of a `hint` still gets nothing, so adx still calls it at startup (73).
+      `.carry` names the fields there, and their values come with each refusal.
+    - `CommandStep` also gets `.lists(field)`. The step then names the option of that field
+      without a value, so the call lists the values the field takes (rule 13):
+      `show.step().lists('block')` is the call `tool show --block`.
+    - `.lists` compiles only for a field of the target command that has a source in `values`.
+      `show.step().lists('block')` compiles, since `show` names a source for `block`. A field
+      without a source does not compile, and neither does a word that is no field.
+    - The source stands in the `values` of the command itself. A global field whose source
+      stands in `global({ values })` cannot be listed with `.lists`, since no tool needs it yet.
+    - A field the step lists does not stand in its `needs`, also when it is required: the step
+      lists the values, and the agent picks one.
+    - A step that gives a field a value cannot also list it:
+      `show.step({ block: 'x' }).lists('block')` does not compile.
+    - `.needs(field)` and `.lists(field)` for the same field on one step do not compile, in
+      either order: `show.step().needs('block').lists('block')` does not, and neither does
+      `show.step().lists('block').needs('block')`.
+    - Reason: the command that helps often needs to know what the refused call worked on. A hint
+      without it names a command the agent has to complete itself. And the command that helps is
+      often the list of one field's values. adx derives that call for a field with a source (52),
+      and a step the author wrote could not name it.
+    - Use case, oriko: `UNKNOWN_BLOCK` lies in `core/`, and the edits, `profile set` and `plan`
+      raise it. The command that helps lists the blocks of the CV the call worked on. `--block`
+      of `show` has a source that reads the block ids of the CV that `--cv` or `--profile` names.
+      The hint is `hint(unknownBlock, () => show.step().carry('cv', 'profile').lists('block'))`.
+      After a call with `--cv jane` it answers `oriko show --cv jane --block`, as oriko does
+      today. `oriko plan --profile broken` answers `oriko show --profile broken --block`.
+      `oriko profile set --profile initech` with the CV jane answers
+      `oriko show --cv jane --block`: `initech` is a new name, so the source of `--profile` in
+      `show` does not list it, and it stays out.
+    - Type-checked in `proto/oriko/cli/hints.ts` and `proto/oriko/tests/types.ts`.
+80. **`after` takes one command or a list of commands** (changes 67):
+    - `after([create, close], steps)` gives the same steps to every command of the list. It is
+      the same as one `after` per command.
+    - The list is not empty: `after([], steps)` does not compile.
+    - The function must fit every command of the list. It gets an answer and an input that may
+      come from any of them, so it reads only what all of them have. A function that reads a field
+      one command lacks does not compile.
+    - What 67 says holds for each command of the list: the steps follow the command's own `next`,
+      and a command the tool does not list is a `DECLARATION` error.
+    - Reason: `after` typed one command. The same step after several commands was one line per
+      command, and a new command of the group was easy to leave out.
+    - Use case, oriko: each of the 13 edits answers `preview` and `build` when the CV still fits
+      its pages. The 13 lines of `cli/next.ts` become one `after([...], fitted)`.
+    - Type-checked in `proto/oriko/cli/next.ts` and `proto/oriko/tests/types.ts`.
+81. **A `files.write` of the same bytes writes nothing, and neither does a `files.update` that
+    answers the same text** (changes 10, 12 and 53):
+    - When the file exists and holds the same bytes as the write, adx writes nothing, and the
+      call needs no `--replace`: nothing can be lost.
+    - `Written` then answers `replaces: false` and `unchanged: true`, and no `changes`. The field
+      `unchanged` stands in the answer only then.
+    - `plan` and a dry run show the same, as for every write (10).
+    - Other bytes stay as 10 says: refused with `ALREADY_EXISTS` without `--replace`, and replaced
+      with it, or in a command that says `replace: 'always'` (70).
+    - A call with `--replace` passes too: its plan stages a `files.write`, so the option is known
+      (47).
+    - `files.update` follows the same rule. When its function answers the text the file already
+      holds, adx writes nothing. `Written` answers `replaces: false` and `unchanged: true`, and
+      no `changes`, and `plan` and a dry run show the same. `files.update` still takes no
+      `--replace` (12), and a missing file stays `FILE_NOT_FOUND` (38).
+    - A real run that writes nothing answers `applied: true`, because the files are in the
+      wanted state afterwards. `unchanged` stands per file, and `applied` for the whole call.
+    - When nothing is written, no mode is set either. A `files.write` with a `mode` (17, 53) that
+      meets the same bytes leaves the file the mode it has, also when the two differ.
+    - Reason: an agent sends a call twice, after a timeout or when it does not know whether the
+      first call went through. The second call changes nothing. A refusal there asks for a
+      `--replace` that guards nothing, and the agent learns to add it without a thought (see 70).
+    - Use case, oriko: `profile set` with the profile that is already stored answers ok and
+      writes nothing.
+    - Type-checked in `proto/oriko/tests/oriko.test.ts`.
 
 ## Clarifications
 

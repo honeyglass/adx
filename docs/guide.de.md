@@ -479,7 +479,14 @@ applied   true
 
 Der Probelauf und der echte Lauf antworten mit denselben Feldern. Nur `applied` unterscheidet sich. adx gibt `--dry-run` jedem `effect`, für jede Kombination von Argumenten, und es lässt sich nicht abschalten. Befehle aus `read` und `list` lehnen es ab wie jede unbekannte Option.
 
-Derselbe Aufruf noch einmal wird abgelehnt, weil die Datei jetzt existiert. Ob eine Datei ersetzt wird, entscheidet allein der Schreibvorgang. Die Ablehnung kommt schon in `plan`, also zeigt sie auch ein Probelauf:
+Derselbe Aufruf noch einmal schreibt nichts. Die Datei enthält diese Bytes schon, also kann nichts verloren gehen, und der Aufruf braucht kein `--replace`. Die Antwort meldet `unchanged: true`, auch im Probelauf. Der echte Lauf antwortet trotzdem `applied: true`, weil die Datei danach im gewünschten Zustand ist:
+
+```console
+$ hello friends add --name ada --lang de | jq -c '.result'
+{"file":"friends/ada.json","bytes":26,"replaces":false,"unchanged":true}
+```
+
+Ein Aufruf, der anderen Inhalt unter denselben Namen schreibt, wird abgelehnt, weil die Datei jetzt existiert. Ob eine Datei ersetzt wird, entscheidet allein der Schreibvorgang. Die Ablehnung kommt schon in `plan`, also zeigt sie auch ein Probelauf:
 
 ```console
 $ hello friends add --name ada --lang en | jq -c '.issues[0] | {code, hint}'
@@ -686,6 +693,7 @@ const edit = effect({
 - adx liest die Datei selbst und ruft deine Funktion mit ihrem Text auf. `LIMIT` ist deine eigene Zahl, etwa 65.536: Das Lesen hört bei dieser Größe auf.
 - `files.update` nimmt kein `--replace`. Darum sagt der Befehl `replace: false`.
 - Es legt nie eine Datei an. Fehlt die Datei, lehnt adx mit `FILE_NOT_FOUND` ab, Art `fix`.
+- Eine Änderung, die den Text antwortet, den die Datei schon enthält, schreibt nichts. Die Antwort meldet dann `replaces: false` und `unchanged: true`, wie bei einem `write` mit denselben Bytes.
 - Wie bei `write` kommt die Ablehnung in `plan`, die Antwort zeigt, was sich ändert, und ein Probelauf schreibt nichts.
 
 ```console
@@ -1114,6 +1122,7 @@ $ tracker whoami | jq -c '.next[0]'
 
 - Ein `next`, dessen Schritte im eigenen Ordner des Befehls bleiben, steht am Befehl, wie in `ticket create`. Ein `next` zu einem Befehl eines anderen Ordners steht am Tool.
 - `after` nimmt einen Befehl und eine Funktion wie `next`. Die Funktion bekommt die Antwort des echten Laufs und die Eingabe, beide vom Befehl typisiert.
+- `after` nimmt statt eines Befehls auch eine Liste von Befehlen: `after([create, close], fn)` gibt beiden dieselben Schritte. Die Funktion muss zu jedem Befehl der Liste passen, also liest sie nur, was alle antworten und nehmen. Eine leere Liste kompiliert nicht.
 - Seine Schritte folgen den Schritten des eigenen `next` des Befehls.
 - Ein `after` für einen Befehl, den das Tool nicht listet, ist ein `DECLARATION`-Fehler beim Start.
 - In einem größeren Tool bekommt die Liste von `next` eine eigene Datei in `cli/`.
@@ -1133,6 +1142,24 @@ Das Tool nimmt die Liste als `hints`, neben `next`.
 - Ein `.command(step)` am Problem gewinnt gegen den Hinweis. Der Hinweis gewinnt gegen den Befehl, den adx aus der Quelle des Feldes ableitet.
 - Die Funktion bekommt nichts, also ruft adx sie beim Start auf. Ein Hinweis für einen Befehl, den das Tool nicht listet, ist ein `DECLARATION`-Fehler, und ein zweiter Hinweis für einen Code auch.
 - Ein Schritt aus `tell` kompiliert hier nicht: Der `command` eines Problems ist ein Befehl.
+
+Der Befehl, der hilft, muss oft wissen, woran der abgelehnte Aufruf gearbeitet hat. oriko, ein CV-Tool, lehnt einen unbekannten Block mit einem Code aus `core/` ab, und der Befehl, der hilft, listet die Blöcke des CVs, den dieser Aufruf genannt hat. Der Schritt nimmt den CV und das Profil aus dem abgelehnten Aufruf, mit `.carry`, und nennt `--block` ohne Wert, mit `.lists`:
+
+```ts
+hint(unknownBlock, () => show.step().carry('cv', 'profile').lists('block')),
+```
+
+- `.carry` nimmt Felder des Zielbefehls: `.carry('cvs')` kompiliert nicht.
+- adx nimmt den Wert des gleichnamigen Feldes aus dem abgelehnten Aufruf nur, wenn der Zielbefehl ihn in einem echten Aufruf annehmen würde. Kann adx das nicht prüfen, bleibt der Wert weg.
+- Der Wert muss das Schema des Zielbefehls erfüllen. Ein Aufruf mit `--cv jane` antwortet mit `oriko show --cv jane --block`.
+- Hat das Feld im Zielbefehl eine Quelle, muss der Wert auch in ihrer Liste stehen. `oriko profile set --profile initech` nennt ein neues Profil, das `show` nicht listet, also lässt sein Hinweis `--profile` weg.
+- Ist diese Quelle `fresh`, bleibt ein Name weg, der schon vergeben ist, denn der Zielbefehl würde ihn ohne `--replace` ablehnen. Ein freier Name wird übernommen.
+- Eine Quelle, die `needs(...)` antwortet, kann ihre Werte noch nicht listen, also bleibt der Wert weg.
+- adx sperrt jeden Remote, während es eine Ablehnung beantwortet. Eine Quelle, die einen aufruft, sendet keine Anfrage, und der Wert bleibt weg. So sendet eine Ablehnung nie eine Anfrage.
+- Sonst bleibt das Feld aus dem Befehl weg.
+- `.lists` nennt die Option eines Feldes ohne Wert, also listet der Aufruf die Werte, die das Feld nimmt. Es kompiliert nur für ein Feld, das in `values` des Zielbefehls eine Quelle hat, wie `block` in `show`.
+- Ein Feld, das der Schritt listet, steht nicht in seinem `needs`: Der Schritt listet die Werte, und der Agent wählt einen. Ein Schritt, der dem Feld einen Wert gibt, kann es nicht auch listen, also kompiliert `show.step({ block: 'x' }).lists('block')` nicht. Ebenso wenig ein Schritt, der ein Feld in `.needs` und in `.lists` nennt, in beiden Reihenfolgen.
+- Ein globales Feld lässt sich nicht mit `.lists` listen: Seine Quelle steht in `global`, nicht in `values` des Befehls.
 
 ### Ein Checker für eine Codebasis
 
@@ -1411,6 +1438,65 @@ $ hello greet-all --json '{"people":[{"name":"Ada","lang":"xx"}]}' | jq -c '.iss
 - Ein Shape ist auch der Ort für eine Datei, die jemand von Hand bearbeitet. So zeigt `schema`, was die Datei enthalten darf.
 - Ein Schlüssel von `shapes` ist ein Wort, und ein Shape und ein Befehl können kein Wort teilen. Das ist ein `DECLARATION`-Fehler beim Start.
 - Die Startantwort listet keine Shapes und hält keine Daten des Tools: Sie nennt die Befehle und die ersten Schritte. Daten kommen aus einem Befehl.
+
+**Ein Teil, den nur der Handler prüfen kann.** Manche Teile haben eine Form, die von gespeicherten Daten abhängt. Angenommen, ein Freund ist ein Kollege oder ein Verwandter, und was ein Aufrufer über einen Freund sagt, hängt von dieser Art ab:
+
+```ts
+// What a caller says about a friend, by the kind of friend. No command takes one whole.
+const Colleague = z.object({ team: z.string().describe('the team you share') });
+const Relative = z.object({ relation: z.string().describe('such as aunt or cousin') });
+const ABOUT = { colleague: Colleague, relative: Relative };
+```
+
+Das Schema der Eingabe kann die Art nicht kennen, also sagt es für `about` nur `z.unknown()`. Der Handler prüft den Teil mit `check`, sobald er den Freund gelesen hat:
+
+```ts
+plan: async ({ name, about }, { files, refuse }) => {
+  const friend = await friendFile(name).json(LIMIT, Friend);
+  // The stored kind picks the shape, so the schema of the input cannot check this part.
+  const said = check(ABOUT[friend.kind], about, ['about']);
+  if (said.issues !== null) return refuse(...said.issues);
+  const described = JSON.stringify({ ...friend, about: said.data });
+  return files.update(friendFile(name), LIMIT, () => described);
+},
+```
+
+```console
+$ hello friends describe --name ada --json '{"about":{"team":7}}' | jq -c '.issues[0] | {code, path, command}'
+{"code":"SCHEMA","path":"about.team","command":"hello schema colleague"}
+```
+
+- `check(shape, value, path)` antwortet `{ data, issues }`: der geprüfte Wert mit `issues: null`, oder `data: null` mit mindestens einem Problem.
+- Jedes Problem hat den Code `SCHEMA`, wie die Probleme aus adx' eigener Prüfung. Es steht an dem Pfad, den du angibst, plus der Stelle im Teil.
+- Der Pfad ist eine Liste, die mit einem Feld des Befehls beginnt, wie bei `.at()`.
+- Das Tool listet `colleague` und `relative` in `shapes`, also zeigt der Befehl des Problems das Shape. Bei einem Shape, das das Tool nicht listet, zeigt der Befehl die Eingabe des Befehls, der lief.
+- `check` lehnt nichts ab. Der Handler gibt `refuse(...)` zurück, und ein `refuse` nimmt die Probleme mehrerer Prüfungen.
+
+Ein geprüftes Shape, das das Tool nicht listet, kann ein gelistetes nennen, mit einem vierten Argument. oriko prüft einen Eintrag gegen das Shape, das die Art seines Blocks nimmt. Das Tool listet kein Shape pro Art, aber es listet `item`, das alle zeigt:
+
+```ts
+export const itemOf = (block: Block, value: unknown) =>
+  check(ITEM[block.kind], value, ['value'], { as: Item });
+```
+
+- `as` nimmt ein Shape, das das Tool in `shapes` listet, den Wert selbst und nicht seinen Namen.
+- Der Befehl jedes Problems zeigt dann dieses Shape: hier `oriko schema item`.
+- `as` ändert nur den Befehl. Der Wert wird weiter gegen das erste Argument geprüft.
+
+**Ein Schritt zu `schema`.** Ein Schritt kommt aus einem Befehl, und `schema` ist adx' eigener Befehl. `schema.step(name)` ist der Schritt dorthin. `friends add` nennt zuerst das Shape, das der nächste Aufruf nimmt, und dann diesen Aufruf:
+
+```ts
+next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
+```
+
+```console
+$ hello friends add --name ada --kind colleague | jq -r '.next[].command'
+hello schema colleague
+hello friends describe --name ada
+```
+
+- Der Name ist ein Shape oder ein Befehl, so wie ein Aufrufer ihn nach `schema` schreibt.
+- adx prüft den Namen beim Start. Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler.
 
 ### Gespeicherte Daten, die ihr Format ändern
 
@@ -1692,7 +1778,7 @@ adx nutzt kein CLI-Framework. Es liest die Argumente mit `util.parseArgs` von No
 
 Jeder Befehl in einem Schritt oder in einem Problem ist vollständig. So kann ein Agent ihn Wort für Wort ausführen:
 
-- Ein Schritt, den du schreibst, trägt die Felder, die du ihm gegeben hast.
+- Ein Schritt, den du schreibst, trägt die Felder, die du ihm gegeben hast. Als Befehl eines Problems trägt er auch die Felder, die er mit `.carry` aus dem abgelehnten Aufruf nimmt. Mit `.lists` nennt er die Option eines Feldes ohne Wert.
 - Ein Befehl, den adx ableitet, trägt die Felder des Aufrufs, die der genannte Befehl unter demselben Namen hat. Abgeleitete Befehle sind die Liste der Werte eines Feldes, die folgende Seite und der Befehl für einen Eintrag einer Liste.
 - Jeder genannte Befehl trägt die globalen Felder, die das Ziel nimmt, und den Datenordner, wenn er nicht der Standardordner ist.
 - Jeder Wert steht für die Shell in Anführungszeichen.
@@ -1728,6 +1814,9 @@ Jeder Befehl in einem Schritt oder in einem Problem ist vollständig. So kann ei
 return files.write(file, names, { mode: 0o644 });
 ```
 
+- Ein `files.write`, dessen Bytes der vorhandenen Datei gleichen, schreibt nichts und antwortet `replaces: false` und `unchanged: true`. Ebenso ein `files.update`, dessen Funktion den Text antwortet, den die Datei enthält.
+- Ein Schreiben, das nichts schreibt, setzt auch keinen Modus, auch wenn sein `mode` vom Modus der Datei abweicht.
+- Ein echter Lauf, in dem jede Datei unverändert bleibt, antwortet trotzdem `applied: true`, weil die Dateien danach im gewünschten Zustand sind. `unchanged` steht pro Datei, `applied` für den ganzen Aufruf.
 - `files.write` und `files.update` antworten `{ file, bytes, replaces }`. Ersetzt die Datei eine andere, fügt adx `changes` hinzu:
 
 ```console
@@ -1757,7 +1846,7 @@ plan: async ({ name, lang }, { files }) => {
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
 - `bug`: `DECLARATION`, `UNKNOWN_ERROR`, `PANIC`
 
-`SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
+`SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. Ein Handler löst es mit `check` aus. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
 
 **Fehler, die du nicht zugeordnet hast**
 

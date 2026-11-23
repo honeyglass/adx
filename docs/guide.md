@@ -479,7 +479,14 @@ applied   true
 
 The dry run and the real run answer the same fields. Only `applied` differs. adx gives `--dry-run` to every `effect`, for every combination of arguments, and it cannot be switched off. Commands made with `read` and `list` refuse it like any unknown option.
 
-The same call again is refused, because the file now exists. Whether a file is replaced is decided by the write alone. The refusal already comes in `plan`, so a dry run shows it too:
+The same call again writes nothing. The file already holds these bytes, so nothing can be lost, and the call needs no `--replace`. The answer says `unchanged: true`, on a dry run too. The real run still answers `applied: true`, because the file is in the wanted state afterwards:
+
+```console
+$ hello friends add --name ada --lang de | jq -c '.result'
+{"file":"friends/ada.json","bytes":26,"replaces":false,"unchanged":true}
+```
+
+A call that writes other content to the same name is refused, because the file now exists. Whether a file is replaced is decided by the write alone. The refusal already comes in `plan`, so a dry run shows it too:
 
 ```console
 $ hello friends add --name ada --lang en | jq -c '.issues[0] | {code, hint}'
@@ -686,6 +693,7 @@ const edit = effect({
 - adx reads the file itself and calls your function with its text. `LIMIT` is your own number, such as 65,536: the read stops at that size.
 - `files.update` takes no `--replace`, so the command says `replace: false`.
 - It never creates a file. If the file is missing, adx refuses with `FILE_NOT_FOUND`, kind `fix`.
+- A change that answers the text the file already holds writes nothing. The answer then says `replaces: false` and `unchanged: true`, as for a `write` of the same bytes.
 - As with `write`, the refusal comes in `plan`, the answer shows what changes, and a dry run writes nothing.
 
 ```console
@@ -1114,6 +1122,7 @@ $ tracker whoami | jq -c '.next[0]'
 
 - A `next` whose steps stay in the command's own folder stands at the command, as in `ticket create`. A `next` to a command of another folder stands at the tool.
 - `after` takes a command and a function like `next`. The function gets the answer of the real run and the input, both typed by the command.
+- `after` also takes a list of commands in place of one: `after([create, close], fn)` gives the same steps to both. The function must fit every command of the list, so it reads only what all of them answer and take. An empty list does not compile.
 - Its steps follow the steps of the command's own `next`.
 - An `after` for a command the tool does not list is a `DECLARATION` error at startup.
 - In a larger tool the list of `next` gets a file of its own in `cli/`.
@@ -1133,6 +1142,24 @@ The tool takes the list as `hints`, beside `next`.
 - A `.command(step)` at the issue wins over the hint. The hint wins over the command adx derives from the source of the field.
 - The function gets nothing, so adx calls it at startup. A hint for a command the tool does not list is a `DECLARATION` error, and so is a second hint for one code.
 - A step from `tell` does not compile here: the `command` of an issue is a command.
+
+The command that helps often needs to know what the refused call worked on. oriko, a CV tool, refuses an unknown block with one code from `core/`, and the command that helps lists the blocks of the CV that call named. The step takes the CV and the profile from the refused call, with `.carry`, and names `--block` without a value, with `.lists`:
+
+```ts
+hint(unknownBlock, () => show.step().carry('cv', 'profile').lists('block')),
+```
+
+- `.carry` takes fields of the target command: `.carry('cvs')` does not compile.
+- adx takes the value of the field of the same name from the refused call only when the target command would accept it in a real call. When adx cannot check that, the value stays out.
+- The value must pass the schema of the target command. A call with `--cv jane` answers `oriko show --cv jane --block`.
+- Where the field has a source in the target command, the value must also stand in its list. `oriko profile set --profile initech` names a new profile, which `show` does not list, so its hint leaves `--profile` out.
+- Where that source is `fresh`, a name that is already taken stays out, since the target command would refuse it without `--replace`. A free name is taken over.
+- A source that answers `needs(...)` cannot list its values yet, so the value stays out.
+- adx blocks every remote while it answers a refusal. A source that calls one sends no request, and the value stays out. So a refusal never sends a request.
+- Otherwise the field stays out of the command.
+- `.lists` names the option of one field without a value, so the call lists the values the field takes. It compiles only for a field that has a source in the `values` of the target command, as `block` has in `show`.
+- A field the step lists does not stand in its `needs`: the step lists the values, and the agent picks one. A step that gives the field a value cannot also list it, so `show.step({ block: 'x' }).lists('block')` does not compile. Neither does a step that names one field in `.needs` and in `.lists`, in either order.
+- A global field cannot be listed with `.lists`: its source stands in `global`, not in the `values` of the command.
 
 ### A checker over a codebase
 
@@ -1411,6 +1438,65 @@ $ hello greet-all --json '{"people":[{"name":"Ada","lang":"xx"}]}' | jq -c '.iss
 - A shape is also the place for a file that someone edits by hand, so that `schema` shows what the file may hold.
 - A key of `shapes` is one word, and a shape and a command cannot share a word. That is a `DECLARATION` error at startup.
 - The start answer does not list shapes and holds no data of the tool: it names the commands and the first steps. Data comes from a command.
+
+**A part only the handler can check.** Some parts have a shape that depends on stored data. Say a friend is a colleague or a relative, and what a caller says about a friend depends on that kind:
+
+```ts
+// What a caller says about a friend, by the kind of friend. No command takes one whole.
+const Colleague = z.object({ team: z.string().describe('the team you share') });
+const Relative = z.object({ relation: z.string().describe('such as aunt or cousin') });
+const ABOUT = { colleague: Colleague, relative: Relative };
+```
+
+The schema of the input cannot know the kind, so it says `z.unknown()` for `about`. The handler checks the part with `check`, once it has read the friend:
+
+```ts
+plan: async ({ name, about }, { files, refuse }) => {
+  const friend = await friendFile(name).json(LIMIT, Friend);
+  // The stored kind picks the shape, so the schema of the input cannot check this part.
+  const said = check(ABOUT[friend.kind], about, ['about']);
+  if (said.issues !== null) return refuse(...said.issues);
+  const described = JSON.stringify({ ...friend, about: said.data });
+  return files.update(friendFile(name), LIMIT, () => described);
+},
+```
+
+```console
+$ hello friends describe --name ada --json '{"about":{"team":7}}' | jq -c '.issues[0] | {code, path, command}'
+{"code":"SCHEMA","path":"about.team","command":"hello schema colleague"}
+```
+
+- `check(shape, value, path)` answers `{ data, issues }`: the checked value with `issues: null`, or `data: null` with at least one issue.
+- Every issue has the code `SCHEMA`, as the issues of adx's own check have. It stands at the path you give, plus the place inside the part.
+- The path is a list that starts with a field of the command, as for `.at()`.
+- The tool lists `colleague` and `relative` in `shapes`, so the command of the issue shows the shape. For a shape the tool does not list, the command shows the input of the command that ran.
+- `check` refuses nothing. The handler returns `refuse(...)`, and one `refuse` takes the issues of several checks.
+
+A checked shape the tool does not list can name a listed one, with a fourth argument. oriko checks an item against the shape the kind of its block takes. The tool lists no shape per kind, but it lists `item`, which shows all of them:
+
+```ts
+export const itemOf = (block: Block, value: unknown) =>
+  check(ITEM[block.kind], value, ['value'], { as: Item });
+```
+
+- `as` takes a shape the tool lists in `shapes`, the value itself and not its name.
+- The command of every issue then shows that shape: here `oriko schema item`.
+- `as` changes the command only. The value is still checked against the first argument.
+
+**A step to `schema`.** A step comes from a command, and `schema` is adx's own command. `schema.step(name)` is the step to it. `friends add` first names the shape the next call takes, and then that call:
+
+```ts
+next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
+```
+
+```console
+$ hello friends add --name ada --kind colleague | jq -r '.next[].command'
+hello schema colleague
+hello friends describe --name ada
+```
+
+- The name is a shape or a command, as a caller writes it after `schema`.
+- adx checks the name at startup. A name `schema` does not know is a `DECLARATION` error.
 
 ### Stored data that changes its format
 
@@ -1692,7 +1778,7 @@ adx uses no CLI framework. It reads the arguments with Node's `util.parseArgs` i
 
 Every command in a step or in an issue is complete, so an agent can run it word for word:
 
-- A step you write carries the fields you gave it.
+- A step you write carries the fields you gave it. As the command of an issue, it also carries the fields it takes from the refused call with `.carry`. With `.lists` it names the option of one field without a value.
 - A command adx derives carries the fields of the call that the named command has under the same name. Derived commands are the list of a field's values, the following page and the one-item command of a list.
 - Every named command carries the global fields the target takes, and the data folder when it is not the default one.
 - Every value is quoted for the shell.
@@ -1728,6 +1814,9 @@ Every command in a step or in an issue is complete, so an agent can run it word 
 return files.write(file, names, { mode: 0o644 });
 ```
 
+- A `files.write` whose bytes equal the existing file writes nothing and answers `replaces: false` and `unchanged: true`. So does a `files.update` whose function answers the text the file holds.
+- A write that writes nothing sets no mode either, also when its `mode` differs from the mode of the file.
+- A real run in which every file is unchanged still answers `applied: true`, because the files are in the wanted state afterwards. `unchanged` stands per file, and `applied` for the whole call.
 - `files.write` and `files.update` answer `{ file, bytes, replaces }`. When the file replaces one, adx adds `changes`:
 
 ```console
@@ -1757,7 +1846,7 @@ plan: async ({ name, lang }, { files }) => {
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
 - `bug`: `DECLARATION`, `UNKNOWN_ERROR`, `PANIC`
 
-`SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run.
+`SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. A handler raises it with `check`. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run.
 
 **Errors you did not map**
 

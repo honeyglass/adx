@@ -73,6 +73,14 @@ Teile einer Eingabe, abgeleitete Dateien, Hinweise und Tests:
 45. Ein Hinweis über Ordner hinweg steht am Tool.
 46. Das Testkit führt einen ganzen Aufruf im selben Prozess aus.
 
+Schritte zu `schema`, Prüfen im Handler, Hinweise mit Feldern und gleiche Bytes:
+
+47. Ein Schritt kann zu `schema` führen.
+48. Ein Handler prüft einen Teil mit `check`.
+49. Ein Hinweis nimmt Felder aus dem abgelehnten Aufruf.
+50. `after` nimmt auch eine Liste von Befehlen.
+51. Ein `files.write` mit denselben Bytes schreibt nichts.
+
 Noch nicht abgedeckt, vorher wie nachher: eine gespeicherte Datei löschen, und zwei Aufrufe, die dieselbe Datei gleichzeitig schreiben.
 
 ## 1. Der Agent-Skill ist optional und nur ein Pfad
@@ -1107,6 +1115,112 @@ test('the input can come through stdin', async () => {
   const { out } = await run(hello, ['greet', '--json', '-'], { ...samples, stdin });
   assert.equal(JSON.parse(out).result.greeting, 'Hallo, Ada!');
 });
+```
+
+## 47. Ein Schritt kann zu `schema` führen
+
+Ein Schritt kam nur aus einem Befehl des Tools. `schema` ist adx' eigener Befehl, also hatte kein Tool einen Wert dafür. Ein Tool konnte den Aufruf nicht nennen, der zeigt, was der Agent als Nächstes schreibt. Jetzt exportiert adx `schema`, und `schema.step(name)` ist ein Schritt zu `tool schema <name>`. Der Name ist ein Shape oder ein Befehl. adx prüft ihn beim Start: Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler.
+
+Vorher:
+
+```text
+kein Schritt: schema ist kein Befehl des Tools, und ein Schritt kommt aus einem Befehl
+```
+
+Nachher:
+
+```ts
+next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
+```
+
+```console
+$ hello friends add --name ada --kind colleague | jq -r '.next[].command'
+hello schema colleague
+hello friends describe --name ada
+```
+
+## 48. Ein Handler prüft einen Teil mit `check`
+
+adx prüft die Eingabe, bevor der Handler läuft. Ein Teil, dessen Form von gespeicherten Daten abhängt, steht im Schema der Eingabe als `unknown`, und nur der Handler kann ihn prüfen. Der Code `SCHEMA` gehört adx, also brauchte der Handler einen eigenen Code. Jetzt exportiert adx `check(shape, value, path)`. Es antwortet `{ data, issues }`: mit dem geprüften Wert, oder mit Problemen, die den Code `SCHEMA` haben und am Pfad stehen. Steht das Shape in `shapes`, nennt jedes Problem `schema <name>` als Befehl, sonst das Schema des Befehls. Ein viertes Argument `{ as: Shape }` nennt ein Shape aus `shapes`, dessen Befehl die Probleme statt des geprüften zeigen. Der Handler meldet die Probleme mit `refuse`.
+
+Vorher:
+
+```text
+ein eigener Code des Tools, mit einem Hinweis, der die Shapes von Hand nennt
+```
+
+Nachher:
+
+```ts
+const said = check(ABOUT[friend.kind], about, ['about']);
+if (said.issues !== null) return refuse(...said.issues);
+```
+
+```console
+$ hello friends describe --name ada --json '{"about":{"team":7}}' | jq -c '.issues[0] | {code, path, command}'
+{"code":"SCHEMA","path":"about.team","command":"hello schema colleague"}
+```
+
+## 49. Ein Hinweis nimmt Felder aus dem abgelehnten Aufruf
+
+Die Funktion eines `hint` bekommt nichts, damit adx sie beim Start aufrufen kann. Der Befehl, der hilft, wusste darum nicht, woran der abgelehnte Aufruf gearbeitet hat. Jetzt hat ein Schritt `.carry(...fields)`, typisiert auf die Felder des Zielbefehls. adx nimmt den Wert des gleichnamigen Feldes aus dem abgelehnten Aufruf nur, wenn der Zielbefehl ihn in einem echten Aufruf annehmen würde: Er erfüllt das Schema, er steht in der Liste der Quelle des Feldes, und bei `fresh` ist der Name nicht vergeben. Kann adx das nicht prüfen, bleibt das Feld weg, etwa bei einer Quelle, die `needs` antwortet. adx sperrt jeden Remote, während es eine Ablehnung beantwortet, also sendet eine Ablehnung nie eine Anfrage. Dazu hat ein Schritt `.lists(field)`: Er nennt die Option ohne Wert, also listet der Aufruf ihre Werte. `.lists` kompiliert nur für ein Feld, das in `values` des Zielbefehls eine Quelle hat und dem der Schritt keinen Wert gab. Das Feld steht dann nicht in `needs`, und `.needs` und `.lists` für dasselbe Feld kompilieren nicht.
+
+Vorher:
+
+```console
+$ oriko block remove --cv jane --json '{"id":"nobody"}' | jq -r '.issues[0].command'
+oriko show
+```
+
+Nachher:
+
+```ts
+hint(unknownBlock, () => show.step().carry('cv', 'profile').lists('block')),
+```
+
+```console
+$ oriko block remove --cv jane --json '{"id":"nobody"}' | jq -r '.issues[0].command'
+oriko show --cv jane --block
+```
+
+## 50. `after` nimmt auch eine Liste von Befehlen
+
+`after` typisierte einen Befehl. Derselbe Schritt nach mehreren Befehlen stand einmal pro Befehl da, und ein neuer Befehl der Gruppe wurde leicht vergessen. Jetzt nimmt `after` einen Befehl oder eine nicht leere Liste von Befehlen. Die Funktion muss zu jedem Befehl der Liste passen, sonst kompiliert der Aufruf nicht.
+
+Vorher:
+
+```ts
+after(block.add, fitted),
+after(block.move, fitted),
+```
+
+Nachher:
+
+```ts
+after([block.add, block.move], (out, { cv }) => (out.fits ? [build.step({ cv })] : []));
+```
+
+```ts
+// @ts-expect-error init answers no fits, so the function does not fit every command
+after([block.add, init], out => (out.fits ? [build.step()] : []));
+```
+
+## 51. Ein `files.write` mit denselben Bytes schreibt nichts
+
+Jedes `files.write` auf eine vorhandene Datei wurde ohne `--replace` abgelehnt, auch wenn der Aufruf dieselben Bytes schrieb. Ein Agent sendet einen Aufruf aber manchmal zweimal, etwa nach einem Timeout. Jetzt schreibt adx in diesem Fall nichts, und der Aufruf braucht kein `--replace`. Die Antwort meldet `replaces: false` und `unchanged: true`, auch im Probelauf. Anderer Inhalt braucht weiter `--replace`. Dasselbe gilt für ein `files.update`, dessen Funktion den Text antwortet, den die Datei schon enthält. Ein echter Lauf, der nichts schreibt, antwortet trotzdem `applied: true`, weil die Dateien danach im gewünschten Zustand sind. Ein Modus wird dann nicht gesetzt.
+
+Vorher:
+
+```console
+$ hello friends add --name ada --lang de | jq -r '.issues[0].code'
+ALREADY_EXISTS
+```
+
+Nachher:
+
+```console
+$ hello friends add --name ada --lang de | jq -c '.result'
+{"file":"friends/ada.json","bytes":26,"replaces":false,"unchanged":true}
 ```
 
 ## Hello World vorher

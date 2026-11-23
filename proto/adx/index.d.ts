@@ -19,12 +19,45 @@ export interface Step {
   readonly does: string;
   readonly command?: string;
 }
-export interface CommandStep<I> extends Step {
-  /** Only for an optional field the step still needs; required fields are derived. */
-  needs(...fields: (keyof I & string)[]): CommandStep<I>;
+/**
+ * `L` names the fields the step can list: those with a source in the `values` of the command.
+ * `N` names the fields `needs` takes. A field is listed or needed, never both.
+ */
+export interface CommandStep<
+  I,
+  L extends string = never,
+  N extends string = keyof I & string,
+> extends Step {
+  /**
+   * Only for an optional field the step still needs; required fields are derived. A field the
+   * step lists does not compile.
+   */
+  needs<K extends N = never>(...fields: K[]): CommandStep<I, Exclude<L, K>, N>;
+  /**
+   * For a step that is the command of an issue, as in a `hint`. adx takes each named field from
+   * the refused call only when this command would accept the value in a real call: it passes the
+   * schema, it stands in the list of the field's source, and with `fresh` the name is not taken.
+   * When adx cannot check that, the field stays out: a source that answers `needs`, or one that
+   * calls a remote. adx blocks every remote while it answers a refusal, so no request goes out.
+   */
+  carry(...fields: (keyof I & string)[]): CommandStep<I, L, N>;
+  /**
+   * The step names the option of this field without a value, so the call lists the values the
+   * field takes, and the field stays out of `needs`. Only a field with a source in the `values` of
+   * this command compiles, and only one the step gave no value and does not name in `needs`.
+   */
+  lists<K extends L>(field: K): CommandStep<I, L, Exclude<N, K>>;
 }
 /** A step for the person: it has a `does` and no command. */
 export function tell(does: string): Step;
+/** adx's own command `schema`, for a step to it. */
+export const schema: {
+  /**
+   * A step to `schema <name>`. The name is a shape of the tool's `shapes`, or a command by its
+   * words, such as `profile set`. A name `schema` does not know is a `DECLARATION` error at startup.
+   */
+  step(name: string): Step;
+};
 
 // codes and refusals
 export class Issue<P extends string = string> {
@@ -59,6 +92,20 @@ export function failed(state: string, cause: unknown): Refused;
 /** The HTTP status of a failed send, to map it yourself. A read maps a status with `on`. */
 export function status(error: unknown): number | undefined;
 type Refuse<F extends string> = (...issues: [Issue<F>, ...Issue<F>[]]) => Refused<F>;
+/**
+ * Checks a part of the input in the handler, such as a part whose shape stored data picks. It
+ * answers the checked value, or one `SCHEMA` issue per problem. Each issue stands at the path, plus
+ * the place inside the part. The path is a list as `.at` takes it: a field first, then keys and
+ * indexes. When the shape stands in the tool's `shapes`, the command of each issue is
+ * `schema <name>`, else `schema <command>`. With `as`, adx looks for that shape in `shapes` in
+ * place of the checked one. The handler reports the issues with `refuse`.
+ */
+export function check<S extends z.ZodType, const P extends string>(
+  shape: S,
+  value: unknown,
+  path: readonly [P, ...(string | number)[]],
+  options?: { as: z.ZodType },
+): { data: z.output<S>; issues: null } | { data: null; issues: [Issue<P>, ...Issue<P>[]] };
 
 // sources: everything that says where a field's values come from stands in `values`
 export type Choice = { value: string; does?: string };
@@ -87,8 +134,8 @@ type AnyList = ListCommand<any, any, any, any>;
 export function keyOf(list: AnyList): ListRef;
 /** The same, and this command is the one that shows one item of the list in full. */
 export function detailOf(list: AnyList): ListRef;
-export type Values<S extends Obj, G extends Obj = Empty> = {
-  [K in Field<S>]?: Source<In<S> & In<G>> | Fresh<In<S> & In<G>> | ListRef;
+export type Values<S extends Obj, G extends Obj = Empty, K extends Field<S> = Field<S>> = {
+  [F in K]?: Source<In<S> & In<G>> | Fresh<In<S> & In<G>> | ListRef;
 };
 
 // stored data: one kind of file the tool keeps, with the number of its format
@@ -229,6 +276,8 @@ export interface Written {
   readonly file: string;
   readonly bytes: number;
   readonly replaces: boolean;
+  /** Present when a `files.write` or a `files.update` met the same bytes in the file. */
+  readonly unchanged?: true;
   /** Present when the file replaces one. */
   readonly changes?: Changes;
 }
@@ -238,11 +287,13 @@ export interface Files {
    * For a command that creates something new. An existing file is refused unless the call says
    * `--replace`. A new file gets the mode `0600`, or the `mode` given; a replaced file keeps its mode.
    * In a command that says `replace: 'always'`, the write replaces an existing file without the option.
+   * A write whose bytes equal the existing file writes nothing, sets no mode and needs no `--replace`.
    */
   write(file: File, data: string | Uint8Array, options?: { mode?: number }): Written;
   /**
    * For a command whose purpose is to change a file. adx reads the file, up to the limit, and
    * calls `change` with its text. It takes no `--replace`; a missing file is refused.
+   * A change that answers the same text writes nothing.
    */
   update(file: File, limit: number, change: (old: string) => string): Promise<Written>;
 }
@@ -279,14 +330,25 @@ declare const realRun: unique symbol;
 export interface Entry<G extends Obj> {
   readonly [builtFor]: (global: G) => G;
 }
-/** `R` is the answer of a real run, which `next` and `after` get. */
-export interface Command<I extends Obj, O, G extends Obj = Empty, U = {}, R = O> extends Entry<G> {
+/**
+ * `R` is the answer of a real run, which `next` and `after` get. `L` names the fields with a
+ * source in `values`, which a step can list.
+ */
+export interface Command<
+  I extends Obj,
+  O,
+  G extends Obj = Empty,
+  U = {},
+  R = O,
+  L extends string = never,
+> extends Entry<G> {
   /** The words that call the command, such as `ticket list`. The tool that lists it sets them. */
   readonly name: string;
   readonly [realRun]?: R;
-  step(
-    input?: Partial<Given<I> & UseGiven<Given<G>, U>>,
-  ): CommandStep<Given<I> & UseGiven<Given<G>, U>>;
+  /** A field the step gives a value is not one it can list, so `.lists` of it does not compile. */
+  step<K extends keyof (Given<I> & UseGiven<Given<G>, U>) = never>(
+    input?: Pick<Partial<Given<I> & UseGiven<Given<G>, U>>, K>,
+  ): CommandStep<Given<I> & UseGiven<Given<G>, U>, Exclude<L, K>>;
   invoke(input: Given<I> & UseGiven<Given<G>, U>, options?: InvokeOptions): Promise<Answer<O>>;
 }
 export interface ListCommand<
@@ -294,18 +356,19 @@ export interface ListCommand<
   T extends Obj,
   G extends Obj = Empty,
   U = {},
-> extends Command<I, Listing<In<T>>, G, U> {
+  L extends string = never,
+> extends Command<I, Listing<In<T>>, G, U, Listing<In<T>>, L> {
   readonly item: T;
 }
 
 // the properties every kind of command shares; `Taken` names the options adx gives the kind
-interface Common<I extends Obj, G extends Obj, U, R, Taken extends string> {
+interface Common<I extends Obj, G extends Obj, U, R, Taken extends string, L extends Field<I>> {
   does: string;
   input?: I & Free<I, Taken>;
   example?: Given<I>;
   /** Leave out to take every global field as declared. */
   global?: U;
-  values?: Values<I, G>;
+  values?: Values<I, G, L>;
   check?: (input: All<I, G, U>) => Issue<Fields<I, G, U>>[];
   next?: (out: R, input: All<I, G, U>) => Step[];
 }
@@ -315,7 +378,8 @@ export interface ReadSpec<
   O,
   U = {},
   S extends z.ZodType = z.ZodType,
-> extends Common<I, G, U, O, Always | (z.ZodType extends S ? never : 'fields')> {
+  L extends Field<I> = never,
+> extends Common<I, G, U, O, Always | (z.ZodType extends S ? never : 'fields'), L> {
   /**
    * The schema of the answer. With it the command takes `--fields`, and `schema` shows the answer.
    * A read that answers a long list or a large document needs it.
@@ -324,13 +388,13 @@ export interface ReadSpec<
   run: (input: All<I, G, U>, ctx: { refuse: Refuse<Fields<I, G, U>> }) => Out<O, I, G, U>;
   text?: (out: O) => string;
 }
-export interface ListSpec<I extends Obj, G extends Obj, T extends Obj, U = {}> extends Common<
-  I,
-  G,
-  U,
-  Listing<In<T>>,
-  Always | 'page' | 'fields'
-> {
+export interface ListSpec<
+  I extends Obj,
+  G extends Obj,
+  T extends Obj,
+  U = {},
+  L extends Field<I> = never,
+> extends Common<I, G, U, Listing<In<T>>, Always | 'page' | 'fields', L> {
   item: T;
   key: Field<T>;
   outline: Field<T>[];
@@ -347,7 +411,8 @@ export interface EffectSpec<
   O,
   A extends object | void,
   U = {},
-> extends Common<I, G, U, Merged<O, A>, Always> {
+  L extends Field<I> = never,
+> extends Common<I, G, U, Merged<O, A>, Always, L> {
   /**
    * Every effect takes `--replace`. `false` switches the option off, and `schema` does not list it.
    * `'always'` switches it off too, and is for a command that writes derived files, ones the tool
@@ -381,20 +446,27 @@ export interface Kinds<G extends Obj> {
     S extends z.ZodType = z.ZodType,
     O extends z.output<S> = z.output<S>,
     const U extends GlobalUse<G> = {},
+    L extends Field<I> = never,
   >(
-    spec: ReadSpec<I, G, O, U, S>,
-  ): Command<I, O, G, U>;
-  list<I extends Obj = Empty, T extends Obj = Empty, const U extends GlobalUse<G> = {}>(
-    spec: ListSpec<I, G, T, U>,
-  ): ListCommand<I, T, G, U>;
+    spec: ReadSpec<I, G, O, U, S, L>,
+  ): Command<I, O, G, U, O, L>;
+  list<
+    I extends Obj = Empty,
+    T extends Obj = Empty,
+    const U extends GlobalUse<G> = {},
+    L extends Field<I> = never,
+  >(
+    spec: ListSpec<I, G, T, U, L>,
+  ): ListCommand<I, T, G, U, L>;
   effect<
     I extends Obj = Empty,
     O = unknown,
     A extends object | void = void,
     const U extends GlobalUse<G> = {},
+    L extends Field<I> = never,
   >(
-    spec: EffectSpec<I, G, O, A, U>,
-  ): Command<I, Either<O, A>, G, U, Merged<O, A>>;
+    spec: EffectSpec<I, G, O, A, U, L>,
+  ): Command<I, Either<O, A>, G, U, Merged<O, A>, L>;
 }
 /** For a tool without global input. A tool with one takes the three from its `global(...)`. */
 export const read: Kinds<Empty>['read'];
@@ -431,6 +503,15 @@ export function after<I extends Obj, O, G extends Obj, U, R>(
   command: Command<I, O, G, U, R>,
   next: (out: R, input: All<I, G, U>) => Step[],
 ): After<G>;
+/** The same steps after each command of a list. `next` must fit every command of the list. */
+export function after<const C extends readonly [AnyCommand, ...AnyCommand[]]>(
+  commands: C,
+  next: (out: RealOf<C[number]>, input: InputOf<C[number]>) => Step[],
+): After<GlobalOf<C[number]>>;
+type AnyCommand = Command<any, any, any, any, any>;
+type RealOf<C> = C extends Command<any, any, any, any, infer R> ? R : never;
+type InputOf<C> = C extends Command<infer I, any, infer G, infer U, any> ? All<I, G, U> : never;
+type GlobalOf<C> = C extends Entry<infer G extends Obj> ? G : never;
 
 declare const helps: unique symbol;
 export interface Hint {

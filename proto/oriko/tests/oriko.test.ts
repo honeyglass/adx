@@ -5,10 +5,12 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { conformance, run } from '@honeyglass/adx/test';
 import { oriko } from '../cli/oriko.ts';
+import { set as profileSet } from '../profile/set.ts';
 
 const seed = 'tests/seed'; // holds the CV jane with its photo, and the profiles acme and broken
 const cwd = 'tests/work'; // holds posting.txt, which the calls only read
-const picture = join(import.meta.dirname, 'work', 'me.png'); // a picture may lie anywhere
+// a picture may lie anywhere; this one is another picture than the stored cvs/jane.png
+const picture = join(import.meta.dirname, 'work', 'me.png');
 const samples = { seed };
 
 test('oriko keeps the agent rules', t => conformance(t, oriko, samples));
@@ -27,8 +29,9 @@ test('a block the profile names and the CV lacks stands below the profile', asyn
   assert.equal(exit, 1);
   assert.equal(issue.code, 'UNKNOWN_BLOCK');
   assert.equal(issue.path, 'profile.blocks.nobody');
-  // the hint of cli/hints.ts: core/ refuses, and the command lies in cv/
-  assert.match(issue.command, /^oriko show/);
+  // the hint of cli/hints.ts: core/ refuses, and the command lies in cv/. It takes the stored
+  // profile from the refused call and lists the blocks of its CV
+  assert.equal(issue.command, 'oriko show --profile broken --block');
 });
 
 test('a profile comes through stdin, and a block it names must exist', async () => {
@@ -37,7 +40,22 @@ test('a profile comes through stdin, and a block it names must exist', async () 
   assert.equal(JSON.parse(stored.out).result.file, 'profiles/initech.json');
   const stdin = '{"cv":"jane","blocks":{"nobody":{"hidden":true}}}';
   const refused = await run(oriko, argv, { ...samples, stdin });
-  assert.equal(JSON.parse(refused.out).issues[0].path, 'blocks.nobody');
+  const [issue] = JSON.parse(refused.out).issues;
+  assert.equal(issue.path, 'blocks.nobody');
+  // the hint of cli/hints.ts takes the CV from the refused call and lists its blocks. The new
+  // name initech is no stored profile, so the hint leaves it out
+  assert.equal(issue.command, 'oriko show --cv jane --block');
+});
+
+test('the same profile again writes nothing and needs no --replace', async () => {
+  // the profile acme as tests/seed stores it
+  const acme = { profile: 'acme', cv: 'jane', blocks: { freelance: { hidden: true } } };
+  const same = await profileSet.invoke(acme, samples);
+  assert.equal(same.result?.replaces, false);
+  assert.equal(same.result?.unchanged, true);
+  // another profile under the same name is a replace
+  const other = await profileSet.invoke({ ...acme, blocks: {} }, samples);
+  assert.equal(other.issues?.[0]?.code, 'ALREADY_EXISTS');
 });
 
 test('a build replaces its file without --replace', async () => {
@@ -45,7 +63,8 @@ test('a build replaces its file without --replace', async () => {
   const argv = ['build', '--out', 'cv.docx'];
   const first = await run(oriko, argv, { ...samples, cwd: work });
   assert.equal(JSON.parse(first.out).result.replaces, false);
-  const second = await run(oriko, argv, { ...samples, cwd: work });
+  // the profile acme hides a block, so the second build writes other bytes
+  const second = await run(oriko, [...argv, '--profile', 'acme'], { ...samples, cwd: work });
   assert.equal(second.exit, 0);
   assert.equal(JSON.parse(second.out).result.replaces, true);
 });

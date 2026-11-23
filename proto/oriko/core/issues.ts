@@ -68,12 +68,3 @@ export const pageOverflow = code(
   'fix',
   'Hide or shorten blocks of that column, remove a page pin, or raise "pages"',
 );
-
-// A part of the input whose schema the stored CV picks: the kind of a block decides the shape of
-// an item and of a patch. oriko answers SCHEMA there today. adx owns that code and gives a handler
-// no way to raise it, so this is a code of oriko's own (README, "What does not fit yet").
-export const wrongShape = code(
-  'WRONG_SHAPE',
-  'fix',
-  'Run oriko schema block or oriko schema item for the shape the kind of the block takes',
-);

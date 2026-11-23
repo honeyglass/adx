@@ -66,6 +66,26 @@ const Entries = z.strictObject({
 export const Block = z.discriminatedUnion('kind', [Job, Rated, List, Entries]);
 export type Block = z.output<typeof Block>;
 
+// The parts whose shape the kind of a block picks. The schema of an input cannot name the kind
+// of a stored block, so a handler checks such a part with adx's check (adx decision 78).
+// In a patch, null removes an optional field. The id and the kind of a block never change.
+const fixed = { id: true, kind: true } as const;
+const removable = { page: page.nullable(), hidden: z.boolean().nullable() };
+const untitled = { ...removable, title: text.nullable() };
+export const PATCH = {
+  job: Job.omit(fixed).extend(removable).partial(),
+  rated: Rated.omit(fixed).extend(untitled).partial(),
+  list: List.omit(fixed).extend(untitled).partial(),
+  entries: Entries.omit(fixed).extend(untitled).partial(),
+};
+export const ITEM = { job: text, rated: RatedItem, list: text, entries: EntryItem };
+export const ITEM_PATCH = {
+  job: text,
+  rated: RatedItem.partial(),
+  list: text,
+  entries: EntryItem.partial(),
+};
+
 // An item's shape depends on the kind of its block, so the one shape lists the kinds' shapes.
 export const Item = z
   .union([text, RatedItem, EntryItem])

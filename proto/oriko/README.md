@@ -26,7 +26,7 @@ oriko/
 │   └── issues.ts             WRONG_EXTENSION, CREDITS_NEED_TERMINAL
 ├── core/                     what several features share; imports only core/
 │   ├── home.ts               the data folder ~/.oriko and the working directory, and the files in them
-│   ├── cv.schema.ts          Master, Profile, NewCv, Block, Item and ContactItem
+│   ├── cv.schema.ts          Master, Profile, NewCv, Block, Item and ContactItem, and the parts by kind
 │   ├── cv.limits.ts          the block kinds, the icons and the sizes of a CV
 │   ├── files.limits.ts       the largest input, photo and read file
 │   ├── options.ts            the options --cv and --profile, with the one text each has
@@ -52,7 +52,7 @@ oriko/
 │   ├── contact.ts            contact add, update, remove, move
 │   ├── edit.schema.ts        INPUT, the input of each of the 13 edits
 │   ├── save.ts               the plan every edit shares: apply, stage the CV file, say whether it fits
-│   ├── apply.ts              one edit applied to a CV (declared)
+│   ├── apply.ts              one edit applied to a CV (declared), and its checks of a part by kind
 │   └── issues.ts             NOTHING_TO_DO, BOTH_ANCHORS, OTHER_COLUMN, INDEX_OUT_OF_RANGE
 ├── read/
 │   ├── documents.ts          read, as far as adx carries it
@@ -73,7 +73,7 @@ oriko/
 │   ├── issues.ts             NOT_INSTALLED, CONVERSION_FAILED
 │   └── limits.ts             the seconds one run of LibreOffice may take
 └── tests/
-    ├── oriko.test.ts         conformance of the tool and of the program, and seven tests with run
+    ├── oriko.test.ts         conformance of the tool and of the program, seven tests with run, one with invoke
     ├── types.ts              what must not compile
     ├── seed/                 the data folder the tests find: the CV jane, the profiles acme and broken
     └── work/                 posting.txt, in the working directory of one test, and the picture me.png
@@ -128,10 +128,12 @@ How each effect writes:
 - `init` writes the CV as a new file and says `replace: false`. It also writes the shared
   placeholder photo `placeholder.png`, directly in the data folder, only when that file is
   missing. A name that is taken is refused with oriko's own `CV_EXISTS`.
-- `profile set` writes the profile with `files.write`. A stored profile needs `--replace`.
+- `profile set` writes the profile with `files.write`. A stored profile needs `--replace`. The
+  same profile sent again needs none: nothing is written, and the answer says `unchanged: true`.
 - `photo set` writes the photo, `cvs/NAME.png` or `profiles/NAME.png`, with `files.write`, and
   points the CV or the profile at it with `files.update`.
-- The 13 edits change the CV file with `files.update` and say `replace: false`.
+- The 13 edits change the CV file with `files.update` and say `replace: false`. An edit that
+  leaves the file as it is writes nothing, and the answer says `unchanged: true`.
 - `read` writes the posting with `files.write` and appends notes with `files.update`.
 - `build` writes its one file and says `replace: 'always'`.
 
@@ -167,8 +169,36 @@ From the six decisions of oriko's move:
 - **Hints across folders** (73). `NO_CV`, `UNKNOWN_CV` and `UNKNOWN_BLOCK` lie in `core/`, and
   their commands `init`, `cvs` and `show` lie in `cv/`. They stand in `cli/hints.ts`. `NO_CV`
   names `oriko init`, where it names `oriko schema init` today.
+- **The hint for `UNKNOWN_BLOCK` takes the CV and the profile from the refused call** (79). Its
+  step is `show.step().carry('cv', 'profile').lists('block')`, so a call with `--cv jane`
+  answers `oriko show --cv jane --block`, the block ids of that CV, as today. `--block` of
+  `show` has a source that reads them. `oriko plan --profile broken` answers
+  `oriko show --profile broken --block`. A profile that is not stored yet, as in `profile set`
+  with a new name, stays out of the command: the source of `--profile` in `show` does not list
+  it.
 - **Tests** (74). `tests/oriko.test.ts` runs whole calls with `run`, beside `conformance` for
   the tool and for the program. oriko's golden file over the real process stays.
+
+From the five decisions that settle what did not fit:
+
+- **Steps to `schema`** (77). `read` names `oriko schema profile` before `oriko profile set`
+  after a posting, and `oriko schema init` after an old CV. `profiles` names
+  `oriko schema profile` when no profile is stored. All three are as today, made with
+  `schema.step(name)` in `cli/next.ts`.
+- **A part by kind is checked with `check`** (78). The kind of a stored block picks the shape of
+  an item, of the fields `block update` sets and of a patch in a profile. `edit/apply.ts` and
+  `profile/set.ts` check such a part with `check`, and the issue has the code `SCHEMA`, as
+  today. The shapes by kind, `PATCH`, `ITEM` and `ITEM_PATCH`, lie in `core/cv.schema.ts`. They
+  stand in no `shapes`, so each check names the shape to show, with `{ as: Item }` or
+  `{ as: Block }`, and the command of the issue is `oriko schema item` or `oriko schema block`,
+  as today. Where the shape does not depend on stored data, the input uses the shape itself
+  (`block`, the `value` of `item add` and of `contact add`), and adx answers `SCHEMA` with the
+  shape's command.
+- **One `after` for the 13 edits** (80). Each edit names `preview` and `build` when the CV still
+  fits its pages, as today.
+- **The same profile again writes nothing** (81). `profile set` with the stored profile answers
+  `replaces: false` and `unchanged: true`, and needs no `--replace`. Today oriko refuses the
+  call without `--replace`, and writes nothing with it.
 
 From what adx gives every tool:
 
@@ -194,11 +224,11 @@ From what adx gives every tool:
 - **A missing folder of `--out` is created.** `FOLDER_NOT_FOUND` is gone.
 - **A code has one hint.** Where oriko's hint names the field or the column, that part moves
   into the message.
-- **Six codes get a name of their own**, because adx owns theirs: `NOTHING_TO_READ` and
+- **Five codes get a name of their own**, because adx owns theirs: `NOTHING_TO_READ` and
   `PROFILE_NEEDED` in `read` (today `MISSING_INPUT` and `MISSING_OPTION`), `SOURCE_NOT_FOUND`
   in `read` and `NO_PICTURE` in `photo set` (today `FILE_NOT_FOUND`), `CONVERSION_FAILED` for
-  LibreOffice (today `SYSTEM_REFUSED`), and `WRONG_SHAPE`, see "What does not fit yet".
-  `photo set` without a file is adx's own refusal for a missing field.
+  LibreOffice (today `SYSTEM_REFUSED`). `photo set` without a file is adx's own refusal for a
+  missing field.
 - **No `try` block** (76). What goes through adx needs none. oriko's own code in
   `read/sources.ts` and `classic/images.ts` takes an error it expects with `$try` or `trySync$`:
   a missing file becomes an issue, any other error of the read is thrown on with `failed`, and
@@ -226,25 +256,11 @@ From what adx gives every tool:
   oriko's own code that reads and squares the picture, as `read/sources.ts` does for `read`. It
   stays so until adx TODO #6 settles "a file the person names". A candidate there is an
   allow-list of the folders the person opens.
-- **No step to adx's own `schema` command.** oriko names `oriko schema profile` after a posting
-  was read and when no profile is stored, and `oriko schema init` after an old CV was read. A
-  step comes from a command value, and `schema` has none. These steps are left out, with a
-  comment in `cli/next.ts`.
-- **A handler cannot raise `SCHEMA`.** The kind of a block decides the shape of an item, of a
-  patch in `block update` and of a patch in a profile. oriko checks such a part in the handler
-  and answers `SCHEMA` with `oriko schema item` or `oriko schema block`. adx owns the code and
-  gives a handler no way to check a part against a schema. Here the code is `WRONG_SHAPE`, and
-  its hint names the two shapes. Where the shape does not depend on stored data, the input uses
-  the shape itself (`block`, the `value` of `item add` and of `contact add`), and adx answers
-  `SCHEMA` with the shape's command.
 - **A tool cannot raise a code adx owns.** oriko's own code for files and downloads answers
   `FILE_NOT_FOUND`, `NOT_A_FILE`, `INPUT_TOO_LARGE`, `URL_NOT_ALLOWED`, `NETWORK_FAILED` and
   `SERVER_BUSY`. `code()` declares a code of the tool, and adx exports none of its own. A missing
   file has a stand-in here, `SOURCE_NOT_FOUND` and `NO_PICTURE`. As long as `read` keeps its own
   code, the other five have no declaration (`read/issues.ts`).
-- **A hint gets nothing of the refused call.** For `UNKNOWN_BLOCK` oriko answers
-  `oriko show --cv jane --block` today, the blocks of the CV the call worked on. `hint` takes a
-  function without input, so the step is `oriko show`, without the CV.
 - **A path cannot point into a stored file on its own.** It starts with a field of the call
   (69). That works where a field names the file, as `--profile` does. `cvs` and `profiles` have
   no field, so `NO_CV` is raised with `.issue()` and has no path, where it has `home` today.
@@ -259,7 +275,3 @@ From what adx gives every tool:
 - **`--cv` and `--profile` are no global input.** `init` takes a new name as `--cv`, and a
   global field with a source would refuse it. So each command declares the two itself, from
   `core/options.ts`, and each step names them.
-- **The step after the 13 edits is written 13 times.** `after` types each command on its own,
-  so a list of commands cannot be mapped over (`cli/next.ts`).
-- **`profile set` with the same profile again is refused** without `--replace`, as every
-  `files.write` to an existing file is. Today oriko sees that nothing changes and writes nothing.

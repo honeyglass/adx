@@ -142,8 +142,9 @@ plan: (note, { files }) => files.write(note.file, render(note)),
 plan: ({ file, text }, { files }) => files.update(file, LIMIT, old => `${old}${text}\n`),
 ```
 
-- `files.write(file, data)`: merkt eine neue Datei vor. Gibt es die Datei schon, braucht der Aufruf `--replace`.
-- `files.update(file, limit, old => next)`: merkt eine Änderung vor. adx liest die Datei selbst, bis zur Grenze, und ruft die Funktion auf. Nimmt kein `--replace`. Fehlt die Datei: `FILE_NOT_FOUND`, Art `fix`.
+- `files.write(file, data)`: merkt eine neue Datei vor. Gibt es die Datei schon, braucht der Aufruf `--replace`. Enthält die Datei dieselben Bytes, wird nichts geschrieben, der Aufruf braucht kein `--replace`, und die Antwort meldet `unchanged: true`.
+- `files.update(file, limit, old => next)`: merkt eine Änderung vor. adx liest die Datei selbst, bis zur Grenze, und ruft die Funktion auf. Nimmt kein `--replace`. Fehlt die Datei: `FILE_NOT_FOUND`, Art `fix`. Antwortet die Funktion den Text, den die Datei enthält, wird nichts geschrieben, und die Antwort meldet `replaces: false` und `unchanged: true`.
+- Ein echter Lauf, der nichts schreibt, antwortet trotzdem `applied: true`. `unchanged` steht pro Datei, `applied` für den ganzen Aufruf. Ein Schreiben, das nichts schreibt, setzt keinen Modus.
 - Beide antworten `{ file, bytes, replaces }`, beim Ersetzen auch `changes`.
 - adx schreibt alle vorgemerkten Dateien nach `plan`, alle oder keine. Im Probelauf schreibt adx nichts.
 - `replace: 'always'` am Befehl: für abgeleitete Dateien, die das Tool aus seinen Daten neu baut. Jedes `files.write` des Befehls ersetzt ohne `--replace`, und die Antwort meldet `replaces: true`. Es gilt für alle Dateien des Befehls, also kann ein Befehl, der auch eine gepflegte Datei schreibt, es nicht nutzen.
@@ -218,6 +219,7 @@ Jedes `id()`-Feld braucht eine Quelle. Sonst startet das Tool nicht.
 - `.issue('message')`: ein Problem, das kein Feld betrifft. Es hat keinen `path`.
 - `.command(step)`: hängt einen Befehl an, der weiterhilft.
 - `shapes: { person: Person }` im Tool: `schema` listet das Shape, `schema person` gibt es aus, und ein `SCHEMA`-Problem darin nennt diesen Aufruf.
+- `check(shape, value, path)`: prüft einen Teil im Handler, etwa einen, dessen Form gespeicherte Daten bestimmen. Es antwortet `{ data, issues }`. Die Probleme haben den Code `SCHEMA` und stehen am Pfad, einer Liste wie bei `.at`. Bei einem Shape aus `shapes` ist ihr Befehl `schema <name>`. Ein viertes Argument `{ as: Item }` nennt ein Shape aus `shapes`, dessen Befehl die Probleme statt des geprüften zeigen.
 - `refuse(...)` aus `ctx`: lehnt ab. Der Handler gibt das Ergebnis zurück.
 - `failed(state, error)`: wird in `apply` geworfen, mit einem Satz zum Zustand.
 
@@ -246,6 +248,15 @@ check: ({ people }) =>
 shapes: { person: Person },
 ```
 
+```ts
+const said = check(ABOUT[friend.kind], about, ['about']);
+if (said.issues !== null) return refuse(...said.issues);
+```
+
+```ts
+check(ITEM[block.kind], value, ['value'], { as: Item });
+```
+
 Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 
 ### Schritte
@@ -254,9 +265,12 @@ Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 - `needs` leitet adx ab: Pflichtfelder, die der Schritt offen lässt.
 - `.needs('style')`: nur für ein optionales Feld, das der Schritt noch braucht.
 - `tell('upload the file')`: ein Schritt für die Person, ohne Befehl.
+- `schema.step('person')`: ein Schritt zu adx' eigenem Befehl `schema`, für ein Shape oder einen Befehl. adx prüft den Namen beim Start.
 - Folgt nichts, gibt `next` keinen Schritt zurück.
-- `after(command, fn)` in `next` des Tools: Schritte nach einem Befehl, die zu einem Befehl eines anderen Ordners führen. `fn` bekommt, was `next` bekommt.
+- `after(command, fn)` in `next` des Tools: Schritte nach einem Befehl, die zu einem Befehl eines anderen Ordners führen. `fn` bekommt, was `next` bekommt. Eine Liste von Befehlen statt eines Befehls gibt jedem dieselben Schritte, und `fn` muss zu jedem von ihnen passen.
 - `hint(code, fn)` in `hints` des Tools: der Befehl für jedes Problem eines Codes, wenn er in einem anderen Ordner liegt. `fn` bekommt nichts und antwortet mit einem Schritt zu einem Befehl. Ein `.command(step)` am Problem gewinnt.
+- `.carry('cv')` an einem Schritt: adx nimmt dieses Feld aus dem abgelehnten Aufruf nur, wenn der Zielbefehl den Wert in einem echten Aufruf annehmen würde: Er erfüllt das Schema, er steht in der Liste der Quelle des Feldes, und bei `fresh` ist der Name nicht vergeben. Kann adx das nicht prüfen, bleibt das Feld weg: bei einer Quelle, die `needs` antwortet, oder einer, die einen Remote aufruft. adx sperrt jeden Remote, während es eine Ablehnung beantwortet, also sendet eine Ablehnung nie eine Anfrage.
+- `.lists('block')` an einem Schritt: Der Schritt nennt die Option ohne Wert, also listet der Aufruf ihre Werte. Nur für ein Feld mit einer Quelle in `values` des Zielbefehls, also nicht für ein globales Feld und nicht für ein Feld, dem der Schritt einen Wert gab. Das Feld steht nicht in `needs`, und `.needs` und `.lists` für ein Feld kompilieren nicht.
 
 ```ts
 next: [after(whoami, () => [tickets.step()])],
@@ -264,6 +278,14 @@ next: [after(whoami, () => [tickets.step()])],
 
 ```ts
 hint(frozen, () => envs.step()),
+```
+
+```ts
+hint(unknownBlock, () => show.step().carry('cv', 'profile').lists('block')),
+```
+
+```ts
+next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
 ```
 
 ### Ordner und Dateien

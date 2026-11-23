@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { effect, fresh } from '@honeyglass/adx';
+import { check, effect, fresh } from '@honeyglass/adx';
 import type { Changes, Issue } from '@honeyglass/adx';
-import { Id, Master, Profile } from '../core/cv.schema.ts';
+import { Block, Id, Master, PATCH, Profile } from '../core/cv.schema.ts';
 import { FILE_LIMITS } from '../core/files.limits.ts';
 import { jsonText, profileFile, profileNames } from '../core/home.ts';
 import { unknownBlock } from '../core/issues.ts';
@@ -11,8 +11,7 @@ import { cvChoices } from '../core/sources.ts';
 
 /**
  * The facts of the master a profile may not change: FACT_CHANGED at `['blocks', id, field]`,
- * LEVEL_RAISED and ITEM_NOT_IN_MASTER at `['blocks', id, 'items']`, JOB_MOVED at `order`, and
- * WRONG_SHAPE at `['blocks', id]` for a patch that does not fit the kind of its block.
+ * LEVEL_RAISED and ITEM_NOT_IN_MASTER at `['blocks', id, 'items']`, and JOB_MOVED at `order`.
  */
 declare function factIssues(master: Master, profile: Profile): Issue<'blocks' | 'order'>[];
 /** The CV as the profile changes it. */
@@ -39,6 +38,14 @@ export const set = effect({
       ...(profile.order ?? []).flatMap((id, index) =>
         known.has(id) ? [] : [unknownBlock.at(['order', index], `No block has the id ${id}`)],
       ),
+      // A patch has the shape the kind of its block takes, so only the handler can check it.
+      // adx answers SCHEMA at or below `blocks.ID`, with `oriko schema block` as its command
+      // (adx decision 78).
+      ...master.blocks.flatMap(({ id, kind }) =>
+        profile.blocks?.[id] === undefined
+          ? []
+          : (check(PATCH[kind], profile.blocks[id], ['blocks', id], { as: Block }).issues ?? []),
+      ),
       ...factIssues(master, profile),
     ];
     const [first, ...more] = issues;
@@ -46,6 +53,8 @@ export const set = effect({
     const file = profileFile(name);
     const old = file.exists ? await file.json(FILE_LIMITS.inputBytes, Profile) : {};
     // A stored profile is replaced only with --replace: files.write refuses with ALREADY_EXISTS.
+    // The same profile again is no replace: files.write writes nothing and answers
+    // `unchanged: true` (adx decision 81).
     const written = files.write(file, jsonText(profile));
     // The changes in the profile's own words, which adx keeps in place of its JSON paths.
     return {
