@@ -444,6 +444,9 @@ for each). Where one changes an earlier decision, both say so.
     - adx names `@honeyglass/utils` twice, both with the full 40-character sha: as a
       `peerDependency`, for the tools that use adx, and as a `devDependency`, for its own tests and
       build.
+    - zod is, like `@honeyglass/utils`, a `peerDependency` and a `devDependency` of adx. Reason:
+      `dist/` imports zod at its run, and the tool and adx then use the same zod (2026-11-23, during
+      the build).
     - A tool that uses adx names adx and `@honeyglass/utils` directly in its `package.json`.
     - The tool's `pnpm-workspace.yaml` sets `autoInstallPeers: false` and
       `strictPeerDependencies: true`. A tool that names only adx then stops at the install with

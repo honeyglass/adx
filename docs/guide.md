@@ -65,7 +65,7 @@ $ pnpm add github:honeyglass/adx#<sha> github:honeyglass/utils#<sha> zod
 $ pnpm add -D typescript @types/node
 ```
 
-adx comes from GitHub, not from npm. Name it and `@honeyglass/utils`, which adx needs beside it, each by the full sha of a commit. The two settings make the install stop with "missing peer @honeyglass/utils" when utils is left out, instead of fetching it from GitHub on its own.
+adx comes from GitHub, not from npm. Name it and `@honeyglass/utils` each by the full sha of a commit. adx needs utils and `zod` beside it. The two settings make the install stop with "missing peer @honeyglass/utils" when utils is left out, instead of fetching it from GitHub on its own.
 
 Node strips the types and runs the file. It does not check them. The compiler does that, and it needs a `tsconfig.json`. One line is enough, because adx ships the base:
 
