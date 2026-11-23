@@ -60,12 +60,12 @@ Each package ends when its boxes are ticked, its tests and the checks are green,
 round is done. The e2e line names the tests the package turns green.
 
 ### P0 setup
-- [ ] `src/` layout as above, `tsconfig` for `src/` beside the one for `proto/`
-- [ ] build to `dist/`, the three exports, `dist/` checked in
-- [ ] the import boundaries checked by a test (as oriko's `tests/api/layout.api.spec.ts`)
-- [ ] `tests/e2e/`: runs `proto/hello.ts`, the examples, `proto/ship` and `proto/oriko` against
+- [x] `src/` layout as above, `tsconfig` for `src/` beside the one for `proto/`
+- [x] build to `dist/`, the three exports, `dist/` checked in
+- [x] the import boundaries checked by a test (as oriko's `tests/api/layout.api.spec.ts`)
+- [x] `tests/e2e/`: runs `proto/hello.ts`, the examples, `proto/ship` and `proto/oriko` against
       `dist/` and asserts the answers the guide shows; all red
-- [ ] the scripts `test`, `build`; CI runs them
+- [x] the scripts `test`, `build`; CI runs them
 
 ### P1 core and node
 - [ ] the answer shape, `Kind`, exit codes 0, 1, 2
