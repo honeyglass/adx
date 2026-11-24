@@ -1,9 +1,11 @@
-import type { Ran } from '../core/index.ts';
+import type { Fake, Ran } from '../core/index.ts';
 export interface Checked {
     readonly main: () => Promise<void>;
 }
 /** What run() reads of the surroundings of a call. */
-type RunOptions = {
+export type RunOptions = {
+    /** The fakes that answer in place of the servers of their remotes. */
+    fakes?: Fake[];
     /** The variables of the call; none of the process reaches it. */
     env?: Record<string, string>;
     /** A folder of files copied into the data folder of the call. */
@@ -23,4 +25,3 @@ type RunOptions = {
  * @throws a fix RefusalError for a tool that tool() did not make
  */
 export declare function run(tool: Checked, argv: readonly string[], options?: RunOptions): Promise<Ran>;
-export {};

@@ -1,7 +1,9 @@
 /**
- * A server on 127.0.0.1 that answers from a table of routes, for a proto tool with a remote.
+ * A server on 127.0.0.1 for a tool with a remote: from a table of routes, or from a handler.
  *
- * Routes, serve: the table, and the server, started for one test and closed after it.
+ * Routes, serve: the table, and the server that answers from it.
+ * Handler, listen: what answers each request, and the server that runs it.
+ * Both start for one test and close after it.
  *
  * A route is a method and a path, such as `GET /apps`; the query is no part of it. A route the
  * table lacks answers 404, as a server does for a path it does not know.
@@ -16,13 +18,24 @@ import type { TestContext } from 'node:test';
 
 export type Routes = Record<string, unknown>;
 
+export type Handler = (request: IncomingMessage, response: ServerResponse) => void;
+
 /**
  * @param t - the test the server belongs to; it closes after the test
  * @param routes - the JSON body of each route
  * @returns the address of the server, such as http://127.0.0.1:53211
  */
-export async function serve(t: TestContext, routes: Routes) {
-  const server = createServer((request, response) => answer(routes, request, response));
+export function serve(t: TestContext, routes: Routes) {
+  return listen(t, (request, response) => answer(routes, request, response));
+}
+
+/**
+ * @param t - the test the server belongs to; it closes after the test
+ * @param handle - answers each request
+ * @returns the address of the server, such as http://127.0.0.1:53211
+ */
+export async function listen(t: TestContext, handle: Handler) {
+  const server = createServer(handle);
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => {

@@ -14,6 +14,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { disk } from "./disk.js";
+import { network } from "./network.js";
 import { scope } from "./scope.js";
 /** @param cwd - the working directory the test names, kept after the call */
 export function scratch(cwd) {
@@ -24,7 +25,7 @@ export function scratch(cwd) {
     if (cwd === undefined)
         mkdirSync(work);
     const remove = () => rmSync(made, { recursive: true, force: true });
-    return { folder: made, home, cwd: work, disk, scope, remove };
+    return { folder: made, home, cwd: work, disk, scope, network, remove };
 }
 /**
  * @param seed - the folder of files the tool should find

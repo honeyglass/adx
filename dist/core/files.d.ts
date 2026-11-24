@@ -72,6 +72,10 @@ export interface Writer {
     readonly files: Files;
     /** How many writes the plan staged with files.write, for --replace (decision 47). */
     readonly writes: number;
+    /** How many files the plan staged, by write and by update. */
+    readonly staged: number;
     /** Writes every staged file, all or none; a refusal of a failed write says what it left. */
     commit(): Promise<void>;
+    /** Each file the commit wrote, by its path in its root; none before it ended. */
+    written(): readonly string[];
 }

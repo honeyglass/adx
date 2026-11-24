@@ -25,7 +25,9 @@ export declare const notAFile: import("./code.ts").Code;
 export declare const notAFolder: import("./code.ts").Code;
 /** Its issues say per file whether --replace helps, since a command may not take it. */
 export declare const alreadyExists: import("./code.ts").Code;
+export declare const urlNotAllowed: import("./code.ts").Code;
 export declare const rootNotFound: import("./code.ts").Code;
+export declare const envMissing: import("./code.ts").Code;
 export declare const storedInvalid: import("./code.ts").Code;
 export declare const declaration: import("./code.ts").Code;
 export declare const systemRefused: import("./code.ts").Code;

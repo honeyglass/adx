@@ -27,14 +27,15 @@ export const isTable = (value) => Object.values(value).every(entry => typeof ent
 /**
  * @param table - the command table, or a group of it
  * @param tool - the name of the tool that lists it, how it answers an invoke of a command, the
- * port to the sources of the fields, and the roots of the tool
+ * port to the sources of the fields, the roots of the tool, and the send of its remotes
  * @param words - the words of the group
  */
 export function placeAll(table, tool, words = []) {
     for (const [word, entry] of Object.entries(table)) {
         const runner = runnerOf(entry);
-        const { through, sources, roots } = tool;
-        const place = { tool: tool.name, words: [...words, word].join(' '), through, sources, roots };
+        const { through, sources, roots, act } = tool;
+        const called = [...words, word].join(' ');
+        const place = { tool: tool.name, words: called, through, sources, roots, act };
         if (runner !== undefined)
             runner.places.push(place);
         else if (isTable(entry))

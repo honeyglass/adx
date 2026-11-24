@@ -20,7 +20,8 @@
  *
  * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
-import { declaration, NOTHING_CHANGED, notInList, oneLine, pathOf, placeOf, Refused, refusedWith, unknownOption, withCommand, } from "../core/index.js";
+import { $try, RefusalError } from '@honeyglass/utils/ts';
+import { declaration, NOTHING_CHANGED, notInList, oneLine, pathOf, placeOf, Refused, refusedWith, UNKNOWN_STATE, unknownOption, withCommand, withLook, } from "../core/index.js";
 import { refused } from "./answered.js";
 import { argumentsOf, optionName } from "./argv.js";
 import { itemsOf, namesOf, picked, pickedItems } from "./fields.js";
@@ -346,7 +347,8 @@ export class Runner {
      * With apply, a plan that answers no object leaves no place for apply's fields, so both runs
      * refuse it before apply can send anything. The files the plan staged are written after it,
      * before apply, and never on a dry run; --replace is known only to a plan that stages a write
-     * (decision 47).
+     * (decision 47). A refusal out of apply keeps `look` beside it, the call that shows what apply
+     * left, which the tool names when a request may have taken effect.
      */
     async #effect(input, run, writer) {
         const ctx = { refuse, ...(writer === undefined ? {} : { files: writer.files }) };
@@ -366,11 +368,23 @@ export class Runner {
             const ran = { result: planned, input };
             return { answer: { ok: true, applied: false, result: planned }, ...this.#text(), ran };
         }
-        const applied = thrownIfRefused(await this.spec.apply?.(input, { planned, refuse }));
+        const applied = await this.#applied(input, planned);
         const result = isRecord(planned)
             ? { ...planned, ...(isRecord(applied) ? applied : {}) }
             : planned;
         return { answer: { ok: true, applied: true, result }, ...this.#text(), ran: { result, input } };
+    }
+    // Only a refusal gets the look; any other error, a bug, flies on as it came.
+    async #applied(input, planned) {
+        const act = this.places[0]?.act ?? UNPLACED;
+        const ctx = { act, planned, refuse };
+        const { data, error } = await $try(async () => thrownIfRefused(await this.spec.apply?.(input, ctx)));
+        if (error === null)
+            return data;
+        const look = error instanceof RefusalError ? this.spec.look?.(input) : undefined;
+        if (look !== undefined)
+            withLook(error, look);
+        throw error;
     }
     #optionsOf(fields) {
         const options = new Map();
@@ -496,6 +510,13 @@ function shownPath(value) {
     const paths = value.map(pathOf);
     return paths.length > 0 && paths.every(path => path !== undefined) ? paths : undefined;
 }
+/** The send of a command no tool lists, which has no remote to send through. */
+const UNPLACED = {
+    async send() {
+        const issue = declaration.issue('a command no tool lists sent a request');
+        throw refusedWith([issue], UNKNOWN_STATE);
+    },
+};
 function thrownIfRefused(value) {
     if (value instanceof Refused)
         throw value;

@@ -32,14 +32,14 @@ type Undeclared<B, D> = Exclude<keyof B, keyof D>;
 type Missing<B, D> = Exclude<keyof D, keyof B>;
 
 /** The declared values the package does not export yet; never once all are built. */
-type NotBuilt = 'bearer' | 'envUrl' | 'remote' | 'stored';
+type NotBuilt = 'stored';
 /**
  * The brands of index.d.ts. A .d.ts exports each top-level name, so its brands count as values,
  * yet they exist on the type level only and the package exports none of them.
  */
 type Brands =
   'builtFor' | 'follows' | 'freshBrand' | 'helps' | 'needsBrand' | 'realRun' | 'refBrand';
-type NotBuiltTest = 'conformance' | 'fake' | 'reply';
+type NotBuiltTest = 'conformance';
 
 /**
  * The built values whose declared type carries a brand of index.d.ts, such as the `builtFor` of
@@ -67,21 +67,27 @@ type StepInput = { cv: string; block: string };
 
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
 type TypePairs = [
+  [Built.Act, Declared.Act],
   [Built.Answer<unknown>, Declared.Answer<unknown>],
+  [Built.Auth, Declared.Auth],
   [Built.Changes, Declared.Changes],
   [Built.Choice, Declared.Choice],
   [Built.Code, Declared.Code],
   [Built.CommandStep<StepInput, 'block'>, Declared.CommandStep<StepInput, 'block'>],
   [Built.Dir, Declared.Dir],
+  [Built.Fake, Declared.Fake],
   [Built.Field<Sample>, Declared.Field<Sample>],
   [Built.File, Declared.File],
   [Built.Files, Declared.Files],
   [Built.GlobalUse<Sample>, Declared.GlobalUse<Sample>],
+  [Built.InvokeOptions, Declared.InvokeOptions],
   [Built.Issue, Declared.Issue],
   [Built.Kind, Declared.Kind],
   [Built.Listing<unknown>, Declared.Listing<unknown>],
   [Built.Page, Declared.Page],
   [Built.Refused, Declared.Refused],
+  [Built.Remote, Declared.Remote],
+  [Built.Request, Declared.Request],
   [Built.Root, Declared.Root],
   [Built.RootSource, Declared.RootSource],
   [Built.Step, Declared.Step],
@@ -89,6 +95,8 @@ type TypePairs = [
   [Built.Written, Declared.Written],
   [BuiltTest.Checked, DeclaredTest.Checked],
   [BuiltTest.Ran, DeclaredTest.Ran],
+  [BuiltTest.Reply, DeclaredTest.Reply],
+  [BuiltTest.RunOptions, DeclaredTest.RunOptions],
 ];
 /** Each index whose built type is any or differs from its declaration in either direction. */
 type UnfitTypes<P> = {

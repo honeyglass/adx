@@ -11,7 +11,9 @@
  * schemaFailed: an input that fails the schema of its command.
  * pathOutside, fileNotFound, notAFile, notAFolder, alreadyExists: a path out of its root, a
  * missing file, an entry of the wrong kind, and a file a write would replace without --replace.
+ * urlNotAllowed: an address of a request that adx does not send to.
  * rootNotFound, storedInvalid: a root that is not there, and a file that fails its schema.
+ * envMissing: a variable the tool reads, such as its token, that is not set.
  * declaration: a setup of the tool that is wrong in a way the compiler cannot see.
  * systemRefused, networkFailed, serverBusy, accessRefused, remoteRefused: an error nobody mapped.
  * unknownError: any other error, a bug.
@@ -87,10 +89,22 @@ export const alreadyExists = code(
   'Add --replace to overwrite the file, or pick another name',
 );
 
+export const urlNotAllowed = code(
+  'URL_NOT_ALLOWED',
+  'fix',
+  'Give a value that names one item, and an http or https address for the server',
+);
+
 export const rootNotFound = code(
   'ROOT_NOT_FOUND',
   'ask',
   'Ask the person for the folder: the one the message names is not there',
+);
+
+export const envMissing = code(
+  'ENV_MISSING',
+  'ask',
+  'Ask the person to set the variable the message names',
 );
 
 export const storedInvalid = code(
@@ -148,7 +162,9 @@ export const ADX_CODES = [
   notAFile,
   notAFolder,
   alreadyExists,
+  urlNotAllowed,
   rootNotFound,
+  envMissing,
   systemRefused,
   accessRefused,
   remoteRefused,

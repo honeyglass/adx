@@ -1,5 +1,5 @@
 import type { After, Commands, Empty, Global, Obj, Table } from '../command/index.ts';
-import type { Root, Step } from '../core/index.ts';
+import type { Remote, Root, Step } from '../core/index.ts';
 import type { Shapes } from '../shapes/index.ts';
 import type { Hint } from '../steps/index.ts';
 export interface Tool {
@@ -15,6 +15,7 @@ export interface ToolSpec<G extends Obj> {
     version: string;
     does: string;
     roots?: Root[];
+    remotes?: Remote[];
     /** Leave out for a tool whose commands share no input. */
     global?: Global<G>;
     /** Every command of the tool. A command built for another global input does not compile here. */
@@ -39,6 +40,7 @@ export type Shell = {
     readonly does: string;
     readonly commands: Table;
     readonly roots: readonly Root[];
+    readonly remotes: readonly Remote[];
     readonly shapes: Shapes;
     readonly next: readonly object[];
     readonly hints: readonly Hint[];

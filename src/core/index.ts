@@ -17,11 +17,18 @@
  * unknownCommand, unknownOption, schemaFailed, declaration, ...: codes adx raises itself, and
  * ADX_CODES, all of them.
  * Refused, refusedWith, NOTHING_CHANGED, UNKNOWN_STATE: the refusal of adx, and what it left.
+ * withLook, lookOf: the look of `apply`, kept beside a refusal out of it.
  * failed, refusedOf, answerOfError, answerOfRefused: any error as a refusal of adx, and as an
  * answer.
  * isDecimal, escaped, oneLine: the one form of a number, and text escaped for a terminal.
  * Choice, Source, Sources, ...: where the values of a field come from, and the port to them.
  * status: the HTTP status of a failed send.
+ * issueOf: the issue of an error nobody mapped, as the guide's table sorts it.
+ * Remote, Request, Auth, Act, Fake, Network, Address, Outgoing, Incoming, Unreached: remotes,
+ * and the port to the network.
+ * entered, valueOf, refusing, isRefusing, isHeld, Held: the values of the call that runs, and the
+ * block of every remote while a refusal is answered.
+ * urlNotAllowed, envMissing, remoteRefused, networkFailed: the codes of remotes.
  * Token, Piped, Stdin, Disk, Entry, Surroundings, Around, Ran: what one call gets and leaves.
  * File, Dir, Root, RootSource, Stored, Changes, Written, Files, Writer: roots and files, and the
  * writes of one call.
@@ -33,6 +40,7 @@
  * @example import { code, Refused } from '../core/index.ts';
  */
 export type { Answer } from './answer.ts';
+export { entered, Held, isHeld, isRefusing, refusing, valueOf } from './call.ts';
 export { exitOf, refusalAnswer } from './answer.ts';
 export type { Code } from './code.ts';
 export { code, factsOf } from './code.ts';
@@ -40,17 +48,20 @@ export {
   ADX_CODES,
   alreadyExists,
   declaration,
+  envMissing,
   fileNotFound,
   inputTooLarge,
   invalidJson,
   missingInput,
   missingValue,
+  networkFailed,
   notAFile,
   notAFolder,
   notInList,
   notInListAt,
   optionBeforeCommand,
   pathOutside,
+  remoteRefused,
   repeatedOption,
   rootNotFound,
   schemaFailed,
@@ -60,6 +71,7 @@ export {
   unexpectedValue,
   unknownCommand,
   unknownOption,
+  urlNotAllowed,
 } from './codes.ts';
 export { isDecimal } from './decimal.ts';
 export { escaped, oneLine } from './escape.ts';
@@ -70,7 +82,14 @@ export type { Path, SchemaPlace } from './issue.ts';
 export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from './issue.ts';
 export type { Kind } from './kind.ts';
 export { STDIN_LIMIT } from './limits.ts';
-export { NOTHING_CHANGED, Refused, refusedWith, UNKNOWN_STATE } from './refused.ts';
+export {
+  lookOf,
+  NOTHING_CHANGED,
+  Refused,
+  refusedWith,
+  UNKNOWN_STATE,
+  withLook,
+} from './refused.ts';
 export type { Failure } from './shape.ts';
 export {
   baseOf,
@@ -95,7 +114,20 @@ export type {
   Sources,
 } from './source.ts';
 export { freshBrand, needsBrand, refBrand } from './source.ts';
+export type {
+  Act,
+  Address,
+  Auth,
+  Fake,
+  Incoming,
+  Network,
+  Outgoing,
+  Remote,
+  Request,
+  Unreached,
+} from './remote.ts';
 export { status } from './status.ts';
+export { issueOf } from './unmapped.ts';
 export type { CommandStep, Step, StepOption, StepParts, Target, TargetField } from './step.ts';
 export { commandStep, partsOfStep } from './step.ts';
 export type {

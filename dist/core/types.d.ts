@@ -4,9 +4,9 @@
  * Token: one word of the arguments, as util.parseArgs reads it in its lenient mode.
  * Piped, Stdin: what is piped in, and its read.
  * Disk, Entry: the port to the file system, and what stands at a path.
- * Scope: the port that keeps a value per call across its awaits.
- * Surroundings, Around: the variables, the home folder, the working directory and the disk of a
- * call, and with them its tokens, whether stdout is a terminal, and stdin.
+ * Scope: the port that keeps the values of a call across its awaits, each under its key.
+ * Surroundings, Around: the variables, the home folder, the working directory, the disk and the
+ * network of a call, and with them its tokens, whether stdout is a terminal, and stdin.
  * Ran: the exit code and what the call wrote to stdout and stderr; the test kit's run answers it.
  *
  * main() takes them from Node, and run() from its options, so both go through one call. Only
@@ -15,6 +15,7 @@
  * @example const ran = await call(spec, { tokens: tokensOf(['greet']), tty: false, stdin });
  */
 import type { Exit } from './answer.ts';
+import type { Fake, Network } from './remote.ts';
 /** An option without `=` has no value; the word after it, if any, is a positional of its own. */
 export type Token = {
     kind: 'option';
@@ -75,13 +76,14 @@ export interface Disk {
     decode(bytes: Uint8Array): string | undefined;
 }
 /**
- * The value one call keeps across its awaits, such as its roots, so two calls in one process,
- * as two tests that run at once, never read each other's.
+ * The values one call keeps across its awaits, such as its roots, so two calls in one process,
+ * as two tests that run at once, never read each other's. Each feature keeps its own under a key.
  */
 export interface Scope {
-    run<T>(value: object, work: () => Promise<T>): Promise<T>;
-    /** The value of the call that runs, or undefined outside every call. */
-    get(): object | undefined;
+    /** Runs the work with the value under the key, beside the values the call holds already. */
+    run<T>(key: object, value: unknown, work: () => Promise<T>): Promise<T>;
+    /** The value under the key in the call that runs, or undefined. */
+    get(key: object): unknown;
 }
 export type Surroundings = {
     readonly env: Readonly<Record<string, string | undefined>>;
@@ -90,6 +92,9 @@ export type Surroundings = {
     readonly cwd: string;
     readonly disk: Disk;
     readonly scope: Scope;
+    readonly network: Network;
+    /** The fakes of a test, which answer in place of the servers of their remotes. */
+    readonly fakes?: readonly Fake[];
     /**
      * The scratch folder of a test, which no root leaves: a root at an absolute place of its own
      * lies in it, and a marker is looked for no higher.

@@ -31,12 +31,19 @@ class Staging {
     #paths = new Set();
     /** The place in the input of each handle the input holds, for the issues of its file. */
     #fields = new Map();
+    #committed = false;
     constructor(call) {
         this.#call = call;
         this.files = {
             write: (file, data, options) => this.#atField(file, () => this.#write(file, data, options)),
             update: async (file, limit, change) => this.#atField(file, () => this.#update(file, limit, change)),
         };
+    }
+    get staged() {
+        return this.#staged.length;
+    }
+    written() {
+        return this.#committed ? this.#staged.map(staged => staged.rel) : [];
     }
     async paths(input) {
         const issues = [];
@@ -86,6 +93,7 @@ class Staging {
             const left = leftText(removed(rest), rest.length);
             throw refusedOf(moved.error, `${movedText(this.#staged, i)} ${left}`);
         }
+        this.#committed = true;
     }
     #write(file, data, options = {}) {
         const at = handleOf(file);

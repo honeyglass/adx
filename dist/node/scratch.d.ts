@@ -5,6 +5,7 @@ export declare function scratch(cwd: string | undefined): {
     cwd: string;
     disk: import("../core/types.ts").Disk;
     scope: import("../core/types.ts").Scope;
+    network: import("../core/remote.ts").Network;
     remove: () => void;
 };
 /**

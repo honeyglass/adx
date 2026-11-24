@@ -4,8 +4,9 @@
  * Asked, asked: the answer, by its kind, and the one place where adx runs a source.
  *
  * A source runs when a call lists a field and when its values are checked, and also while a
- * refusal is answered: for a value a step carries, and for a field a list needs first. The block
- * of every remote while a refusal is answered (decision 79) belongs around this call.
+ * refusal is answered: for a value a step carries, and for a field a list needs first. There
+ * every remote is blocked (decision 79): the tool blocks them around the answer of a refusal, and
+ * missing.ts around the source of a field a list needs first.
  *
  * An answer that is neither a list of choices nor needs(), and a needs() of a field the source
  * got, are bugs of the tool: adx refuses them as DECLARATION, never lets the call through.

@@ -2,7 +2,8 @@
  * The surroundings of a call in the process of a test, so a test never touches the person's data.
  *
  * inScratch: runs the work in a fresh home folder with the seed copied into each data folder,
- * in the working directory the test names or a fresh one, with the variables the test names.
+ * in the working directory the test names or a fresh one, with the variables and the fakes the
+ * test names.
  * Every root the test does not name lies in the scratch folder, also one at an absolute place.
  *
  * The scratch folders are removed on every path, also when the work fails. Node enters through
@@ -21,8 +22,17 @@ import { seedFolders } from "../files/index.js";
 export async function inScratch(shell, scene, work) {
     const node = await import("../node/index.js");
     const made = node.scratch(scene.cwd);
-    const { home, cwd, disk, scope } = made;
-    const around = { env: scene.env ?? {}, home, cwd, disk, scope, confined: made.folder };
+    const { home, cwd, disk, scope, network } = made;
+    const around = {
+        env: scene.env ?? {},
+        home,
+        cwd,
+        disk,
+        scope,
+        network,
+        fakes: scene.fakes ?? [],
+        confined: made.folder,
+    };
     const { data, error } = await $try(async () => {
         const seed = scene.seed;
         if (seed !== undefined)

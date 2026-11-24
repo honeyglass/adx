@@ -1,4 +1,4 @@
-import type { Declared, Issue, Sourced, Sources, Stdin, Step, TargetField, Token, Writer } from '../core/index.ts';
+import type { Act, Declared, Fake, Issue, Sourced, Sources, Stdin, Step, TargetField, Token, Writer } from '../core/index.ts';
 import type { Answered } from './answered.ts';
 import type { AdxOption } from './help.ts';
 import type { Obj, Shared, Spec } from './types.ts';
@@ -16,10 +16,11 @@ export type Run = {
     replace: boolean;
     folders: Readonly<Record<string, string>>;
 };
-/** The samples of an invoke in a test: its variables and the seed of its data folder. */
+/** The samples of an invoke in a test: its variables, the seed of its data folder, its fakes. */
 export type Scene = {
     env?: Readonly<Record<string, string>>;
     seed?: string;
+    fakes?: readonly Fake[];
 };
 /** The input of a call as its options and --json gave it, and what the run is asked for. */
 export type Ready = {
@@ -40,7 +41,8 @@ export type RootOption = {
 };
 /**
  * `tool` is the name of the tool, `words` the words of the command in its table, `sources` the
- * port through which the command asks the sources of its fields, and `roots` the tool's roots.
+ * port through which the command asks the sources of its fields, `roots` the tool's roots, and
+ * `act` the send its `apply` gets.
  */
 export type Place = {
     tool: string;
@@ -48,6 +50,7 @@ export type Place = {
     through: Through;
     sources: Sources;
     roots: readonly RootOption[];
+    act: Act;
 };
 export declare class Runner implements Sourced {
     #private;

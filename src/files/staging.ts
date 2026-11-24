@@ -62,6 +62,7 @@ class Staging implements Writer {
   readonly #paths = new Set<string>();
   /** The place in the input of each handle the input holds, for the issues of its file. */
   readonly #fields = new Map<object, Path<string>>();
+  #committed = false;
 
   constructor(call: Replace) {
     this.#call = call;
@@ -70,6 +71,14 @@ class Staging implements Writer {
       update: async (file, limit, change) =>
         this.#atField(file, () => this.#update(file, limit, change)),
     };
+  }
+
+  get staged() {
+    return this.#staged.length;
+  }
+
+  written() {
+    return this.#committed ? this.#staged.map(staged => staged.rel) : [];
   }
 
   async paths(input: unknown) {
@@ -115,6 +124,7 @@ class Staging implements Writer {
       const left = leftText(removed(rest), rest.length);
       throw refusedOf(moved.error, `${movedText(this.#staged, i)} ${left}`);
     }
+    this.#committed = true;
   }
 
   #write(file: File, data: string | Uint8Array, options: { mode?: number } = {}): Written {

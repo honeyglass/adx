@@ -11,6 +11,7 @@
  * root, envDir, marker, cwd: a folder the tool may use, and where it lies.
  * dir, inFile, outFile, id, multiline: the field schemas adx gives.
  * paged: one page of a list cut out of a whole array.
+ * remote, envUrl, bearer: a server the tool talks to, its address and its token.
  * tool: the tool, whose main() runs one call.
  *
  * @example import { code, read, tool } from '@honeyglass/adx';
@@ -19,6 +20,7 @@ export { after, effect, global, list, read } from "./command/index.js";
 export { code, failed, Issue, Refused, status } from "./core/index.js";
 export { cwd, dir, envDir, id, inFile, marker, multiline, outFile, root } from "./files/index.js";
 export { paged } from "./list/index.js";
+export { bearer, envUrl, remote } from "./remote/index.js";
 export { check } from "./shapes/index.js";
 export { hint, schema, tell } from "./steps/index.js";
 export { tool } from "./tool/index.js";

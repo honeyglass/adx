@@ -35,29 +35,32 @@ const NETWORK_CODES = new Set([
 ]);
 /**
  * @param error - any thrown value that is no refusal
+ * @param about - what failed, such as the request `GET /apps`, which the message names first
  * @returns the issue of the first known error of its chain, or UNKNOWN_ERROR of kind bug
  */
-export function issueOf(error) {
-    return (firstIn(error, knownIssue) ?? unknownError.issue('the tool broke on an error it did not expect'));
+export function issueOf(error, about) {
+    const said = (text) => (about === undefined ? text : `${about}: ${text}`);
+    const known = firstIn(error, link => knownIssue(link, said));
+    return known ?? unknownError.issue(said('the tool broke on an error it did not expect'));
 }
-function knownIssue(link) {
+function knownIssue(link, said) {
     if (isHttpAnswer(link))
-        return statusIssue(link.status);
+        return statusIssue(link.status, said);
     if (isPathError(link)) {
-        return systemRefused.issue(`${link.syscall} of ${link.path} failed with ${link.code}`);
+        return systemRefused.issue(said(`${link.syscall} of ${link.path} failed with ${link.code}`));
     }
     const network = networkOf(link);
-    if (network !== undefined)
-        return networkFailed.issue(`the server was not reached: ${network}`);
-    return undefined;
+    if (network === undefined)
+        return undefined;
+    return networkFailed.issue(said(`the server was not reached: ${network}`));
 }
-function statusIssue(status) {
+function statusIssue(status, said) {
     if (BUSY_STATUSES.has(status))
-        return serverBusy.issue(`the server answered ${status}`);
+        return serverBusy.issue(said(`the server answered ${status}`));
     if (ACCESS_STATUSES.has(status)) {
-        return accessRefused.issue(`the server refused access with ${status}`);
+        return accessRefused.issue(said(`the server refused access with ${status}`));
     }
-    return remoteRefused.issue(`the server answered ${status}`);
+    return remoteRefused.issue(said(`the server answered ${status}`));
 }
 const isPathError = (link) => isText(link, 'syscall') && isText(link, 'path') && isText(link, 'code');
 // A timeout of AbortSignal.timeout() is a DOMException named TimeoutError, with no code.

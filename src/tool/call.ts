@@ -15,6 +15,7 @@ import type { Answered, Runner } from '../command/index.ts';
 import { answerOfError, exitOf } from '../core/index.ts';
 import type { Around, Issue, Ran, Surroundings, Token } from '../core/index.ts';
 import { Located, within } from '../files/index.ts';
+import { Line } from '../remote/index.ts';
 import { namesSchema, schemaAnswer } from './schema.ts';
 import { setupIssues } from './setup.ts';
 import { started } from './start.ts';
@@ -38,7 +39,7 @@ export async function call(shell: Shell, around: Around): Promise<Ran> {
 // The setup first, so a mistake in it shows on every call, then the words, then the command.
 async function answered(shell: Shell, around: Around): Promise<Answered> {
   const { tokens } = around;
-  const [wrong, ...more] = setupIssues(shell);
+  const [wrong, ...more] = setupIssues(shell, around.network);
   if (wrong !== undefined) return refused([wrong, ...more]);
   if (namesSchema(tokens)) return schemaAnswer(shell, tokens);
   const routed = route(shell.commands, tokens, shell.name);
@@ -59,12 +60,14 @@ async function commandAnswered(
   return 'answer' in read ? read : through(shell, { runner: routed.runner, ...read }, around);
 }
 
-// The first steps carry a folder the variable moved, as every step does (decision 13).
+// The first steps carry a folder the variable moved, as every step does (decision 13). `start`
+// may read a server, as any handler may.
 async function startedIn(shell: Shell, around: Surroundings) {
   const roots = new Located(shell, around, {});
   const [missing, ...more] = roots.issues();
   if (missing !== undefined) return refused([missing, ...more]);
-  return within(roots, () => started(shell, roots.moved()));
+  const line = new Line(shell, around);
+  return within(roots, () => line.run(() => started(shell, roots.moved())));
 }
 
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.

@@ -13,6 +13,7 @@ import { $try } from '@honeyglass/utils/ts';
 import { listed, refused, route } from "../command/index.js";
 import { answerOfError, exitOf } from "../core/index.js";
 import { Located, within } from "../files/index.js";
+import { Line } from "../remote/index.js";
 import { namesSchema, schemaAnswer } from "./schema.js";
 import { setupIssues } from "./setup.js";
 import { started } from "./start.js";
@@ -34,7 +35,7 @@ export async function call(shell, around) {
 // The setup first, so a mistake in it shows on every call, then the words, then the command.
 async function answered(shell, around) {
     const { tokens } = around;
-    const [wrong, ...more] = setupIssues(shell);
+    const [wrong, ...more] = setupIssues(shell, around.network);
     if (wrong !== undefined)
         return refused([wrong, ...more]);
     if (namesSchema(tokens))
@@ -54,13 +55,15 @@ async function commandAnswered(shell, routed, around) {
     const read = await routed.runner.read(routed.rest, routed.before, around.stdin);
     return 'answer' in read ? read : through(shell, { runner: routed.runner, ...read }, around);
 }
-// The first steps carry a folder the variable moved, as every step does (decision 13).
+// The first steps carry a folder the variable moved, as every step does (decision 13). `start`
+// may read a server, as any handler may.
 async function startedIn(shell, around) {
     const roots = new Located(shell, around, {});
     const [missing, ...more] = roots.issues();
     if (missing !== undefined)
         return refused([missing, ...more]);
-    return within(roots, () => started(shell, roots.moved()));
+    const line = new Line(shell, around);
+    return within(roots, () => line.run(() => started(shell, roots.moved())));
 }
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.
 function written({ answer, text, err }, tty) {

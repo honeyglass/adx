@@ -15,17 +15,26 @@
  * folders it moved and the fields it carries. A folder the call moved must be
  * there before anything runs (decision 13).
  *
+ * The call runs on a line of the tool's remotes. While it answers a refusal, every remote is
+ * blocked, so a source a carried field asks sends no request (decision 79). A real run of an
+ * effect with `apply` checks the address and token of each remote before it writes a file, so
+ * one that cannot send refuses with nothing written. After a file was written or a request sent,
+ * the state of a refusal adds what the call left, to the state its refusal says: each file
+ * written, and each request answered, refused or sent without an answer. Only after a send,
+ * which may have taken effect, does an issue name the look of the command.
+ *
  * The $try here answers a refusal of adx only, which the schema, a list, `check`, a handler and
  * failed() throw or return, of any kind. Any other error is thrown again as it came, on the line
  * after the $try: a bug flies on to the one catch of the call, in main() or in invoke.
  *
  * @example const answered = await through(shell, { runner, input, run }, around);
  */
-import { $try } from '@honeyglass/utils/ts';
+import { $try, readRefusal, shown } from '@honeyglass/utils/ts';
 import { followsOf, refused, runnerOf } from "../command/index.js";
-import { answerOfRefused, commandStep, placeOf, Refused, refusedOf, stepOf, } from "../core/index.js";
+import { answerOfRefused, commandStep, lookOf, NOTHING_CHANGED, placeOf, Refused, refusedOf, refusing, stepOf, withCommand, } from "../core/index.js";
 import { Located, staging, within } from "../files/index.js";
 import { firstPage, listSteps } from "../list/index.js";
+import { Line } from "../remote/index.js";
 import { shapeNameAt } from "../shapes/index.js";
 import { hintFor, schema, stepAnswer } from "../steps/index.js";
 import { sources } from "../values/index.js";
@@ -43,27 +52,63 @@ export async function through(shell, call, around) {
     const [missing, ...more] = roots.issues();
     if (missing !== undefined)
         return refused([missing, ...more]);
-    return within(roots, () => answeredIn(shell, call, roots));
+    const line = new Line(shell, around);
+    return within(roots, () => line.run(() => answeredIn(shell, call, roots, line)));
 }
 /** @param call - the command, its input, its run, and the samples of the test that invokes it */
 export function invoked(shell, call) {
     return inScratch(shell, call.scene, around => through(shell, call, around));
 }
-async function answeredIn(shell, call, roots) {
+async function answeredIn(shell, call, roots, line) {
     const input = call.runner.shown(isRecord(call.input) ? call.input : {});
     const context = { tool: shell.name, input, folders: roots.moved() };
-    const writer = staging({
+    const staged = staging({
         replace: call.runner.spec.replace,
         replacing: call.run.replace,
         retry: () => commandStep(call.runner, input, [{ option: 'replace' }, { option: 'dry-run' }]),
     });
+    const writer = call.runner.spec.apply === undefined ? staged : readied(staged, line);
     const { data, error } = await $try(() => succeeded(shell, call, context, writer));
     if (error === null)
         return data;
     if (error instanceof Refused === false)
         throw error;
-    const refused = refusedOf(error);
-    return answerOfRefused(refused, await helped(shell, call, refused.issues, context));
+    const refused = leftBy(refusedOf(error), [...writtenText(writer), ...line.state()]);
+    const look = line.sent() ? lookOf(error) : undefined;
+    const own = look === undefined ? refused.issues : refused.issues.map(i => withCommand(i, look));
+    const issues = await refusing(() => helped(shell, call, own, context));
+    return answerOfRefused(refused, issues);
+}
+// The writes of the plan, which check the remotes before the commit writes the first file.
+function readied(writer, line) {
+    return {
+        paths: input => writer.paths(input),
+        files: writer.files,
+        get writes() {
+            return writer.writes;
+        },
+        get staged() {
+            return writer.staged;
+        },
+        commit: async () => {
+            if (writer.staged > 0)
+                line.ready();
+            await writer.commit();
+        },
+        written: () => writer.written(),
+    };
+}
+const writtenText = (writer) => {
+    const files = writer.written();
+    return files.length === 0 ? [] : [`Written: ${files.map(shown).join(', ')}.`];
+};
+// What the call left stands after the state the refusal says; "nothing was changed" goes.
+function leftBy(refused, left) {
+    if (left.length === 0)
+        return refused;
+    const own = readRefusal(refused.message)?.state;
+    const keep = own === undefined || own === NOTHING_CHANGED ? [] : [own];
+    return refusedOf(refused, [...keep, ...left].join(' '));
 }
 // A dry run names the same call for real, with the --replace it was given.
 async function succeeded(shell, call, context, writer) {

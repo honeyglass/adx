@@ -6,9 +6,14 @@
  * adx names a command only when it runs as it stands. A field whose own list needs another
  * missing field gets no command, and its hint names the field to give first (decision 44).
  *
+ * The issues make a refusal, so the source of each field is asked with every remote blocked
+ * (decision 79). A source that would read a server then cannot tell what it needs; its list
+ * call is named, since a source names the fields it needs before it reads, and that call reads.
+ *
  * @example const issues = await missingIssues(command, new Map([['project', 'milestone']]), known);
  */
-import { missingValue, withHint } from "../core/index.js";
+import { $try } from '@honeyglass/utils/ts';
+import { isHeld, missingValue, refusing, withHint } from "../core/index.js";
 import { asked } from "./ask.js";
 import { listStep, optionText } from "./liststep.js";
 /**
@@ -21,9 +26,11 @@ export function missingIssues(command, needed, known) {
     const each = [...needed].map(async ([field, by]) => {
         const message = `the values of ${optionText(command, by)} need ${optionText(command, field)}`;
         const issue = missingValue.at(field, message);
-        const own = await asked(field, command.sourceOf(field), known.checked);
-        if (own.kind === 'needs')
-            return firstNeeded(command, issue, field, own.fields);
+        const own = await $try(() => refusing(() => asked(field, command.sourceOf(field), known.checked)));
+        if (own.error !== null && isHeld(own.error) === false)
+            throw own.error;
+        if (own.data?.kind === 'needs')
+            return firstNeeded(command, issue, field, own.data.fields);
         const step = listStep(command, field, known.given);
         return step === undefined ? issue : issue.command(step);
     });

@@ -20,6 +20,7 @@
  *
  * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
+import { $try, RefusalError } from '@honeyglass/utils/ts';
 import {
   declaration,
   NOTHING_CHANGED,
@@ -29,11 +30,15 @@ import {
   placeOf,
   Refused,
   refusedWith,
+  UNKNOWN_STATE,
   unknownOption,
   withCommand,
+  withLook,
 } from '../core/index.ts';
 import type {
+  Act,
   Declared,
+  Fake,
   Issue,
   Known,
   Sourced,
@@ -83,8 +88,12 @@ export type Run = {
   folders: Readonly<Record<string, string>>;
 };
 
-/** The samples of an invoke in a test: its variables and the seed of its data folder. */
-export type Scene = { env?: Readonly<Record<string, string>>; seed?: string };
+/** The samples of an invoke in a test: its variables, the seed of its data folder, its fakes. */
+export type Scene = {
+  env?: Readonly<Record<string, string>>;
+  seed?: string;
+  fakes?: readonly Fake[];
+};
 
 /** The input of a call as its options and --json gave it, and what the run is asked for. */
 export type Ready = { input: Record<string, unknown>; run: Run };
@@ -102,7 +111,8 @@ export type RootOption = { name: string; variable?: string };
 
 /**
  * `tool` is the name of the tool, `words` the words of the command in its table, `sources` the
- * port through which the command asks the sources of its fields, and `roots` the tool's roots.
+ * port through which the command asks the sources of its fields, `roots` the tool's roots, and
+ * `act` the send its `apply` gets.
  */
 export type Place = {
   tool: string;
@@ -110,6 +120,7 @@ export type Place = {
   through: Through;
   sources: Sources;
   roots: readonly RootOption[];
+  act: Act;
 };
 
 const JSON_OPTION: AdxOption = {
@@ -442,7 +453,8 @@ export class Runner implements Sourced {
    * With apply, a plan that answers no object leaves no place for apply's fields, so both runs
    * refuse it before apply can send anything. The files the plan staged are written after it,
    * before apply, and never on a dry run; --replace is known only to a plan that stages a write
-   * (decision 47).
+   * (decision 47). A refusal out of apply keeps `look` beside it, the call that shows what apply
+   * left, which the tool names when a request may have taken effect.
    */
   async #effect(input: unknown, run: Run, writer: Writer | undefined): Promise<Answered> {
     const ctx = { refuse, ...(writer === undefined ? {} : { files: writer.files }) };
@@ -461,11 +473,24 @@ export class Runner implements Sourced {
       const ran = { result: planned, input };
       return { answer: { ok: true, applied: false, result: planned }, ...this.#text(), ran };
     }
-    const applied = thrownIfRefused(await this.spec.apply?.(input, { planned, refuse }));
+    const applied = await this.#applied(input, planned);
     const result = isRecord(planned)
       ? { ...planned, ...(isRecord(applied) ? applied : {}) }
       : planned;
     return { answer: { ok: true, applied: true, result }, ...this.#text(), ran: { result, input } };
+  }
+
+  // Only a refusal gets the look; any other error, a bug, flies on as it came.
+  async #applied(input: unknown, planned: unknown) {
+    const act = this.places[0]?.act ?? UNPLACED;
+    const ctx = { act, planned, refuse };
+    const { data, error } = await $try(async () =>
+      thrownIfRefused(await this.spec.apply?.(input, ctx)),
+    );
+    if (error === null) return data;
+    const look = error instanceof RefusalError ? this.spec.look?.(input) : undefined;
+    if (look !== undefined) withLook(error, look);
+    throw error;
   }
 
   #optionsOf(fields: readonly FieldOf[]) {
@@ -611,6 +636,14 @@ function shownPath(value: unknown) {
   const paths = value.map(pathOf);
   return paths.length > 0 && paths.every(path => path !== undefined) ? paths : undefined;
 }
+
+/** The send of a command no tool lists, which has no remote to send through. */
+const UNPLACED: Act = {
+  async send() {
+    const issue = declaration.issue('a command no tool lists sent a request');
+    throw refusedWith([issue], UNKNOWN_STATE);
+  },
+};
 
 function thrownIfRefused(value: unknown) {
   if (value instanceof Refused) throw value;

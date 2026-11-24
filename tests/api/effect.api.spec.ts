@@ -18,6 +18,7 @@ const add = effect({
     sent.push(name);
     return { id: `${planned.name}-1` };
   },
+  look: () => note.step(),
 });
 
 const note = effect({
@@ -36,6 +37,7 @@ const odd = (planned: unknown) =>
       sent.push('odd');
       return { id: 1 };
     },
+    look: () => note.step(),
   });
 
 const hello = tool({

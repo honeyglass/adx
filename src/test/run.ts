@@ -1,17 +1,17 @@
 /**
  * One whole call of a tool in the process of the test, from the arguments to the exit code.
  *
- * Checked, run: what run() takes as the tool, and run() itself.
+ * Checked, RunOptions, run: what run() takes as the tool and as the surroundings, and run() itself.
  *
  * run() and main() go through the same call, so the answer, the text form and the exit code are
- * the program's; only the surroundings come from the options: stdin, the variables, the working
- * directory, and a fresh data folder with the seed copied in. What a handler writes with console
+ * the program's; only the surroundings come from the options: stdin, the variables, the fakes of
+ * remotes, the working directory, and a fresh data folder with the seed copied in. What a handler writes with console
  * stands before the answer in out and err, as in the program.
  *
  * @example const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { tty: true });
  */
 import { RefusalError } from '@honeyglass/utils/ts';
-import type { Ran } from '../core/index.ts';
+import type { Fake, Ran } from '../core/index.ts';
 import { captured, tokensOf } from '../node/index.ts';
 import { call, inScratch, specOf } from '../tool/index.ts';
 
@@ -20,7 +20,9 @@ export interface Checked {
 }
 
 /** What run() reads of the surroundings of a call. */
-type RunOptions = {
+export type RunOptions = {
+  /** The fakes that answer in place of the servers of their remotes. */
+  fakes?: Fake[];
   /** The variables of the call; none of the process reaches it. */
   env?: Record<string, string>;
   /** A folder of files copied into the data folder of the call. */

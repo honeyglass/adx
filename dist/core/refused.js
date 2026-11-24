@@ -5,6 +5,7 @@
  * refusedWith: the refusal of adx's own issues, such as an unknown command.
  * NOTHING_CHANGED, UNKNOWN_STATE: a call refused before it changed anything, and one whose
  * changes nobody knows.
+ * withLook, lookOf: the step that shows what `apply` left, kept beside a refusal out of it.
  *
  * @example return refusalAnswer(refusedWith([schema.at('name')], NOTHING_CHANGED));
  */
@@ -38,3 +39,14 @@ export function refusedWith(issues, state, cause) {
     };
     return new Refused(refusal, issues);
 }
+const looks = new WeakMap();
+/**
+ * The tool names the look only when a request of the call may have taken effect, which only it
+ * knows, so the runner keeps the step beside the refusal and changes none of its issues.
+ *
+ * @param error - a refusal out of `apply`
+ * @param step - the look of the command, for the input of the call
+ */
+export const withLook = (error, step) => void looks.set(error, step);
+/** @returns the look kept beside a refusal, or undefined */
+export const lookOf = (error) => typeof error === 'object' && error !== null ? looks.get(error) : undefined;

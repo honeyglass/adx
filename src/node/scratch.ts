@@ -14,6 +14,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { disk } from './disk.ts';
+import { network } from './network.ts';
 import { scope } from './scope.ts';
 
 /** @param cwd - the working directory the test names, kept after the call */
@@ -24,7 +25,7 @@ export function scratch(cwd: string | undefined) {
   const work = cwd === undefined ? join(made, 'work') : resolve(cwd);
   if (cwd === undefined) mkdirSync(work);
   const remove = () => rmSync(made, { recursive: true, force: true });
-  return { folder: made, home, cwd: work, disk, scope, remove };
+  return { folder: made, home, cwd: work, disk, scope, network, remove };
 }
 
 /**

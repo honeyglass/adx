@@ -6,28 +6,24 @@
  * seedFolders: the folder of each envDir root nobody moved, where the test kit copies a seed.
  *
  * A handler reads a file through its root alone, such as home.file(...).text(limit), with no call
- * at hand, so each call keeps its roots in the store of its surroundings, which survives its
- * awaits: two calls at once, such as two run() of a test, each read their own.
+ * at hand, so each call keeps its roots among the values of the call that runs.
  *
  * @example const issues = new Located(spec, surroundings, { home: '/tmp/h' }).issues();
  */
 import { shown } from '@honeyglass/utils/ts';
-import { declaration, NOTHING_CHANGED, refusedWith, rootNotFound, UNKNOWN_STATE, } from "../core/index.js";
+import { declaration, entered, NOTHING_CHANGED, refusedWith, rootNotFound, UNKNOWN_STATE, valueOf, } from "../core/index.js";
 import { placeOf } from "./roots.js";
-/** The store of the calls, which every call hands in; one per process. */
-let calls;
 /**
  * @param call - the roots of the call
  * @param work - the call, which reads and writes files through its roots
  * @returns what the work answers; its error is thrown as it came
  */
 export function within(call, work) {
-    calls = call.scope;
-    return call.scope.run(call, work);
+    return entered(call.scope, Located, call, work);
 }
 /** @throws a bug refusal, DECLARATION, for a file used while no call of its tool runs */
 export function located() {
-    const call = calls?.get();
+    const call = valueOf(Located);
     if (call instanceof Located)
         return call;
     const issue = declaration.issue('a file of a root was used while no call of its tool ran');

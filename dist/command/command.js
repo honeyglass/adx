@@ -44,7 +44,7 @@ export class Command {
             replace: options.replace ?? false,
             folders: {},
         };
-        const scene = { env: options.env, seed: options.seed };
+        const scene = { env: options.env, seed: options.seed, fakes: options.fakes };
         const { data, error } = await $try(() => this.#runner.through(input, run, scene));
         return error === null ? data.answer : answerOfError(error).answer;
     }

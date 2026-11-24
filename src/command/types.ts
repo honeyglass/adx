@@ -17,7 +17,9 @@
  */
 import type { z } from 'zod';
 import type {
+  Act,
   Declared,
+  Fake,
   Files,
   Fresh,
   Issue,
@@ -146,13 +148,16 @@ export interface EffectSpec<
    */
   apply?: (
     input: All<I, G, U>,
-    ctx: { planned: O; refuse: Refuse<Fields<I, G, U>> },
+    ctx: { act: Act; planned: O; refuse: Refuse<Fields<I, G, U>> },
   ) => Out<A, I, G, U>;
+  /** The call that shows whether a send took effect. adx refuses to start when `apply` stands without it. */
+  look?: (input: All<I, G, U>) => Step;
   text?: (out: Either<O, A>) => string;
 }
 
 export interface InvokeOptions {
   env?: Record<string, string>;
+  fakes?: Fake[];
   seed?: string;
   dryRun?: boolean;
   replace?: boolean;
@@ -181,7 +186,8 @@ export interface Spec {
   check?(input: unknown): readonly Issue[];
   run?(input: unknown, ctx: LooseRefuse & { page?: Page }): unknown;
   plan?(input: unknown, ctx: LooseRefuse & { files?: Files }): unknown;
-  apply?(input: unknown, ctx: LooseRefuse & { planned: unknown }): unknown;
+  apply?(input: unknown, ctx: LooseRefuse & { act: Act; planned: unknown }): unknown;
+  look?(input: unknown): Step;
   text?(out: unknown): string;
   next?(out: unknown, input: unknown): readonly Step[];
 }

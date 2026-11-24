@@ -3,26 +3,47 @@
  *
  * setupIssues: one DECLARATION issue per mistake: in the command table, per command an `after`
  * names that the tool does not list, per code that has a second hint, per shape that is no
- * word or has the word of a command, and per list whose pages or one-item command do not fit.
+ * word or has the word of a command, per list whose pages or one-item command do not fit, per
+ * effect with `apply` and no `look`, and per remote whose own address or token cannot work.
  *
- * @example const [wrong, ...more] = setupIssues(shell);
+ * A remote the tool does not list shows only at its first request: a remote is a value of the
+ * author's files, and nothing tells which of them a command reads before it runs.
+ *
+ * @example const [wrong, ...more] = setupIssues(shell, around.network);
  */
 import { declarationIssues, followsOf, isWord, runnerOf, runnersIn } from '../command/index.ts';
 import { declaration } from '../core/index.ts';
-import type { Issue } from '../core/index.ts';
+import type { Issue, Network } from '../core/index.ts';
+import { setupIssuesOf } from '../remote/index.ts';
 import { codeOf } from '../steps/index.ts';
 import { detailsOf } from './detail.ts';
 import type { Shell } from './tool.ts';
 
-/** @param shell - what the call reads of the tool */
-export function setupIssues(shell: Shell): Issue[] {
+/**
+ * @param shell - what the call reads of the tool
+ * @param network - the parser of the call, which reads each address as its requests would
+ */
+export function setupIssues(shell: Shell, network: Network): Issue[] {
   return [
     ...declarationIssues(shell.commands),
     ...afterIssues(shell),
     ...hintIssues(shell),
     ...shapeIssues(shell),
     ...listIssues(shell),
+    ...lookIssues(shell),
+    ...shell.remotes.flatMap(remote => setupIssuesOf(remote, network)),
   ];
+}
+
+// After a failed send only the look can show what the call left.
+function lookIssues(shell: Shell) {
+  return [...runnersIn(shell.commands)]
+    .filter(runner => runner.spec.apply !== undefined && runner.spec.look === undefined)
+    .map(runner =>
+      declaration.issue(
+        `${shell.name} ${runner.name} has apply and no look, the call that shows what it left`,
+      ),
+    );
 }
 
 // A page of no whole number of items never ends. An outline that hides a field needs the one
