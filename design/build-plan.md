@@ -81,9 +81,9 @@ round is done. The e2e line names the tests the package turns green.
 - [x] `--json`, `--fields`, `--dry-run`, `--help`, reserved names (71)
 
 ### P3 steps
-- [ ] `Step`, `tell`, `next`, `start`
-- [ ] `after` for one command and for a list (80)
-- [ ] `hint` (73), `needs`, `carry` with its rules (79), `lists`, `schema.step` (77)
+- [x] `Step`, `tell`, `next`, `start`
+- [x] `after` for one command and for a list (80)
+- [x] `hint` (73), `needs`, `carry` with its rules (79), `lists`, `schema.step` (77)
 
 ### P4 values
 - [ ] `Source`, `needs()`, `fresh()`, `keyOf`, `detailOf`
