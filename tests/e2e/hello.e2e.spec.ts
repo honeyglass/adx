@@ -24,7 +24,7 @@ test('a reader that leaves before the answer ends the call quietly', async t => 
   assert.deepEqual({ exit: ran.exit, err: ran.err }, { exit: 0, err: '' });
 });
 
-pending('P2', 'refuses both mistakes of one call at once', async t => {
+test('refuses both mistakes of one call at once', async t => {
   const home = await scratch(t);
   const { exit, out } = await hello(home, 'greet', '--nmae', 'Ada', 'again');
   const answer = answerIn(out, z.unknown());

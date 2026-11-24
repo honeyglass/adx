@@ -1,6 +1,7 @@
 // proto/examples/parts.ts as a program, with the answers of the guide's "Input that has parts".
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
 import { pending } from '../utils/pending.ts';
@@ -10,7 +11,7 @@ const PARTS = join(PROTO, 'examples', 'parts.ts');
 
 const hello = (home: string, ...argv: string[]) => program(PARTS, argv, { home });
 
-pending('P5', 'points at the second place a name stands', async t => {
+test('points at the second place a name stands', async t => {
   const home = await scratch(t);
   const people = '{"people":[{"name":"Ada"},{"name":"Bob"},{"name":"Ada"}]}';
   const { exit, out } = await hello(home, 'greet-all', '--json', people);

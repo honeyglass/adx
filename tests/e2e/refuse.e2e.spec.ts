@@ -1,16 +1,16 @@
 // proto/examples/refuse.ts as a program, with the answer of the guide's "Refusing bad input".
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const REFUSE = join(PROTO, 'examples', 'refuse.ts');
 
 const hello = (home: string, ...argv: string[]) => program(REFUSE, argv, { home });
 
-pending('P2', 'refuses a formal greeting in a language without one', async t => {
+test('refuses a formal greeting in a language without one', async t => {
   const home = await scratch(t);
   const argv = ['greet', '--name', 'Ada', '--lang', 'eo', '--style', 'formal'];
   const { exit, out } = await hello(home, ...argv);
