@@ -76,9 +76,9 @@ round is done. The e2e line names the tests the package turns green.
 - e2e: hello
 
 ### P2 command
-- [ ] `read`, `list`, `effect`, the `commands` table, `global()`
-- [ ] argv parsing, unknown commands, options and words refused (rule 15)
-- [ ] `--json`, `--fields`, `--dry-run`, `--help`, reserved names (71)
+- [x] `read`, `list`, `effect`, the `commands` table, `global()`
+- [x] argv parsing, unknown commands, options and words refused (rule 15)
+- [x] `--json`, `--fields`, `--dry-run`, `--help`, reserved names (71)
 
 ### P3 steps
 - [ ] `Step`, `tell`, `next`, `start`
