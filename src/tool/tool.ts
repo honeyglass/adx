@@ -5,8 +5,9 @@
  * specOf: the spec of a tool that tool() made, for the test kit, which gets only the tool.
  *
  * Nothing is checked when tool() is called: a tool is built when its file loads, and a check
- * belongs in main() or the call. tool() only gives each command the words that call it, and the
- * way the tool answers a call of it, so invoke answers as the tool prints.
+ * belongs in main() or the call. tool() only gives each command the words that call it, the
+ * way the tool answers a call of it, so invoke answers as the tool prints, and the sources of its
+ * fields.
  *
  * @example export const hello = tool({ name: 'hello', version: '0.1.0', does: 'greets', commands: { greet } });
  */
@@ -14,6 +15,7 @@ import { placeAll } from '../command/index.ts';
 import type { After, Commands, Empty, Global, Obj, Table } from '../command/index.ts';
 import type { Step } from '../core/index.ts';
 import type { Hint } from '../steps/index.ts';
+import { sources } from '../values/index.ts';
 import { main } from './main.ts';
 import { through } from './through.ts';
 
@@ -67,7 +69,7 @@ export function tool<G extends Obj = Empty>(spec: ToolSpec<G>): Tool {
     hints: spec.hints ?? [],
     start: spec.start,
   };
-  placeAll(shell.commands, { name: shell.name, through: call => through(shell, call) });
+  placeAll(shell.commands, { name: shell.name, through: call => through(shell, call), sources });
   const made = { main: () => main(shell) };
   specs.set(made, shell);
   return made;

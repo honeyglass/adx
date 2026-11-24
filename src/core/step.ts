@@ -50,8 +50,15 @@ export interface Target {
   /** The name of the tool and the words of the command, or undefined while no tool lists it. */
   readonly call: readonly string[] | undefined;
   fields(): readonly TargetField[];
-  /** Whether a real call of the command would take this value of the field. */
-  accepts(field: string, value: unknown): Promise<boolean>;
+  /**
+   * Whether a real call of the command would take this value of the field, beside the fields
+   * that call would hold.
+   */
+  accepts(
+    field: string,
+    value: unknown,
+    beside: Readonly<Record<string, unknown>>,
+  ): Promise<boolean>;
 }
 
 export type StepParts = {

@@ -5,7 +5,7 @@
  * GlobalUse, UseGiven, Fields: how one command takes the global fields.
  * Merged, Either: the answer of the real run of an effect, and of either run.
  * Always, Free: the options adx gives a command, and an input that names none of them.
- * Choice, Source, Values: where the values of a field come from.
+ * Values, Shared: the sources a command names for its fields, and the global input with its own.
  * Page, Listing: one page a list asks for, and what its handler answers.
  * Refuse, ReadSpec, ListSpec, EffectSpec: what read(), list() and effect() take.
  * InvokeOptions: what invoke takes beside the input.
@@ -17,7 +17,7 @@
  * @example const greet = read({ does: 'greets', input, example: { name: 'Ada' }, run });
  */
 import type { z } from 'zod';
-import type { Issue, Refused, Step } from '../core/index.ts';
+import type { Declared, Fresh, Issue, ListRef, Refused, Source, Step } from '../core/index.ts';
 import type { Entry } from './command.ts';
 
 export type Obj = z.ZodObject;
@@ -56,11 +56,13 @@ export type Free<S extends Obj, Taken extends string> = [
   ? unknown
   : { readonly 'adx gives the command an option of this name': Extract<keyof z.output<S>, Taken> };
 
-export type Choice = { value: string; does?: string };
-export type Source<I> = (input: Partial<I>) => Maybe<Choice[]>;
 export type Values<S extends Obj, G extends Obj = Empty, K extends Field<S> = Field<S>> = {
-  [F in K]?: Source<In<S> & In<G>>;
+  [F in K]?: Source<In<S> & In<G>> | Fresh<In<S> & In<G>> | ListRef;
 };
+/** The sources of `values` as adx reads them, whatever input their command types. */
+type SourceTable = { readonly [field: string]: Declared | undefined };
+/** The global input of a tool, with the sources of its fields. */
+export type Shared = { readonly input: Obj; readonly values: SourceTable };
 
 export interface Page {
   readonly cursor: string;
@@ -156,6 +158,7 @@ export interface Spec {
   readonly input?: Obj;
   readonly example?: unknown;
   readonly global?: unknown;
+  readonly values?: SourceTable;
   readonly output?: z.ZodType;
   readonly pageSize?: number;
   check?(input: unknown): readonly Issue[];

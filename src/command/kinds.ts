@@ -21,15 +21,16 @@ import type {
   Merged,
   Obj,
   ReadSpec,
+  Shared,
 } from './types.ts';
 
 /**
  * Each kind is a property, not a method, so `const { read } = project` keeps its global input.
  */
 export class Kinds<G extends Obj> {
-  readonly #global: G | undefined;
+  readonly #global: Shared | undefined;
 
-  constructor(global: G | undefined) {
+  constructor(global: Shared | undefined) {
     this.#global = global;
   }
 

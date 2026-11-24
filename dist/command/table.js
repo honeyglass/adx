@@ -2,7 +2,8 @@
  * The command table of a tool: where each command stands, and the setup the compiler cannot see.
  *
  * Table, isTable: a table of words, each a command or a nested table, a group.
- * placeAll: gives each command the words that call it, and its tool's answer, when a tool lists it.
+ * placeAll: gives each command the words that call it, its tool's answer, and the sources of its
+ * fields, when a tool lists it.
  * declarationIssues: one DECLARATION issue per mistake in the setup of the table.
  * runnersIn: every command the table lists, at any depth.
  *
@@ -23,13 +24,15 @@ const WORD = /^[A-Za-z0-9][A-Za-z0-9-]*$/;
 export const isTable = (value) => Object.values(value).every(entry => typeof entry === 'object' && entry !== null);
 /**
  * @param table - the command table, or a group of it
- * @param tool - the name of the tool that lists it, and how it answers a call of a command
+ * @param tool - the name of the tool that lists it, how it answers a call of a command, and the
+ * port to the sources of the fields
  * @param words - the words of the group
  */
 export function placeAll(table, tool, words = []) {
     for (const [word, entry] of Object.entries(table)) {
         const runner = runnerOf(entry);
-        const place = { tool: tool.name, words: [...words, word].join(' '), through: tool.through };
+        const { through, sources } = tool;
+        const place = { tool: tool.name, words: [...words, word].join(' '), through, sources };
         if (runner !== undefined)
             runner.places.push(place);
         else if (isTable(entry))

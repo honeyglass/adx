@@ -77,8 +77,14 @@ function alone(read, waiting, call) {
         return;
     }
     if (call.listable.has(option.name)) {
-        if (once(read, option, token))
-            read.listed ??= option.name;
+        if (once(read, option, token) === false)
+            return;
+        if (read.listed === undefined || read.listed === option.name) {
+            read.listed = option.name;
+            return;
+        }
+        const message = `${token.rawName} came without a value, and --${read.listed} lists its values`;
+        read.issues.push(missingValue.at(pathOf(waiting), message));
         return;
     }
     const message = `${token.rawName} came without a value`;

@@ -11,6 +11,7 @@
  *
  * @example process.stdout.write(textOf(answer));
  */
+import { escaped, oneLine } from '../core/index.ts';
 import type { Answer } from '../core/index.ts';
 
 type AnswerIssue = NonNullable<Answer<unknown>['issues']>[number];
@@ -37,8 +38,6 @@ export function textOf(answer: Answer<unknown>, shown?: (result: unknown) => str
     : refusalText(answer);
   return text.replace(CONTROL, escaped);
 }
-
-const escaped = (char: string) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`;
 
 // A record with fields prints them, one on a line; an effect says whether it applied, beside
 // those fields, or below any other text.
@@ -78,8 +77,6 @@ function nextText(next: readonly NextStep[]) {
   });
   return `\nNext:\n${columns(rows)}`;
 }
-
-const oneLine = (text: string) => text.replace(/[\n\t]/g, escaped);
 
 /**
  * @param rows - the first column and the second of each row

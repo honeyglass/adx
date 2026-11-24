@@ -1,3 +1,17 @@
+/**
+ * The terminal form of an answer, for a person at a terminal.
+ *
+ * textOf: a result as one field on a line or as the command's own text, whether an effect
+ * applied, the next steps below it, and a refusal as its kind, state and issues.
+ * columns: rows of two columns, the first padded, as the start answer and the steps show them.
+ *
+ * The text leaves for the terminal here, so here every control character is escaped, in a
+ * message, a path and a result alike: a terminal runs an escape sequence it is sent. Only the line
+ * break and the tab stay, since the layout needs them.
+ *
+ * @example process.stdout.write(textOf(answer));
+ */
+import { escaped, oneLine } from "../core/index.js";
 /** Two spaces between the longest field name and its value. */
 const GAP = 2;
 /** Three spaces between the longest command and what it does, as the guide's start answer shows. */
@@ -15,7 +29,6 @@ export function textOf(answer, shown) {
         : refusalText(answer);
     return text.replace(CONTROL, escaped);
 }
-const escaped = (char) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`;
 // A record with fields prints them, one on a line; an effect says whether it applied, beside
 // those fields, or below any other text.
 function successText(answer, shown) {
@@ -53,7 +66,6 @@ function nextText(next) {
     });
     return `\nNext:\n${columns(rows)}`;
 }
-const oneLine = (text) => text.replace(/[\n\t]/g, escaped);
 /**
  * @param rows - the first column and the second of each row
  * @returns one indented line per row, the first column padded to the longest

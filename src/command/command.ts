@@ -24,6 +24,7 @@ import type {
   InvokeOptions,
   Listing,
   Obj,
+  Shared,
   Spec,
   UseGiven,
 } from './types.ts';
@@ -56,7 +57,7 @@ export class Command<
   declare readonly [realRun]?: R;
   readonly #runner: Runner;
 
-  constructor(kind: Kind, spec: Spec, global: Obj | undefined) {
+  constructor(kind: Kind, spec: Spec, global: Shared | undefined) {
     this.#runner = new Runner(kind, spec, global);
     runners.set(this, this.#runner);
   }
@@ -76,7 +77,7 @@ export class Command<
   /** Answers as the tool prints it: a refusal and a bug resolve as an answer, never reject. */
   invoke(input: Given<I> & UseGiven<Given<G>, U>, options?: InvokeOptions): Promise<Answer<O>>;
   async invoke(input: unknown, options: InvokeOptions = {}): Promise<Answer<unknown>> {
-    const run = { dryRun: options.dryRun ?? false, fields: undefined };
+    const run = { dryRun: options.dryRun ?? false, fields: undefined, lists: undefined };
     const { data, error } = await $try(() => this.#runner.through(input, run));
     return error === null ? data.answer : answerOfError(error).answer;
   }
@@ -104,7 +105,7 @@ export class ListCommand<
 > extends Command<I, Listing<In<T>>, G, U, Listing<In<T>>, L> {
   readonly item: T;
 
-  constructor(spec: Spec & { item: T }, global: Obj | undefined) {
+  constructor(spec: Spec & { item: T }, global: Shared | undefined) {
     super('list', spec, global);
     this.item = spec.item;
   }

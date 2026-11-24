@@ -1,7 +1,7 @@
 import type { Answer, CommandStep } from '../core/index.ts';
 import { Runner } from './runner.ts';
 import type { Kind } from './runner.ts';
-import type { All, Empty, Given, In, InvokeOptions, Listing, Obj, Spec, UseGiven } from './types.ts';
+import type { All, Empty, Given, In, InvokeOptions, Listing, Obj, Shared, Spec, UseGiven } from './types.ts';
 declare const builtFor: unique symbol;
 declare const realRun: unique symbol;
 export interface Entry<G extends Obj> {
@@ -17,7 +17,7 @@ export declare class Command<I extends Obj, O, G extends Obj = Empty, U = {}, R 
     #private;
     readonly [builtFor]: (global: G) => G;
     readonly [realRun]?: R;
-    constructor(kind: Kind, spec: Spec, global: Obj | undefined);
+    constructor(kind: Kind, spec: Spec, global: Shared | undefined);
     /** The words that call the command, such as `ticket list`. The tool that lists it sets them. */
     get name(): string;
     /** A field the step gives a value is not one it can list, so `.lists` of it does not compile. */
@@ -44,6 +44,6 @@ export declare class ListCommand<I extends Obj, T extends Obj, G extends Obj = E
     readonly item: T;
     constructor(spec: Spec & {
         item: T;
-    }, global: Obj | undefined);
+    }, global: Shared | undefined);
 }
 export {};

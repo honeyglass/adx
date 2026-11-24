@@ -5,6 +5,7 @@
  * Issue, Parts: what a code raises, and what it holds beside its code and path.
  * issueAnswer: the issue as the answer writes it.
  * withCommand, stepOf: the issue with a command, unless it names one of its own, and its step.
+ * withHint: the issue with a hint of its own in place of its code's.
  *
  * The parts stay in a table beside the issue, not in private fields: an Issue then has the
  * members proto/adx/index.d.ts declares and no other, so the built type equals the declared one.
@@ -47,6 +48,14 @@ export declare function issueAnswer(issue: Issue): {
  * @returns the issue with a command
  */
 export declare const withCommand: (issue: Issue, step: Step) => Issue<string>;
+/**
+ * For an issue whose next move depends on the call, such as a field to give first.
+ *
+ * @param issue - an issue of a refusal
+ * @param hint - what the agent does next
+ * @returns the issue with that hint
+ */
+export declare const withHint: (issue: Issue, hint: string) => Issue<string>;
 /** @returns the step the issue names, which the answer writes out, or undefined */
 export declare const stepOf: (issue: Issue) => Step | undefined;
 /** The kind of the code that raised the issue. */

@@ -6,7 +6,7 @@
  * missingValue, unexpectedValue, repeatedOption: an option without its value, a switch with
  * one, and a field given twice.
  * invalidJson: a --json that holds no JSON object.
- * notInList: a value outside the list of its option.
+ * notInList, notInListAt: a value outside the list of its option, and its issue at a field.
  * schemaFailed: an input that fails the schema of its command.
  * declaration: a setup of the tool that is wrong in a way the compiler cannot see.
  * systemRefused, networkFailed, serverBusy, accessRefused, remoteRefused: an error nobody mapped.
@@ -25,6 +25,14 @@ export const unexpectedValue = code('UNEXPECTED_VALUE', 'fix', 'Give the switch 
 export const repeatedOption = code('REPEATED_OPTION', 'fix', 'Give each field once, as an option or in --json');
 export const invalidJson = code('INVALID_JSON', 'fix', 'Pass --json one JSON object');
 export const notInList = code('NOT_IN_LIST', 'fix', 'Use a value the list answers');
+/**
+ * An enum and a source of `values` both refuse a value with it, so both say it alike.
+ *
+ * @param path - the field, and the index of the value when the field holds a list
+ * @param value - the value as the call gave it
+ * @returns the issue, which names the value as JSON
+ */
+export const notInListAt = (path, value) => notInList.at(path, `${JSON.stringify(value)} is not in the list of ${path[0]}`);
 export const declaration = code('DECLARATION', 'bug', 'Stop and tell the person: the setup of the tool is wrong where the message says');
 export const systemRefused = code('SYSTEM_REFUSED', 'ask', 'Ask the person to fix the file or the disk the message names');
 export const networkFailed = code('NETWORK_FAILED', 'retry', 'Call again in a minute');

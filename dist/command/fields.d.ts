@@ -1,5 +1,4 @@
-import type { Answered } from './answered.ts';
-import type { Choice } from './types.ts';
+import type { Choice } from '../core/index.ts';
 /**
  * @param value - the value of --fields, names joined by commas
  * @param fields - the fields of the answer
@@ -15,4 +14,3 @@ export declare function namesOf(value: string, fields: readonly Choice[], call: 
 };
 /** @returns the answer with only the named fields; a value that is no object stays as it is */
 export declare function picked(result: unknown, names: readonly string[]): unknown;
-export declare function fieldsListed(fields: readonly Choice[]): Answered;

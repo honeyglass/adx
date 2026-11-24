@@ -40,6 +40,14 @@ export function issueAnswer(issue) {
  * @returns the issue with a command
  */
 export const withCommand = (issue, step) => partsOf(issue).step === undefined ? issue.command(step) : issue;
+/**
+ * For an issue whose next move depends on the call, such as a field to give first.
+ *
+ * @param issue - an issue of a refusal
+ * @param hint - what the agent does next
+ * @returns the issue with that hint
+ */
+export const withHint = (issue, hint) => new Issue(issue.code, issue.path, { ...partsOf(issue), hint });
 /** @returns the step the issue names, which the answer writes out, or undefined */
 export const stepOf = (issue) => partsOf(issue).step;
 /** The kind of the code that raised the issue. */

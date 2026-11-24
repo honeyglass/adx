@@ -3,7 +3,6 @@
  *
  * namesOf: the names a --fields value holds, and an issue for each the answer does not have.
  * picked: the answer with only those fields, of an object or of each item of a list.
- * fieldsListed: the answer of --fields alone, which lists the fields.
  *
  * Without --fields the read answers everything; the names only take away.
  *
@@ -36,10 +35,4 @@ export function picked(result, names) {
     if (typeof result !== 'object' || result === null)
         return result;
     return Object.fromEntries(Object.entries(result).filter(([key]) => names.includes(key)));
-}
-export function fieldsListed(fields) {
-    return {
-        answer: { ok: true, result: { option: 'fields', values: fields } },
-        text: () => `option  fields\nvalues  ${fields.map(field => field.value).join(', ')}\n`,
-    };
 }

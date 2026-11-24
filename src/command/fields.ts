@@ -3,15 +3,13 @@
  *
  * namesOf: the names a --fields value holds, and an issue for each the answer does not have.
  * picked: the answer with only those fields, of an object or of each item of a list.
- * fieldsListed: the answer of --fields alone, which lists the fields.
  *
  * Without --fields the read answers everything; the names only take away.
  *
  * @example const answer = picked(result, ['code', 'formal']);
  */
 import { notInList } from '../core/index.ts';
-import type { Answered } from './answered.ts';
-import type { Choice } from './types.ts';
+import type { Choice } from '../core/index.ts';
 
 /**
  * @param value - the value of --fields, names joined by commas
@@ -44,11 +42,4 @@ export function picked(result: unknown, names: readonly string[]): unknown {
   if (Array.isArray(result)) return result.map(item => picked(item, names));
   if (typeof result !== 'object' || result === null) return result;
   return Object.fromEntries(Object.entries(result).filter(([key]) => names.includes(key)));
-}
-
-export function fieldsListed(fields: readonly Choice[]): Answered {
-  return {
-    answer: { ok: true, result: { option: 'fields', values: fields } },
-    text: () => `option  fields\nvalues  ${fields.map(field => field.value).join(', ')}\n`,
-  };
 }

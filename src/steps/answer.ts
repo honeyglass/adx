@@ -68,10 +68,11 @@ async function commandAnswer(parts: StepParts, context: Context): Promise<NextSt
 
 async function valuesOf(parts: StepParts, fields: readonly TargetField[], context: Context) {
   const values = new Map<string, unknown>();
+  const beside = besideOf(parts, fields, context);
   for (const { field, global } of fields) {
     // A listed field stands alone, so the call lists its values: it takes no value.
     if (field === parts.listed) continue;
-    const value = await valueOf(parts, field, global, context);
+    const value = await valueOf(parts, field, global, context, beside);
     if (value !== undefined) values.set(field, value);
   }
   return values;
@@ -79,13 +80,33 @@ async function valuesOf(parts: StepParts, fields: readonly TargetField[], contex
 
 // The step's own value wins. A global field comes from the call; a carried one only when the
 // command would take the value in a real call (decision 79), else it stays out.
-async function valueOf(parts: StepParts, field: string, global: boolean, context: Context) {
+async function valueOf(
+  parts: StepParts,
+  field: string,
+  global: boolean,
+  context: Context,
+  beside: Readonly<Record<string, unknown>>,
+) {
   const own = valueIn(parts.given, field);
   if (own !== undefined) return own;
   const called = valueIn(context.input, field);
   if (called === undefined || global) return called;
-  if (parts.carried.includes(field) && (await parts.target.accepts(field, called))) return called;
+  const carried = parts.carried.includes(field);
+  if (carried && (await parts.target.accepts(field, called, beside))) return called;
   return undefined;
+}
+
+// What a real call of the step could hold beside a carried value, for the source that decides
+// it: the step's own fields, and the fields of the call it takes as global or carried ones.
+function besideOf(parts: StepParts, fields: readonly TargetField[], context: Context) {
+  const beside: Record<string, unknown> = {};
+  for (const { field, global } of fields) {
+    const takes = global || parts.carried.includes(field);
+    const value =
+      valueIn(parts.given, field) ?? (takes ? valueIn(context.input, field) : undefined);
+    if (value !== undefined) beside[field] = value;
+  }
+  return beside;
 }
 
 const valueIn = (record: Readonly<Record<string, unknown>>, field: string) =>

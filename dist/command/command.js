@@ -36,7 +36,7 @@ export class Command {
         return commandStep(this.#runner, { ...input });
     }
     async invoke(input, options = {}) {
-        const run = { dryRun: options.dryRun ?? false, fields: undefined };
+        const run = { dryRun: options.dryRun ?? false, fields: undefined, lists: undefined };
         const { data, error } = await $try(() => this.#runner.through(input, run));
         return error === null ? data.answer : answerOfError(error).answer;
     }

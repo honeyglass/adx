@@ -3,43 +3,68 @@
  *
  * Kind, Run, Ready: the three kinds, what a run is asked for, and a call ready for its handler.
  * Place, Through: where a tool lists a command, and how that tool answers a call of it.
- * Runner: read, a call from its tokens; answered, its handler run; through, for invoke; and
- * what a step to the command reads of it.
+ * Runner: read, a call from its tokens; answered, its handler run, or the values of an option
+ * given alone; through, for invoke; and what a step and the sources read of the command.
  *
- * adx checks in layers: the arguments, then the schema, then `check`, then the handler. Each
- * layer collects all its issues, and a later layer runs only when the earlier ones passed. The
- * issues of `check` and a refusal the handler returns are thrown, as one it throws, so the tool
- * answers them alike, with the commands that help.
+ * adx checks in layers: the arguments, then the schema, then each value against its list, then
+ * `check`, then the handler. Each layer collects all its issues, and a later layer runs only when
+ * the earlier ones passed. From the schema on, a refusal is thrown, as one the handler throws, so
+ * the tool answers them alike, with the commands that help. The sources come from the tool that
+ * lists the command, so a command no tool lists checks no value against a list.
  *
  * @example const read = runnerOf(greet)?.read(tokens, []);
  */
 import type { z } from 'zod';
-import { declaration, NOTHING_CHANGED, Refused, refusedWith, withCommand } from '../core/index.ts';
-import type { Issue, Step, Target, TargetField, Token } from '../core/index.ts';
+import {
+  declaration,
+  NOTHING_CHANGED,
+  notInList,
+  Refused,
+  refusedWith,
+  unknownOption,
+  withCommand,
+} from '../core/index.ts';
+import type {
+  Declared,
+  Issue,
+  Known,
+  Sourced,
+  Sources,
+  Step,
+  TargetField,
+  Token,
+} from '../core/index.ts';
 import { refused } from './answered.ts';
 import type { Answered } from './answered.ts';
 import { argumentsOf, optionName } from './argv.ts';
 import type { Option, Read } from './argv.ts';
-import { fieldsListed, namesOf, picked } from './fields.ts';
+import { namesOf, picked } from './fields.ts';
 import { helpOf } from './help.ts';
 import type { AdxOption } from './help.ts';
 import {
   acceptsValue,
   answerFieldsOf,
+  choicesOf,
   fieldsOf,
   inputOf,
+  knownOf,
   parsedBy,
   sharedWithGlobal,
 } from './input.ts';
 import type { FieldOf } from './input.ts';
 import { withJson } from './json.ts';
 import { PAGE_SIZE } from './limits.ts';
-import type { Obj, Spec } from './types.ts';
+import { listedAnswer } from './listed.ts';
+import type { Obj, Shared, Spec } from './types.ts';
 
 export type Kind = 'read' | 'list' | 'effect';
 
-/** `fields` holds the names --fields gave, if any. */
-export type Run = { dryRun: boolean; fields: readonly string[] | undefined };
+/** `fields` holds the names --fields gave, if any; `lists` the field whose option came alone. */
+export type Run = {
+  dryRun: boolean;
+  fields: readonly string[] | undefined;
+  lists: string | undefined;
+};
 
 /** The input of a call as its options and --json gave it, and what the run is asked for. */
 export type Ready = { input: Record<string, unknown>; run: Run };
@@ -47,8 +72,11 @@ export type Ready = { input: Record<string, unknown>; run: Run };
 /** The tool answers a call of its command with the steps after it and the hints of its codes. */
 export type Through = (call: { runner: Runner; input: unknown; run: Run }) => Promise<Answered>;
 
-/** `tool` is the name of the tool, `words` the words of the command in its table. */
-export type Place = { tool: string; words: string; through: Through };
+/**
+ * `tool` is the name of the tool, `words` the words of the command in its table, and `sources`
+ * the port through which the command asks the sources of its fields.
+ */
+export type Place = { tool: string; words: string; through: Through; sources: Sources };
 
 const JSON_OPTION: AdxOption = {
   option: '--json',
@@ -75,24 +103,27 @@ const FIELDS_OPTION: AdxOption = {
 const ALWAYS_TAKEN = ['json', 'output', 'help', 'dry-run', 'replace'];
 
 /** A read with output that the call names no fields of answers all of them. */
-const NO_FIELDS: Run = { dryRun: false, fields: undefined };
+const NO_FIELDS: Run = { dryRun: false, fields: undefined, lists: undefined };
+
+/** The code a value outside its list is refused with, by its name. */
+const NOT_IN_LIST = notInList.issue().code;
 
 /** The one refuse of every handler; what was refused stopped before adx changed anything. */
 const refuse = (...issues: [Issue, ...Issue[]]) => refusedWith(issues, NOTHING_CHANGED);
 
-export class Runner implements Target {
+export class Runner implements Sourced {
   readonly kind: Kind;
   readonly spec: Spec;
   readonly input: Obj;
   /** Every place a tool lists the command; more than one is a DECLARATION error. */
   readonly places: Place[] = [];
-  readonly #global: Obj | undefined;
+  readonly #global: Shared | undefined;
 
-  constructor(kind: Kind, spec: Spec, global: Obj | undefined) {
+  constructor(kind: Kind, spec: Spec, global: Shared | undefined) {
     this.kind = kind;
     this.spec = spec;
     this.#global = global;
-    this.input = inputOf(spec, global);
+    this.input = inputOf(spec, global?.input);
   }
 
   get name() {
@@ -110,21 +141,46 @@ export class Runner implements Target {
 
   /** @returns each field of the input with its option, the global fields marked */
   fields(): TargetField[] {
-    const global =
-      this.#global === undefined || this.spec.global === false ? {} : this.#global.shape;
     return fieldsOf(this.input).map(({ field, takes, repeats, required }) => ({
       field,
       ...(takes === 'json' ? {} : { option: optionName(field) }),
       switch: takes === 'switch',
       repeats,
       required,
-      global: Object.hasOwn(global, field),
+      global: this.#takesGlobal(field),
     }));
   }
 
-  /** @returns whether the schema of the field takes the value a step would carry */
-  async accepts(field: string, value: unknown) {
-    return acceptsValue(this.input, field, value);
+  /**
+   * The command's own `values` win, then those of the global input for a global field it takes;
+   * an enum is a source of its own values.
+   *
+   * @returns the source of the field, or undefined for a field without one
+   */
+  sourceOf(field: string): Declared | undefined {
+    const own = valueIn(this.spec.values, field);
+    if (own !== undefined) return own;
+    const shared = this.#takesGlobal(field) ? valueIn(this.#global?.values, field) : undefined;
+    if (shared !== undefined) return shared;
+    const choices = choicesOf(this.input, field);
+    return choices === undefined ? undefined : () => choices;
+  }
+
+  /**
+   * The one place that decides a value a step carries (decision 79): it passes the schema of
+   * the field, and its source takes it. A command no tool lists has no sources to ask, so the
+   * value stays out.
+   *
+   * @param field - the field the step carries
+   * @param value - the value of the refused call
+   * @param beside - the other fields a real call of the step would hold
+   * @returns whether a real call of the command would take the value
+   */
+  async accepts(field: string, value: unknown, beside: Readonly<Record<string, unknown>>) {
+    if (acceptsValue(this.input, field, value) === false) return false;
+    const given = Object.fromEntries(Object.entries(beside).filter(([key]) => key !== field));
+    const checked = knownOf(this.input, given).data;
+    return (await this.#sources()?.accepts(this, field, value, { given, checked })) ?? false;
   }
 
   /**
@@ -134,9 +190,10 @@ export class Runner implements Target {
    */
   read(tokens: readonly Token[], before: readonly Issue[]): Answered | Ready {
     const fields = fieldsOf(this.input);
+    const listable = this.#listable(fields);
     const read = argumentsOf(tokens, this.#optionsOf(fields), {
       command: this.name,
-      listable: new Set(this.#hasFields() ? ['fields'] : []),
+      listable: new Set([...(this.#hasFields() ? ['fields'] : []), ...listable.keys()]),
     });
     const json =
       typeof read.adx.json === 'string'
@@ -145,9 +202,12 @@ export class Runner implements Target {
     const [first, ...rest] = this.#shown([...before, ...read.issues, ...json.issues]);
     if (first !== undefined) return refused([first, ...rest]);
     if (read.adx.help === true) return this.#help(fields);
+    const lists = read.listed === undefined ? undefined : listable.get(read.listed);
+    if (lists !== undefined) return this.#listing(lists, json.input, read);
     const output = this.#output();
     if (output !== undefined) return this.#withFields(json.input, read, output);
-    return { input: json.input, run: { dryRun: read.adx['dry-run'] === true, fields: undefined } };
+    const dryRun = read.adx['dry-run'] === true;
+    return { input: json.input, run: { dryRun, fields: undefined, lists: undefined } };
   }
 
   /**
@@ -166,14 +226,22 @@ export class Runner implements Target {
 
   /**
    * @param value - the input of the call, from its options and --json, or from invoke
-   * @param run - whether it is a dry run, and the fields the answer keeps
-   * @returns the answer; a refusal of `check` or the handler, and a bug, are thrown
+   * @param run - whether it is a dry run, the fields the answer keeps, and a field to list
+   * @returns the answer, or the values of the field to list; a refusal of the schema, of a list,
+   * of `check` or of the handler, and a bug, are thrown
    */
   async answered(value: unknown, run: Run): Promise<Answered> {
+    const given = isRecord(value) ? value : {};
+    const sources = this.#sources();
+    if (run.lists !== undefined && sources !== undefined) {
+      return this.#listed(run.lists, given, sources);
+    }
     const parsed = parsedBy(this.input, value);
-    const [failed, ...rest] = this.#shown(parsed.issues);
-    if (failed !== undefined) return refused([failed, ...rest]);
-    const input = parsed.data;
+    const [failed, ...rest] = this.#inputIssues(parsed.issues, given);
+    if (failed !== undefined) throw refusedWith([failed, ...rest], NOTHING_CHANGED);
+    const input = parsed.data ?? {};
+    const [wrong, ...others] = (await sources?.outside(this, { given, checked: input })) ?? [];
+    if (wrong !== undefined) throw refusedWith([wrong, ...others], NOTHING_CHANGED);
     const [issue, ...more] = this.spec.check?.(input) ?? [];
     if (issue !== undefined) throw refusedWith([issue, ...more], NOTHING_CHANGED);
     if (this.kind === 'effect') return this.#effect(input, run);
@@ -202,24 +270,46 @@ export class Runner implements Target {
     const shared = fields
       .filter((field, i) => fields.findIndex(other => optionName(other) === optionName(field)) < i)
       .map(field => `${this.name} has two fields for --${optionName(field)}, one is ${field}`);
-    const replaced = sharedWithGlobal(this.spec, this.#global).map(
+    const replaced = sharedWithGlobal(this.spec, this.#global?.input).map(
       field => `${this.name} has a field ${field}, and so has the global input`,
     );
     return [...adxTaken, ...shared, ...replaced].map(message => declaration.issue(message));
+  }
+
+  // A call that lists values runs nothing else, so an option of a run beside it is refused.
+  #listing(lists: string, input: Record<string, unknown>, read: Read): Answered | Ready {
+    const beside = ['dry-run', 'fields'].filter(name => Object.hasOwn(read.adx, name));
+    const issues = beside.map(name => {
+      const message = `--${name} is no option of a call that lists the values of --${read.listed}`;
+      return unknownOption.at(name, message);
+    });
+    const [first, ...rest] = this.#shown(issues);
+    if (first !== undefined) return refused([first, ...rest]);
+    return { input, run: { ...NO_FIELDS, lists } };
+  }
+
+  // The other fields of the call pass their schema first, so a source gets checked values.
+  async #listed(field: string, given: Known['given'], sources: Sources): Promise<Answered> {
+    const known = knownOf(this.input, given);
+    const [failed, ...rest] = this.#inputIssues(known.issues, given);
+    if (failed !== undefined) throw refusedWith([failed, ...rest], NOTHING_CHANGED);
+    const listed = await sources.listed(this, field, { given, checked: known.data });
+    if ('issues' in listed) throw refusedWith(listed.issues, NOTHING_CHANGED);
+    return listedAnswer(optionName(field), listed);
   }
 
   // --fields alone, or with no name, lists the fields of the answer; else the answer keeps those
   // it names.
   #withFields(input: Record<string, unknown>, read: Read, output: z.core.$ZodType) {
     const fields = answerFieldsOf(output);
-    if (read.listed === 'fields') return fieldsListed(fields);
+    if (read.listed === 'fields') return listedAnswer('fields', { values: fields });
     if (typeof read.adx.fields !== 'string') return { input, run: NO_FIELDS };
     const lists = `${this.#call()} --fields`;
     const named = namesOf(read.adx.fields, fields, { command: this.name, lists });
     const [wrong, ...more] = this.#shown(named.issues);
     if (wrong !== undefined) return refused([wrong, ...more]);
-    if (named.names.length === 0) return fieldsListed(fields);
-    return { input, run: { dryRun: false, fields: named.names } };
+    if (named.names.length === 0) return listedAnswer('fields', { values: fields });
+    return { input, run: { ...NO_FIELDS, fields: named.names } };
   }
 
   /**
@@ -292,6 +382,35 @@ export class Runner implements Target {
     return { text: (result: unknown) => text.call(this.spec, result) };
   }
 
+  // Each field with a source and an option, by that option.
+  #listable(fields: readonly FieldOf[]) {
+    const listed = fields.filter(
+      ({ field, takes }) => takes !== 'json' && this.sourceOf(field) !== undefined,
+    );
+    return new Map(listed.map(({ field }) => [optionName(field), field]));
+  }
+
+  #sources() {
+    return this.places[0]?.sources;
+  }
+
+  #takesGlobal(field: string) {
+    const global = this.#global?.input.shape;
+    return global !== undefined && this.spec.global !== false && Object.hasOwn(global, field);
+  }
+
+  // A value outside its list names the call that lists the values; every other issue of the
+  // input names the call that shows what the command takes.
+  #inputIssues(issues: readonly Issue[], given: Known['given']) {
+    const sources = this.#sources();
+    const listed = issues.map(issue => {
+      const field = issue.code === NOT_IN_LIST ? issue.path?.[0] : undefined;
+      const step = field === undefined ? undefined : sources?.listStep(this, field, given);
+      return step === undefined ? issue : withCommand(issue, step);
+    });
+    return this.#shown(listed);
+  }
+
   // Each of adx's own issues names the call that shows what the command takes.
   #shown(issues: readonly Issue[]) {
     const place = this.places[0];
@@ -316,3 +435,6 @@ function thrownIfRefused(value: unknown) {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && Array.isArray(value) === false;
+
+const valueIn = <T>(record: Readonly<Record<string, T>> | undefined, key: string) =>
+  record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;

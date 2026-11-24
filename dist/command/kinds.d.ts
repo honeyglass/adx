@@ -11,13 +11,13 @@
  */
 import type { z } from 'zod';
 import { Command, ListCommand } from './command.ts';
-import type { EffectSpec, Either, Empty, Field, GlobalUse, ListSpec, Merged, Obj, ReadSpec } from './types.ts';
+import type { EffectSpec, Either, Empty, Field, GlobalUse, ListSpec, Merged, Obj, ReadSpec, Shared } from './types.ts';
 /**
  * Each kind is a property, not a method, so `const { read } = project` keeps its global input.
  */
 export declare class Kinds<G extends Obj> {
     #private;
-    constructor(global: G | undefined);
+    constructor(global: Shared | undefined);
     /** With `output`, `run` must answer what the schema declares. */
     readonly read: <I extends Obj = Empty, S extends z.ZodType = z.ZodType, O extends z.output<S> = z.output<S>, const U extends GlobalUse<G> = {}, L extends Field<I> = never>(spec: ReadSpec<I, G, O, U, S, L>) => Command<I, O, G, U, O, L>;
     readonly list: <I extends Obj = Empty, T extends Obj = Empty, const U extends GlobalUse<G> = {}, L extends Field<I> = never>(spec: ListSpec<I, G, T, U, L>) => ListCommand<I, T, G, U, L>;

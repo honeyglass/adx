@@ -32,7 +32,7 @@ export type Read = {
   given: Record<string, unknown>;
   /** The value of each option of adx, by its name; a switch is true. */
   adx: Record<string, unknown>;
-  /** The first option that came alone and lists its values. */
+  /** The option that came alone and lists its values; a second one is an issue. */
   listed: string | undefined;
   /** Every option the call gave, given a value or alone, by its name. */
   seen: Set<string>;
@@ -111,7 +111,13 @@ function alone(read: Read, waiting: Waiting, call: Call) {
     return;
   }
   if (call.listable.has(option.name)) {
-    if (once(read, option, token)) read.listed ??= option.name;
+    if (once(read, option, token) === false) return;
+    if (read.listed === undefined || read.listed === option.name) {
+      read.listed = option.name;
+      return;
+    }
+    const message = `${token.rawName} came without a value, and --${read.listed} lists its values`;
+    read.issues.push(missingValue.at(pathOf(waiting), message));
     return;
   }
   const message = `${token.rawName} came without a value`;

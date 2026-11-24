@@ -4,7 +4,10 @@
  * inputOf: the schema of a command with the global fields it takes.
  * sharedWithGlobal: the fields of a command the global input would replace.
  * fieldsOf, FieldOf, Takes: each field, the option it becomes and what that option takes.
- * parsedBy: the input checked against the schema, or one SCHEMA issue per problem.
+ * parsedBy: the input checked against the schema, or one SCHEMA issue per problem, and one
+ * NOT_IN_LIST issue per value an enum field does not list.
+ * knownOf: the fields a call gave, checked, for a source that gets the input as far as known.
+ * choicesOf: the values of an enum field, which lists them as a source does.
  * acceptsValue: whether one field of the schema takes a value, for a field a step carries.
  * answerFieldsOf: the fields of an answer that `output` declares, for --fields.
  *
@@ -15,7 +18,8 @@
  */
 import { z } from 'zod';
 import type { Issue } from '../core/index.ts';
-import type { Choice, Obj, Spec } from './types.ts';
+import type { Choice } from '../core/index.ts';
+import type { Obj, Spec } from './types.ts';
 /** What an option takes: no value, a text, a number read from its text, or nothing (--json only). */
 export type Takes = 'switch' | 'text' | 'number' | 'json';
 export type FieldOf = {
@@ -50,6 +54,26 @@ export declare function parsedBy(schema: Obj, value: unknown): {
     data: null;
     issues: Issue<string>[];
 };
+/**
+ * Each field is checked by its own schema, so a rule across fields, which needs them all, waits
+ * for the whole input. A field the schema does not name is left out: the call refuses it once
+ * its schema runs.
+ *
+ * @param schema - the input schema of the command
+ * @param given - the fields a call gave, or would hold
+ * @returns the fields that pass their schema, checked, with the defaults of those left out, and
+ * the issues of the fields that fail
+ */
+export declare function knownOf(schema: Obj, given: Readonly<Record<string, unknown>>): {
+    data: Record<string, unknown>;
+    issues: Issue<string>[];
+};
+/**
+ * @param schema - the input schema of the command
+ * @param field - a field the schema may not name
+ * @returns the values of an enum field, or of a field that holds a list of an enum; else undefined
+ */
+export declare function choicesOf(schema: Obj, field: string): Choice[] | undefined;
 /**
  * @param schema - the input schema of the command
  * @param field - the field, which the schema may not name

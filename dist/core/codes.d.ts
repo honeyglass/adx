@@ -1,3 +1,4 @@
+import type { Path } from './issue.ts';
 export declare const unknownCommand: import("./code.ts").Code;
 export declare const optionBeforeCommand: import("./code.ts").Code;
 export declare const unknownOption: import("./code.ts").Code;
@@ -8,6 +9,14 @@ export declare const unexpectedValue: import("./code.ts").Code;
 export declare const repeatedOption: import("./code.ts").Code;
 export declare const invalidJson: import("./code.ts").Code;
 export declare const notInList: import("./code.ts").Code;
+/**
+ * An enum and a source of `values` both refuse a value with it, so both say it alike.
+ *
+ * @param path - the field, and the index of the value when the field holds a list
+ * @param value - the value as the call gave it
+ * @returns the issue, which names the value as JSON
+ */
+export declare const notInListAt: (path: Path<string>, value: unknown) => import("./issue.ts").Issue<string>;
 export declare const declaration: import("./code.ts").Code;
 export declare const systemRefused: import("./code.ts").Code;
 export declare const networkFailed: import("./code.ts").Code;
