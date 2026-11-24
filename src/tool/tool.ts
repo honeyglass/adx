@@ -38,8 +38,9 @@ export interface ToolSpec<G extends Obj> {
   version: string;
   does: string;
   /**
-   * The path of the agent skill, relative to the folder of the tool's package.json. The tool never
-   * opens the file; the start answer shows the path, and the test kit checks that it is a skill.
+   * The name of the agent skill, which lies where Claude Code looks for it:
+   * `~/.claude/skills/<name>/SKILL.md`, put there by the tool's own install. The tool never opens
+   * the file; the start answer shows the name, and the test kit checks that it is a skill.
    */
   skill?: string;
   roots?: Root[];

@@ -8,7 +8,7 @@ adx gibt es nur noch in TypeScript mit Zod. Die Go-Variante entfällt.
 
 Der Agent-Skill und die Hilfe:
 
-1. Der Agent-Skill ist optional und nur ein Pfad.
+1. Der Agent-Skill ist optional und nur ein Name.
 2. Das Tool enthält keinen Anleitungstext.
 3. adx baut 15 Regeln ein, nicht 16.
 
@@ -83,10 +83,10 @@ Schritte zu `schema`, Prüfen im Handler, Hinweise mit Feldern und gleiche Bytes
 
 Noch nicht abgedeckt, vorher wie nachher: eine gespeicherte Datei löschen, und zwei Aufrufe, die dieselbe Datei gleichzeitig schreiben.
 
-## 1. Der Agent-Skill ist optional und nur ein Pfad
+## 1. Der Agent-Skill ist optional und nur ein Name
 
 Das Tool startet ohne Skill. Es liest den Skill nie, bettet ihn nie ein und gibt ihn nie aus.
-Nennt das Tool einen Skill, prüft das Testkit nur: Die Datei existiert und hat ein Frontmatter mit `name` und `description`. Zeilen für Codes braucht der Skill nicht. Der Pfad ist ein String, relativ zum Ordner der `package.json`.
+Nennt das Tool einen Skill, prüft das Testkit nur: Die Datei existiert und hat ein Frontmatter mit `name` und `description`. Zeilen für Codes braucht der Skill nicht. Der Name ist ein String. Der Skill liegt, wo Claude Code ihn sucht: `~/.claude/skills/<name>/SKILL.md`.
 
 Vorher:
 
@@ -99,12 +99,12 @@ tool({ ..., skill: new URL('./SKILL.md', import.meta.url) }); // Pflicht
 Nachher:
 
 ```ts
-skill: 'SKILL.md',
+skill: 'hello',
 ```
 
 ```console
 $ hello | jq -c '.result | {name, skill}'
-{"name":"hello","skill":"/Users/ada/src/hello/SKILL.md"}
+{"name":"hello","skill":"hello"}
 ```
 
 ## 2. Das Tool enthält keinen Anleitungstext

@@ -581,14 +581,14 @@ $ hello schema | jq -c '.result.kinds.ask, .result.codes[0]'
 
 Was kein Schritt ist, gehört in einen Agent-Skill: wann man das Tool nutzt, der Ablauf einer typischen Aufgabe, wann man anhält und die Person fragt. Ein Skill ist ein Markdown-Handbuch für Agenten. Er ist die eine Agent-DX-Regel, die adx nicht einbaut: Der Skill gehört dir, und das Tool öffnet ihn nie, bettet ihn nie ein und gibt ihn nie aus.
 
-Ein Tool kann seinen Skill mit `skill` nennen, einem Pfad relativ zum Ordner seiner `package.json`. Das ist das Tool dieses Kapitels im Ganzen. `count` ist ein weiterer Befehl der Gruppe `friends`: Er zählt die Freunde.
+Ein Tool kann seinen Skill mit `skill` nennen, mit dem Namen des Skills: Kleinbuchstaben, Ziffern und Bindestriche, ab einem Buchstaben oder einer Ziffer, höchstens 64 Zeichen, wie Claude Code Skills benennt. Jede andere Form ist beim Start ein `DECLARATION`-Fehler. Der Skill liegt, wo Claude Code ihn sucht, in `~/.claude/skills/<name>/SKILL.md`, und die eigene Installation des Tools legt ihn dorthin. Das ist das Tool dieses Kapitels im Ganzen. `count` ist ein weiterer Befehl der Gruppe `friends`: Er zählt die Freunde.
 
 ```ts
 export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-  skill: 'SKILL.md',
+  skill: 'hello',
   roots: [home],
   commands: {
     greet,
@@ -605,10 +605,10 @@ export const hello = tool({
 
 ```console
 $ hello | jq -c '.result | {name, skill}'
-{"name":"hello","skill":"/Users/ada/src/hello/SKILL.md"}
+{"name":"hello","skill":"hello"}
 ```
 
-Ohne `skill` zeigt die Startantwort `"skill": null`, und nichts wird geprüft. Mit `skill` liest das Testkit den Anfang der Datei und prüft zwei Tatsachen: Die Datei existiert, und sie ist ein Skill. Das heißt, sie beginnt mit einem Frontmatter, das `name` und `description` hat:
+Ohne `skill` zeigt die Startantwort `"skill": null`, und nichts wird geprüft. Mit `skill` liest das Testkit den Anfang der `SKILL.md` des Skills und prüft zwei Tatsachen: Die Datei existiert, und sie ist ein Skill. Das heißt, sie beginnt mit einem Frontmatter, das `name` und `description` hat:
 
 ```markdown
 ---
@@ -1710,7 +1710,7 @@ test('the input can come through stdin', async () => {
 
 Vier weitere Prüfungen laufen, wenn das Tool ihren Gegenstand hat:
 
-- **Der Skill.** Nennt das Tool einen `skill`, muss die Datei existieren und mit einem Frontmatter beginnen, das `name` und `description` hat.
+- **Der Skill.** Nennt das Tool einen `skill`, muss seine `SKILL.md` existieren und mit einem Frontmatter beginnen, das `name` und `description` hat.
 - **Gespeicherte Daten.** Jedes Schema einer `stored`-Datenart muss zum Fingerabdruck passen, der für seine Formatnummer eingecheckt ist.
 - **`--replace`.** Ein Effekt, der `--replace` listet und in keiner Prüfung ein `files.write` vormerkt, schlägt fehl, mit der Lösung: `replace: false` ergänzen.
 - **Große Antworten.** Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.
@@ -1737,7 +1737,7 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 
 **Aufrufe**
 
-- `tool`: Name, Version, der Pfad des Skills oder `null`, die Befehle und die ersten Schritte.
+- `tool`: Name, Version, der Name des Skills oder `null`, die Befehle und die ersten Schritte.
 - `tool <group>`: die Aktionen der Gruppe.
 - `tool schema`: jeder Befehl, die Shapes, die gemeinsamen Optionen, die vier Arten, jeder Code mit Art und Hinweis, die Roots mit Variable und Option, die Variablen, die gespeicherten Datenarten mit ihrer Formatnummer, die Grenzen.
 - `tool schema <command>`: das Eingabeschema, die globalen Felder, die der Befehl nimmt, die Optionen, die er nimmt, welche Felder Listen haben, Schlüssel, Felder und Kurzform einer Liste, die Felder eines `read` mit `output`, die Seitengröße, `replace: 'always'` eines Effekts, der eine abgeleitete Datei ersetzt, das Beispiel.
@@ -1892,7 +1892,7 @@ Weil `api` vier Dinge tut, die `fetch` nicht tut. Es prüft jede Antwort gegen e
 Ja, aber adx kann nicht hindurchsehen. Das Senden gehört dann in `apply` mit `failed`, die Antworten brauchen dein eigenes Zod-Schema, und das Testkit kann sie in einem Probelauf nicht zählen. `remote` spricht JSON über HTTP. Für diesen Fall ist es der kürzere Weg.
 
 **Braucht mein Tool einen Agent-Skill?**
-Nein. Das Tool läuft und besteht seine Tests ohne. Schreib einen Skill, wenn der Agent mehr wissen muss als Schritte: wann man das Tool nutzt, den Ablauf einer Aufgabe, wann man anhält und die Person fragt. Nenne ihn mit `skill`, und die Startantwort zeigt seinen Pfad.
+Nein. Das Tool läuft und besteht seine Tests ohne. Schreib einen Skill, wenn der Agent mehr wissen muss als Schritte: wann man das Tool nutzt, den Ablauf einer Aufgabe, wann man anhält und die Person fragt. Nenne ihn mit `skill`, und die Startantwort zeigt seinen Namen.
 
 **Braucht adx einen bestimmten Ordneraufbau?**
 Nein. adx liest keinen Ordnernamen, keinen Dateinamen und keine Reihenfolge von Importen. Ein Befehl ist ein Wert, und die Tabelle des Tools nimmt ihn, wo immer er liegt. Ein kleines Tool ist eine Datei, wie `hello`. Ein größeres lässt sich nach Features schneiden, wie der [Tracker](#eine-remote-api-einbinden): `bin/` für den Einstieg, `cli/` für das Tool, ein Ordner pro Feature und `core/` für das, was Features teilen. Eine Regel, welcher Ordner welchen importieren darf, ist deine eigene. adx kennt und prüft sie nicht.

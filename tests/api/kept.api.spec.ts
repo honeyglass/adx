@@ -1,6 +1,7 @@
-// The skill and the stored data checks of conformance need the folder of the tool's
-// package.json, which adx cannot find yet (packageFolder() answers undefined). Until it can, this
-// test opens the two checks in dist/ and hands them a folder of its own.
+// The skill check of conformance needs the file of a skill by its name (skillFile() answers
+// undefined), and the stored data check the folder of the tool's package.json (packageFolder()
+// answers undefined); adx cannot find either yet. Until it can, this test opens the two checks in
+// dist/ and hands them a folder of its own.
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -19,15 +20,14 @@ async function folder(t: TestContext) {
 
 test('a skill starts with a frontmatter whose name and description hold a value', async t => {
   const at = await folder(t);
-  assert.deepEqual(skillFindings(at, 'SKILL.md'), [
-    'the skill SKILL.md is no file next to package.json',
+  const file = join(at, 'SKILL.md');
+  assert.deepEqual(skillFindings('hello', file), [`the skill hello has no file ${file}`]);
+  await writeFile(file, '---\nname:\ndescription: greets people\n---\n# Hello\n');
+  assert.deepEqual(skillFindings('hello', file), [
+    `${file} is no skill: it starts with no frontmatter with name and description`,
   ]);
-  await writeFile(join(at, 'SKILL.md'), '---\nname:\ndescription: greets people\n---\n# Hello\n');
-  assert.deepEqual(skillFindings(at, 'SKILL.md'), [
-    'SKILL.md is no skill: it starts with no frontmatter with name and description',
-  ]);
-  await writeFile(join(at, 'SKILL.md'), '---\nname: hello\ndescription: greets people\n---\n');
-  assert.deepEqual(skillFindings(at, 'SKILL.md'), []);
+  await writeFile(file, '---\nname: hello\ndescription: greets people\n---\n');
+  assert.deepEqual(skillFindings('hello', file), []);
 });
 
 test('a stored schema must keep the fingerprint of its number; a description is no field', async t => {

@@ -1,6 +1,6 @@
 /**
- * The files the test kit keeps next to the tool's package.json: the skill it reads, and the
- * fingerprints of the stored kinds it reads and writes.
+ * The files the test kit reads and keeps: the skill it reads, and the fingerprints of the stored
+ * kinds it reads and writes next to the tool's package.json.
  *
  * textAt, keep, digestOf: the start of a file's text, a text written whole, and the digest of a
  * text.

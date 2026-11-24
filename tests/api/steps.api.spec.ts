@@ -289,7 +289,7 @@ test('a step carries the global fields of the call into a command that takes the
 // A command stands in one tool only, so each tool below lists commands of its own.
 const greetOne = () => read({ does: 'greets one person', run: () => ({}) });
 
-test('the tool alone answers its name, version, commands and the step to schema', async () => {
+test('the tool alone answers its name, version, skill, commands and the step to schema', async () => {
   const solo = tool({
     name: 'hello',
     version: '0.1.0',
@@ -326,6 +326,32 @@ test('the tool alone answers its name, version, commands and the step to schema'
       '',
     ].join('\n'),
   );
+  const skilled = tool({
+    name: 'hello',
+    version: '0.1.0',
+    does: 'greets people',
+    skill: 'hello',
+    commands: { greet: greetOne() },
+  });
+  assert.deepEqual((await answerOf(skilled)).result, {
+    name: 'hello',
+    version: '0.1.0',
+    does: 'greets people',
+    skill: 'hello',
+    commands: [{ command: 'hello greet', does: 'greets one person' }],
+  });
+});
+
+test('a skill whose name has not the form Claude Code gives one is a DECLARATION error', async () => {
+  const named = (skill: string) =>
+    tool({ name: 'hello', version: '0.1.0', does: 'x', skill, commands: { greet: greetOne() } });
+  for (const skill of ['SKILL.md', '../x', 'a/b', 'Hello', '-x', '', 'a'.repeat(65)]) {
+    const { exit, issues } = await answerOf(named(skill), 'greet');
+    assert.deepEqual([exit, issues?.map(i => i.code)], [2, ['DECLARATION']], skill);
+  }
+  for (const skill of ['oriko', '9-lives', 'a'.repeat(64)]) {
+    assert.equal((await answerOf(named(skill), 'greet')).exit, 0, skill);
+  }
 });
 
 test('start names the first steps, among them a step to schema', async () => {

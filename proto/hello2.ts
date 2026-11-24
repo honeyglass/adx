@@ -125,7 +125,7 @@ export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-  skill: 'SKILL.md',
+  skill: 'hello',
   roots: [home],
   commands: {
     greet,

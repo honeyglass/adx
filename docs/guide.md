@@ -581,14 +581,14 @@ $ hello schema | jq -c '.result.kinds.ask, .result.codes[0]'
 
 What is no step belongs in an agent skill: when to use the tool, the flow of a typical task, when to stop and ask the person. A skill is a Markdown manual for agents. It is the one Agent DX rule adx does not build in: the skill is yours, and the tool never opens, embeds or prints it.
 
-A tool can name its skill with `skill`, a path relative to the folder of its `package.json`. This is the tool of this chapter in full. `count` is one more command of the group `friends`: it counts the friends.
+A tool can name its skill with `skill`, the name of the skill: lowercase letters, digits and hyphens, from a letter or digit on, at most 64 characters, as Claude Code names skills. Any other form is a `DECLARATION` error at startup. The skill lies where Claude Code looks for it, `~/.claude/skills/<name>/SKILL.md`, and the tool's own install puts it there. This is the tool of this chapter in full. `count` is one more command of the group `friends`: it counts the friends.
 
 ```ts
 export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-  skill: 'SKILL.md',
+  skill: 'hello',
   roots: [home],
   commands: {
     greet,
@@ -605,10 +605,10 @@ export const hello = tool({
 
 ```console
 $ hello | jq -c '.result | {name, skill}'
-{"name":"hello","skill":"/Users/ada/src/hello/SKILL.md"}
+{"name":"hello","skill":"hello"}
 ```
 
-Without `skill`, the start answer shows `"skill": null`, and nothing is checked. With it, the test kit reads the start of the file and checks two facts: the file exists, and it is a skill, which means it starts with a frontmatter that has `name` and `description`:
+Without `skill`, the start answer shows `"skill": null`, and nothing is checked. With it, the test kit reads the start of the skill's `SKILL.md` and checks two facts: the file exists, and it is a skill, which means it starts with a frontmatter that has `name` and `description`:
 
 ```markdown
 ---
@@ -1710,7 +1710,7 @@ test('the input can come through stdin', async () => {
 
 Four more checks run when the tool has their subject:
 
-- **The skill.** If the tool names a `skill`, the file must exist and start with a frontmatter that has `name` and `description`.
+- **The skill.** If the tool names a `skill`, its `SKILL.md` must exist and start with a frontmatter that has `name` and `description`.
 - **Stored data.** Each schema of a `stored` kind must match the fingerprint checked in for its format number.
 - **`--replace`.** An effect that lists `--replace` and stages no `files.write` in any probe fails, with the fix: add `replace: false`.
 - **Large answers.** A `read` that answers a long list or a large document without `output` fails.
@@ -1737,7 +1737,7 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 
 **Calls**
 
-- `tool`: name, version, the path of the skill or `null`, the commands, and the first steps.
+- `tool`: name, version, the name of the skill or `null`, the commands, and the first steps.
 - `tool <group>`: the actions of the group.
 - `tool schema`: every command, the shapes, the shared options, the four kinds, every code with its kind and hint, the roots with their variable and option, the variables, the stored kinds with their format number, the limits.
 - `tool schema <command>`: the input schema, the global fields the command takes, the options it takes, which fields have lists, the key, fields and outline of a list, the fields of a `read` with `output`, the page size, `replace: 'always'` of an effect that replaces a derived file, the example.
@@ -1892,7 +1892,7 @@ Because `api` does four things `fetch` does not. It checks every answer against 
 Yes, but adx cannot see through it. Sends then belong in `apply` with `failed`, the answers need your own Zod schema, and the test kit cannot count them on a dry run. `remote` speaks JSON over HTTP. For that case it is the shorter way.
 
 **Does my tool need an agent skill?**
-No. The tool runs and passes its tests without one. Write a skill when the agent needs to know more than steps: when to use the tool, the flow of a task, when to stop and ask the person. Name it with `skill`, and the start answer shows its path.
+No. The tool runs and passes its tests without one. Write a skill when the agent needs to know more than steps: when to use the tool, the flow of a task, when to stop and ask the person. Name it with `skill`, and the start answer shows its name.
 
 **Does adx need a certain folder layout?**
 No. adx reads no folder name, no file name and no order of imports. A command is a value, and the table of the tool takes it from wherever it lies. A small tool is one file, as `hello`. A larger one can be cut by feature, as the [tracker](#wrapping-a-remote-api): `bin/` for the entry, `cli/` for the tool, one folder per feature, and `core/` for what features share. A rule about which folder may import which is your own. adx neither knows nor checks it.

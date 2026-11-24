@@ -6,8 +6,8 @@
  * a command the tool does not list or a name `schema` does not know, per shape that is no word
  * or has the word of a command, per list whose pages or one-item command do not fit, per effect
  * with `apply` and no `look`, per id() field without a source, per remote whose own address or
- * token cannot work, and per stored kind whose format numbers do not run from the newest down or
- * whose format has a field `version`.
+ * token cannot work, per stored kind whose format numbers do not run from the newest down or
+ * whose format has a field `version`, and for a skill whose name has not the form of one.
  *
  * The function of a hint gets nothing, so its step is checked here, before any call (decision
  * 73). Every other step is made in a function that a call runs, such as `next`, so the answer
@@ -26,6 +26,7 @@ import { codeOf, schemaNameOf, stepOfHint } from '../steps/index.ts';
 import type { Hint } from '../steps/index.ts';
 import { kindIssues } from '../stored/index.ts';
 import { detailsOf } from './detail.ts';
+import { SKILL_NAME } from './limits.ts';
 import { knows } from './schema.ts';
 import type { Shell } from './tool.ts';
 
@@ -45,7 +46,15 @@ export function setupIssues(shell: Shell, network: Network): Issue[] {
     ...idIssues(shell),
     ...shell.remotes.flatMap(remote => setupIssuesOf(remote, network)),
     ...shell.stored.flatMap(kindIssues),
+    ...skillIssues(shell),
   ];
+}
+
+// The test kit finds the skill by its name under ~/.claude/skills/, so the name is part of a path.
+function skillIssues({ skill }: Shell) {
+  if (skill === undefined || SKILL_NAME.test(skill)) return [];
+  const message = `the skill ${JSON.stringify(skill)} is no name of lowercase letters, digits and -, of at most 64 characters`;
+  return [declaration.issue(message)];
 }
 
 // An id names something that exists, so its option lists the values it takes (rule 13).

@@ -3,11 +3,9 @@
  *
  * started: the answer, and its text for a person at a terminal.
  *
- * The answer holds the name, the version, what the tool does, the path of the skill, the commands
- * and the first steps, and no data of the tool (decision 72): data comes from a command. The
- * absolute path of the skill needs the folder of the tool's package.json, and how adx finds that
- * folder is not decided yet (decision 36), so `skill` is null. Without `start`, the first step is
- * `schema`.
+ * The answer holds the name, the version, what the tool does, the name of the skill or null, the
+ * commands and the first steps, and no data of the tool (decision 72): data comes from a command.
+ * Without `start`, the first step is `schema`.
  *
  * @example if (routed.words.length === 0) return started(shell);
  */
@@ -35,7 +33,7 @@ export async function started(shell: Shell, folders: readonly Moved[]): Promise<
     name: shell.name,
     version: shell.version,
     does: shell.does,
-    skill: null,
+    skill: shell.skill ?? null,
     commands: commands.map(({ command, does }) => ({ command: `${shell.name} ${command}`, does })),
   };
   const rows = commands.map(({ command, does }): [string, string] => [command, does]);

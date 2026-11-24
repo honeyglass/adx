@@ -60,7 +60,7 @@ adx needs Node 24.2 or later.
 
 - `tool({ name, version, does, commands })`: declares the tool.
 - `commands`: the table of commands. A key is a word of the call, and a table inside the table is a group: `friends: { add }` is `hello friends add`.
-- `skill`: optional, the path to the agent skill file, relative to the folder of `package.json`. The tool never opens the file. Only the test kit reads its frontmatter.
+- `skill`: optional, the name of the agent skill, which lies in `~/.claude/skills/<name>/SKILL.md`: lowercase letters, digits and hyphens, at most 64 characters, else a `DECLARATION` error at startup. The tool never opens the file. Only the test kit reads its frontmatter.
 - `roots`, `remotes`: the folders and servers the tool may use.
 - `stored`: every kind of data the tool stores, with its format number.
 - `global`: the input every command shares, declared with `global({...})` (see below).
@@ -75,7 +75,7 @@ export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-  skill: 'SKILL.md',
+  skill: 'hello',
   roots: [home],
   commands: {
     greet,
@@ -403,7 +403,7 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 - `tickets.invoke(input, options)`: one command without argv, with typed input. Options: the samples, `dryRun`, `replace`.
 - `run(tool, argv, options)`: one whole call in the process of the test. Answers `{ exit, out, err }`. Options: the samples, `cwd`, `stdin` (a text or `null`), `tty` (text with `true`, JSON with `false`).
 - The test kit splits every named command (in `next` or in an issue) with `unbash` and checks that adx knows it.
-- If the tool names a `skill`, the test kit checks that the file exists and has a frontmatter with `name` and `description`. It reads nothing more.
+- If the tool names a `skill`, the test kit checks that its `SKILL.md` exists and has a frontmatter with `name` and `description`. It reads nothing more.
 - An effect that lists `--replace` and never stages a `files.write` fails: add `replace: false`.
 - A `read` that answers a long list or a large document without `output` fails.
 - `adxcheck report` and `adxcheck run`: the same check as a command. Without a skill the report says "none named", not "met".
@@ -614,7 +614,7 @@ adx builds in 15 rules. Rule 6 is the author's.
 - A field takes no name of an option adx gives its command: `json`, `output`, `dry-run`, `replace` and `help` on every command, `page` on a list, `fields` on a list and on a `read` with `output`. A clash does not compile. `version` is free.
 - Routing and help come from adx's own command table, which the `commands` of the tool fill.
 - adx assumes no folder layout. A command is a value, and the table takes it from wherever it lies.
-- The agent skill is not part of the toolkit. The tool never reads it, never embeds it and never prints it. It only names the path, and the start answer shows it.
+- The agent skill is not part of the toolkit. The tool never reads it, never embeds it and never prints it. It only names the skill, and the start answer shows the name.
 - adx's codes and kinds stand once, in adx. Every tool prints them with `tool schema`.
 - No guide text and no free help text in the tool. The first steps come from the `next` of the start answer and from the hints of the refusals.
 - `api` runs on RxJS inside: retries, timeouts, the cancelling of several requests. The author sees none of it.

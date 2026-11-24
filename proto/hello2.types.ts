@@ -109,7 +109,7 @@ tool({
   name: 'bad12',
   version: '0.1.0',
   does: 'x',
-  // @ts-expect-error the skill is a path, not a URL
+  // @ts-expect-error the skill is a name, not a URL
   skill: new URL('./SKILL.md', import.meta.url),
   commands: {},
 });

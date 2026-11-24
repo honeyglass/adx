@@ -5,16 +5,20 @@ import { fingerprintsIn } from "./answer.schema.js";
 import { FRONTMATTER_BYTES, STORED_FILE, STORED_FILE_BYTES } from "./limits.js";
 /** The frontmatter of a skill: its first line, then `name` and `description`, then its end. */
 const FRONTMATTER = /^---\r?\n(?:.*\r?\n)*?---\r?\n/;
-/** @returns one finding per fact the skill fails, none when it is a skill */
-export function skillFindings(folder, skill) {
-    const text = textAt(`${folder}/${skill}`, FRONTMATTER_BYTES);
+/**
+ * @param skill - the name the tool gives its skill
+ * @param file - the path of its SKILL.md
+ * @returns one finding per fact the skill fails, none when it is a skill
+ */
+export function skillFindings(skill, file) {
+    const text = textAt(file, FRONTMATTER_BYTES);
     if (text === undefined)
-        return [`the skill ${skill} is no file next to package.json`];
+        return [`the skill ${skill} has no file ${file}`];
     const head = FRONTMATTER.exec(text)?.[0] ?? '';
     const named = /^name:[ \t]*\S/m.test(head) && /^description:[ \t]*\S/m.test(head);
     return named
         ? []
-        : [`${skill} is no skill: it starts with no frontmatter with name and description`];
+        : [`${file} is no skill: it starts with no frontmatter with name and description`];
 }
 /** @returns one finding per format whose schema changed under its number */
 export function storedFindings(folder, kinds) {

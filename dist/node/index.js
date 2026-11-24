@@ -10,7 +10,8 @@
  * the test kit sees what a call changed.
  * program, serve: a tool run as a program, and a server that answers for a fake of its remote.
  * byteLength: the size of a text in bytes, as stdout carries it.
- * textAt, keep, digestOf: the files the test kit reads and keeps next to the tool's package.json.
+ * textAt, keep, digestOf: the start of a file's text, a text written whole, and the digest of a
+ * text, with which the test kit reads a skill and keeps the fingerprints of the stored kinds.
  *
  * @example const node = await import('../node/index.ts');
  */

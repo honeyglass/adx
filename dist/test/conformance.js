@@ -6,9 +6,10 @@
  *
  * Both run the same probes, each call in a fresh scratch folder with the seed copied in and the
  * fakes in place of the servers. A probe whose calls broke its rule fails with one finding per
- * call. The agent skill and the stored data need the folder of the tool's package.json, which
- * comes from packageFolder() alone; while it is not known, both are todos. A program shows
- * neither its skill path nor its stored schemas, so the kit checks them only in the process.
+ * call. The agent skill is found by its name through skillFile() alone, and the stored data next
+ * to the tool's package.json, which comes from packageFolder() alone; while either is not known,
+ * its check is a todo. A program shows neither its skill nor its stored schemas, so the kit checks
+ * them only in the process.
  *
  * @example test('hello keeps the agent rules', t => conformance(t, hello, samples));
  */
@@ -17,6 +18,7 @@ import { specOf } from "../tool/index.js";
 import { toolCaller } from "./caller.js";
 import { skillFindings, storedFindings } from "./kept.js";
 import { packageFolder } from "./package.js";
+import { skillFile } from "./skill.js";
 import { PROBES } from "./probes.js";
 import { Probing } from "./probing.js";
 import { programCaller } from "./program.js";
@@ -40,14 +42,14 @@ export async function conformance(t, target, samples = {}) {
     const shell = 'main' in target ? specOf(target) : undefined;
     await t.test('agent skill', async (sub) => {
         if (shell === undefined)
-            return sub.todo('only conformance with the tool reads the skill path');
+            return sub.todo('only conformance with the tool reads the skill');
         const { skill } = shell;
         if (skill === undefined)
             return;
-        const folder = packageFolder();
-        if (folder === undefined)
-            return sub.todo('the folder of package.json is not known yet');
-        failedOn(SKILL, skillFindings(folder, skill));
+        const file = skillFile(skill);
+        if (file === undefined)
+            return sub.todo('where the kit finds a skill by its name is not known yet');
+        failedOn(SKILL, skillFindings(skill, file));
     });
     await t.test('stored data', async (sub) => {
         if (shell === undefined)
@@ -62,7 +64,7 @@ export async function conformance(t, target, samples = {}) {
 }
 const SKILL = {
     name: 'agent skill',
-    next: 'name a file that starts with a frontmatter with name and description',
+    next: 'name a skill whose SKILL.md starts with a frontmatter with name and description',
 };
 const STORED = {
     name: 'stored data',

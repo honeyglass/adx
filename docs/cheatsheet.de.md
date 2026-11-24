@@ -60,7 +60,7 @@ adx braucht Node 24.2 oder neuer.
 
 - `tool({ name, version, does, commands })`: legt das Tool an.
 - `commands`: die Tabelle der Befehle. Ein Schlüssel ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `friends: { add }` ist `hello friends add`.
-- `skill`: optional, der Pfad zur Agent-Skill-Datei, relativ zum Ordner der `package.json`. Das Tool öffnet die Datei nie. Nur das Testkit liest ihr Frontmatter.
+- `skill`: optional, der Name des Agent-Skills, der in `~/.claude/skills/<name>/SKILL.md` liegt: Kleinbuchstaben, Ziffern und Bindestriche, höchstens 64 Zeichen, sonst beim Start ein `DECLARATION`-Fehler. Das Tool öffnet die Datei nie. Nur das Testkit liest ihr Frontmatter.
 - `roots`, `remotes`: die Ordner und Server, die das Tool nutzen darf.
 - `stored`: jede Datenart, die das Tool speichert, mit ihrer Formatnummer.
 - `global`: die Eingabe, die jeder Befehl teilt, deklariert mit `global({...})` (siehe unten).
@@ -75,7 +75,7 @@ export const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets people',
-  skill: 'SKILL.md',
+  skill: 'hello',
   roots: [home],
   commands: {
     greet,
@@ -403,7 +403,7 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 - `tickets.invoke(input, options)`: ein Befehl ohne argv, mit typisierter Eingabe. Optionen: die Samples, `dryRun`, `replace`.
 - `run(tool, argv, options)`: ein ganzer Aufruf im Prozess des Tests. Antwortet mit `{ exit, out, err }`. Optionen: die Samples, `cwd`, `stdin` (ein Text oder `null`), `tty` (Text mit `true`, JSON mit `false`).
 - Das Testkit zerlegt jeden genannten Befehl (in `next` oder in einem Problem) mit `unbash` und prüft, dass adx ihn kennt.
-- Nennt das Tool einen `skill`, prüft das Testkit: Die Datei existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht.
+- Nennt das Tool einen `skill`, prüft das Testkit: Seine `SKILL.md` existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht.
 - Ein Effekt, der `--replace` listet und nie ein `files.write` vormerkt, schlägt fehl: `replace: false` ergänzen.
 - Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.
 - `adxcheck report` und `adxcheck run`: dieselbe Prüfung als Befehl. Ohne Skill meldet der Bericht "none named", nicht "met".
@@ -614,7 +614,7 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 - Ein Feld nimmt keinen Namen einer Option, die adx seinem Befehl gibt: `json`, `output`, `dry-run`, `replace` und `help` an jedem Befehl, `page` an einer Liste, `fields` an einer Liste und an einem `read` mit `output`. Ein Zusammenstoß kompiliert nicht. `version` ist frei.
 - Routing und Hilfe kommen aus der Befehlstabelle von adx, die `commands` des Tools füllt.
 - adx setzt keinen Ordneraufbau voraus. Ein Befehl ist ein Wert, und die Tabelle nimmt ihn, wo immer er liegt.
-- Der Agent-Skill gehört nicht zum Toolkit. Das Tool liest ihn nie, bettet ihn nie ein und gibt ihn nie aus. Es nennt nur den Pfad, die Startantwort zeigt ihn.
+- Der Agent-Skill gehört nicht zum Toolkit. Das Tool liest ihn nie, bettet ihn nie ein und gibt ihn nie aus. Es nennt nur den Skill, die Startantwort zeigt den Namen.
 - Die Codes und Arten von adx stehen einmal in adx. Jedes Tool gibt sie mit `tool schema` aus.
 - Kein Anleitungstext und kein freier Hilfetext im Tool. Die ersten Schritte kommen aus `next` der Startantwort und aus den Hinweisen der Ablehnungen.
 - `api` läuft intern auf RxJS: Wiederholungen, Zeitlimits, das Abbrechen mehrerer Anfragen. Der Autor sieht davon nichts.
