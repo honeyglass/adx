@@ -45,11 +45,14 @@ const hello = tool({
   commands: { friends: { add }, note, text: odd('str'), list: odd(['a']) },
 });
 
-test('a dry run answers the plan and applies nothing', async () => {
+const REAL_RUN = { does: 'remembers a friend', command: 'hello friends add --name ada' };
+
+test('a dry run answers the plan, applies nothing, and names the call for real', async () => {
   sent.length = 0;
   const { exit, out } = await run(hello, ['friends', 'add', '--name', 'ada', '--dry-run']);
   assert.equal(exit, 0);
-  assert.equal(out, '{"ok":true,"applied":false,"result":{"name":"ada"}}\n');
+  const next = JSON.stringify([REAL_RUN]);
+  assert.equal(out, `{"ok":true,"applied":false,"result":{"name":"ada"},"next":${next}}\n`);
   assert.deepEqual(sent, []);
 });
 
@@ -78,6 +81,7 @@ test('invoke runs a dry run when asked to', async () => {
     ok: true,
     applied: false,
     result: { name: 'ada' },
+    next: [REAL_RUN],
   });
   assert.deepEqual(sent, []);
 });
@@ -86,7 +90,10 @@ test('at a terminal, an effect prints its text and whether it applied', async ()
   const { out } = await run(hello, ['note', '--word', 'hi'], { tty: true });
   assert.equal(out, 'noted hi\napplied  true\n');
   const fields = await run(hello, ['friends', 'add', '--name', 'ada', '--dry-run'], { tty: true });
-  assert.equal(fields.out, 'name     ada\napplied  false\n');
+  assert.equal(
+    fields.out,
+    'name     ada\napplied  false\n\nNext:\n  hello friends add --name ada   remembers a friend\n',
+  );
 });
 
 test('with apply, a plan that answers no object is a DECLARATION error before apply runs', async () => {

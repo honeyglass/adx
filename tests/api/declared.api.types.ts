@@ -33,7 +33,6 @@ type Missing<B, D> = Exclude<keyof D, keyof B>;
 
 /** The declared values the package does not export yet; never once all are built. */
 type NotBuilt =
-  | 'after'
   | 'bearer'
   | 'check'
   | 'cwd'
@@ -42,7 +41,6 @@ type NotBuilt =
   | 'envDir'
   | 'envUrl'
   | 'fresh'
-  | 'hint'
   | 'id'
   | 'inFile'
   | 'keyOf'
@@ -53,9 +51,7 @@ type NotBuilt =
   | 'paged'
   | 'remote'
   | 'root'
-  | 'schema'
-  | 'stored'
-  | 'tell';
+  | 'stored';
 /**
  * The brands of index.d.ts. A .d.ts exports each top-level name, so its brands count as values,
  * yet they exist on the type level only and the package exports none of them.
@@ -70,15 +66,18 @@ type NotBuiltTest = 'conformance' | 'fake' | 'reply';
  * branded declaration. tests/tsconfig.json checks them by use instead: it compiles the files of
  * proto/ that a package made work against dist/, and each package adds the files it made work.
  */
-type ByUse = 'effect' | 'global' | 'list' | 'read' | 'tool';
+type ByUse = 'after' | 'effect' | 'global' | 'hint' | 'list' | 'read' | 'tool';
 
 /** A schema with two fields, for the types that take one. */
 type Sample = z.ZodObject<{ project: z.ZodString; team: z.ZodOptional<z.ZodString> }>;
+/** The input of a step with two fields, one of which has a source. */
+type StepInput = { cv: string; block: string };
 
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
 type TypePairs = [
   [Built.Answer<unknown>, Declared.Answer<unknown>],
   [Built.Code, Declared.Code],
+  [Built.CommandStep<StepInput, 'block'>, Declared.CommandStep<StepInput, 'block'>],
   [Built.Field<Sample>, Declared.Field<Sample>],
   [Built.GlobalUse<Sample>, Declared.GlobalUse<Sample>],
   [Built.Issue, Declared.Issue],

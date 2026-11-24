@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const HELLO = join(PROTO, 'hello.ts');
@@ -40,7 +39,7 @@ test('refuses both mistakes of one call at once', async t => {
   );
 });
 
-pending('P3', 'called alone, names itself and the step to schema', async t => {
+test('called alone, names itself and the step to schema', async t => {
   const home = await scratch(t);
   const { exit, out } = await hello(home);
   const Start = z.object({ name: z.string(), skill: z.string().nullable() });
