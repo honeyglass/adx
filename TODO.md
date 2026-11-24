@@ -1,7 +1,7 @@
 # TODO
 
 Open work on adx, the toolkit for command-line tools that AI agents drive.
-<!-- last item number: 6 -->
+<!-- last item number: 8 -->
 
 ## Next
 
@@ -17,6 +17,12 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
       after:#1
       Plan: 'design/concurrency.md'
       'design/adx-write/'
+- [ ] #7 Once @honeyglass/utils and adx are published to the npm registry, let adx bring utils itself as a registry peerDependency that pnpm installs, so a tool no longer names utils in its own package.json; one shared copy stays required, since `instanceof RefusalError` needs it; revisit decision 75 (added 2026-11-24)
+      after:#1
+- [ ] #8 Security review of adx once the build and the oriko migration are done: every check is an allow-list or a property (~/.claude/rules/security.md), close open flanks; decide whether network fetches (adx remotes, and oriko's `read --posting`) run in a sandbox, and whether lean-code's SandboxManager ('sandbox-manager/') and SyntaxManager ('syntax-manager/') can serve as dependencies there; both are not finished yet (added 2026-11-24)
+      after:#1
+      Plan: '~/src/github.com/honeyglass/lean-code/plannings/plans/security-managers/plan.md'
+      '~/.claude/rules/security.md'
 
 ## Proof of concept
 
@@ -27,5 +33,5 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
 
 ## Docs
 
-- [ ] #4 Write the package's README for npm, a skill for building tools with adx, and an `llms.txt` (https://llmstxt.org/) that explain the flow for agents, such as the `ALREADY_EXISTS` refusal with `--replace --dry-run` (added 2026-11-21)
+- [ ] #4 Write the package's README for npm, a skill for building tools with adx, and an `llms.txt` (https://llmstxt.org/) that explain the flow for agents, such as the `ALREADY_EXISTS` refusal with `--replace --dry-run`; it comes after #1 and before the publication (added 2026-11-21)
       after:#1
