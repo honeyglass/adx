@@ -1,6 +1,8 @@
 /**
  * The barrel of '@honeyglass/adx': it re-exports the public values and types, and builds nothing.
  *
- * Nothing is public yet; proto/adx/index.d.ts declares what will be.
+ * Everything public stands in ./api.ts and ./types.ts.
+ *
+ * @example import { read, tool } from '@honeyglass/adx';
  */
-export {};
+export * from "./api.js";

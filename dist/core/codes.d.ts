@@ -1,0 +1,10 @@
+export declare const unknownCommand: import("./code.ts").Code;
+export declare const schemaFailed: import("./code.ts").Code;
+export declare const unexpectedArgument: import("./code.ts").Code;
+export declare const missingValue: import("./code.ts").Code;
+export declare const systemRefused: import("./code.ts").Code;
+export declare const networkFailed: import("./code.ts").Code;
+export declare const serverBusy: import("./code.ts").Code;
+export declare const accessRefused: import("./code.ts").Code;
+export declare const remoteRefused: import("./code.ts").Code;
+export declare const unknownError: import("./code.ts").Code;

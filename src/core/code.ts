@@ -1,0 +1,53 @@
+/**
+ * A code a tool declares once, with its kind and hint, and raises as issues.
+ *
+ * Code, code: the declared code, and the function that declares it.
+ *
+ * Nothing is checked when code() is called: a tool declares its codes when its files load.
+ *
+ * @example const noFormal = code('NO_FORMAL_GREETING', 'fix', 'Greet casually');
+ */
+import { Issue } from './issue.ts';
+import type { Parts, Path } from './issue.ts';
+import type { Kind } from './kind.ts';
+
+export interface Code {
+  at<P extends string>(path: P, message?: string): Issue<P>;
+  at<const P extends string>(
+    path: readonly [P, ...(string | number)[]],
+    message?: string,
+  ): Issue<P>;
+  issue(message?: string): Issue<never>;
+}
+
+export function code(name: string, kind: Kind, hint: string): Code {
+  return new Declared(name, kind, hint);
+}
+
+class Declared implements Code {
+  readonly #name: string;
+  readonly #kind: Kind;
+  readonly #hint: string;
+
+  constructor(name: string, kind: Kind, hint: string) {
+    this.#name = name;
+    this.#kind = kind;
+    this.#hint = hint;
+  }
+
+  at<P extends string>(path: P, message?: string): Issue<P>;
+  at<const P extends string>(path: Path<P>, message?: string): Issue<P>;
+  at<P extends string>(path: P | Path<P>, message?: string): Issue<P> {
+    const parts: Path<P> = typeof path === 'string' ? [path] : path;
+    return new Issue(this.#name, parts, this.#partsOf(message));
+  }
+
+  issue(message?: string): Issue<never> {
+    return new Issue<never>(this.#name, undefined, this.#partsOf(message));
+  }
+
+  // Without a message, the issue repeats the hint of its code.
+  #partsOf(message = this.#hint): Parts {
+    return { kind: this.#kind, message, hint: this.#hint };
+  }
+}

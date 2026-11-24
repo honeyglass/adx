@@ -1,0 +1,34 @@
+/**
+ * One whole call of a tool in the process of the test, from the arguments to the exit code.
+ *
+ * Checked, run: what run() takes as the tool, and run() itself.
+ *
+ * run() and main() go through the same call, so the answer, the text form and the exit code are
+ * the program's; only the surroundings come from the options. What a handler writes with
+ * console stands before the answer in out and err, as in the program.
+ *
+ * @example const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { tty: true });
+ */
+import { RefusalError } from '@honeyglass/utils/ts';
+import { captured } from "../node/index.js";
+import { call, specOf } from "../tool/index.js";
+/**
+ * @param tool - the value tool() returned
+ * @param argv - the arguments after the program
+ * @param options - the surroundings of the call
+ * @returns the exit code, and what the call wrote to stdout and stderr
+ * @throws a fix RefusalError for a tool that tool() did not make
+ */
+export async function run(tool, argv, options = {}) {
+    const spec = specOf(tool);
+    if (spec === undefined) {
+        throw new RefusalError({
+            kind: 'fix',
+            step: 'run',
+            reason: 'the tool was not made by tool() of this adx',
+            next: 'pass the value that tool() returned',
+        });
+    }
+    const { data, out, err } = await captured(() => call(spec, { argv, tty: options.tty ?? false }));
+    return { exit: data.exit, out: `${out}${data.out}`, err: `${err}${data.err}` };
+}

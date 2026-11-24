@@ -1,0 +1,44 @@
+/**
+ * One issue of a refusal: a code at a field, at a place below it, or at no field.
+ *
+ * Step, Path: a next move, and the place of an issue, a field first.
+ * Issue, Parts: what a code raises, and what it holds beside its code and path.
+ * issueAnswer: the issue as the answer writes it.
+ *
+ * The parts stay in a table beside the issue, not in private fields: an Issue then has the
+ * members proto/adx/index.d.ts declares and no other, so the built type equals the declared one.
+ *
+ * @example const issue = new Issue('SCHEMA', ['name'], { kind: 'fix', message, hint });
+ */
+import type { Kind } from './kind.ts';
+export interface Step {
+    readonly does: string;
+    readonly command?: string;
+}
+export type Path<P extends string> = readonly [P, ...(string | number)[]];
+export type Parts = {
+    kind: Kind;
+    message: string;
+    hint: string;
+    step?: Step;
+};
+export declare class Issue<P extends string = string> {
+    readonly code: string;
+    /** Absent, not undefined, on an issue at no field, so the answer has no path. */
+    readonly path?: Path<P>;
+    constructor(code?: string, path?: Path<P>, parts?: Parts);
+    command(step: Step): Issue<P>;
+}
+/**
+ * @param issue - an issue of a refusal
+ * @returns its code, its path with dots, its message and hint, and the command of its step
+ */
+export declare function issueAnswer(issue: Issue): {
+    command?: string | undefined;
+    message: string;
+    hint: string;
+    path?: string | undefined;
+    code: string;
+};
+/** The kind of the code that raised the issue. */
+export declare const kindOfIssue: (issue: Issue) => Kind;
