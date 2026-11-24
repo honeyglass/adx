@@ -105,9 +105,9 @@ round is done. The e2e line names the tests the package turns green.
 - [x] `Page`, `Listing`, `paged`, `--page`, outline and `--fields` (rule 16)
 
 ### P8 remote
-- [ ] `remote()`, `bearer`, `envUrl`, `get` with `on`, the requests, `status()`
-- [ ] `test/fake`, `test/reply`
-- [ ] no request during a refusal (79)
+- [x] `remote()`, `bearer`, `envUrl`, `get` with `on`, the requests, `status()`
+- [x] `test/fake`, `test/reply`
+- [x] no request during a refusal (79)
 - e2e: ship
 
 ### P9 stored
