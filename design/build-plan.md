@@ -68,11 +68,11 @@ round is done. The e2e line names the tests the package turns green.
 - [x] the scripts `test`, `build`; CI runs them
 
 ### P1 core and node
-- [ ] the answer shape, `Kind`, exit codes 0, 1, 2
-- [ ] `Issue`, `Refused`, `code()`, `failed()`, `status()`
-- [ ] a minimal `tool()` and `main()`: a bug becomes `UNKNOWN_ERROR`, kind `bug`, exit 2 (76)
-- [ ] `node/`: argv, stdout, TTY detection, JSON when piped
-- [ ] `test/run()` (74)
+- [x] the answer shape, `Kind`, exit codes 0, 1, 2
+- [x] `Issue`, `Refused`, `code()`, `failed()`, `status()`
+- [x] a minimal `tool()` and `main()`: a bug becomes `UNKNOWN_ERROR`, kind `bug`, exit 2 (76)
+- [x] `node/`: argv, stdout, TTY detection, JSON when piped
+- [x] `test/run()` (74)
 - e2e: hello
 
 ### P2 command
