@@ -29,6 +29,7 @@ export declare const urlNotAllowed: import("./code.ts").Code;
 export declare const rootNotFound: import("./code.ts").Code;
 export declare const envMissing: import("./code.ts").Code;
 export declare const storedInvalid: import("./code.ts").Code;
+export declare const newerVersion: import("./code.ts").Code;
 export declare const declaration: import("./code.ts").Code;
 export declare const systemRefused: import("./code.ts").Code;
 export declare const networkFailed: import("./code.ts").Code;

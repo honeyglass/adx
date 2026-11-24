@@ -6,6 +6,7 @@
  * NOTHING_CHANGED, UNKNOWN_STATE: a call refused before it changed anything, and one whose
  * changes nobody knows.
  * withLook, lookOf: the step that shows what `apply` left, kept beside a refusal out of it.
+ * aboutText, aboutFile: a refusal of a stored text, and the same refusal said of its file.
  *
  * @example return refusalAnswer(refusedWith([schema.at('name')], NOTHING_CHANGED));
  */
@@ -37,3 +38,14 @@ export declare function refusedWith<P extends string>(issues: readonly [Issue<P>
 export declare const withLook: (error: object, step: Step) => undefined;
 /** @returns the look kept beside a refusal, or undefined */
 export declare const lookOf: (error: unknown) => Step | undefined;
+/**
+ * A stored kind reads a text and knows no file, so the reader of the file says it again of the
+ * file: the person has to find the file to fix it.
+ *
+ * @param refused - the refusal of the text
+ * @param ofFile - the same refusal said of a file, by its path in its root
+ * @returns the refusal of the text
+ */
+export declare const aboutText: (refused: Refused, ofFile: (file: string) => Refused) => Refused<string>;
+/** @returns the refusal of a stored text said of the file it came from, or the error as it came */
+export declare const aboutFile: (error: unknown, file: string) => unknown;

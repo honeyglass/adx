@@ -4,7 +4,9 @@
  * setupIssues: one DECLARATION issue per mistake: in the command table, per command an `after`
  * names that the tool does not list, per code that has a second hint, per shape that is no
  * word or has the word of a command, per list whose pages or one-item command do not fit, per
- * effect with `apply` and no `look`, and per remote whose own address or token cannot work.
+ * effect with `apply` and no `look`, per remote whose own address or token cannot work, and
+ * per stored kind whose format numbers do not run from the newest down or whose format has a
+ * field `version`.
  *
  * A remote the tool does not list shows only at its first request: a remote is a value of the
  * author's files, and nothing tells which of them a command reads before it runs.
@@ -16,6 +18,7 @@ import { declaration } from '../core/index.ts';
 import type { Issue, Network } from '../core/index.ts';
 import { setupIssuesOf } from '../remote/index.ts';
 import { codeOf } from '../steps/index.ts';
+import { kindIssues } from '../stored/index.ts';
 import { detailsOf } from './detail.ts';
 import type { Shell } from './tool.ts';
 
@@ -32,6 +35,7 @@ export function setupIssues(shell: Shell, network: Network): Issue[] {
     ...listIssues(shell),
     ...lookIssues(shell),
     ...shell.remotes.flatMap(remote => setupIssuesOf(remote, network)),
+    ...shell.stored.flatMap(kindIssues),
   ];
 }
 

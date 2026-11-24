@@ -5,6 +5,7 @@
  * schemasAlong: every schema a path passes inside a schema, for the shape a SCHEMA issue lies in.
  * Failure, failuresOf: one issue of a parse as the places and messages of SCHEMA issues.
  * unknownKeysIn: each key of a value that an object of the schema does not name.
+ * keysOf: the keys an object of the schema names, such as those of a stored format.
  * MULTILINE, brokenLinesIn: the mark of a string that may hold line breaks, and each plain string
  * of a value that holds a line break or another control character.
  *
@@ -112,6 +113,12 @@ export function unknownKeysIn(
     if (child !== undefined) return unknownKeysIn(child, item, at);
     return base.schema instanceof z.ZodObject ? [unknownKey(at)] : [];
   });
+}
+
+/** @returns the keys the object the schema checks names; none for a schema of no object */
+export function keysOf(schema: z.core.$ZodType) {
+  const base = baseOf(schema);
+  return base instanceof z.ZodObject ? Object.keys(base.shape) : [];
 }
 
 // The parts of a value its schema holds: the items of an array, the keys of an object.

@@ -28,6 +28,7 @@ export function tool(spec) {
         commands: spec.commands,
         roots: spec.roots ?? [],
         remotes: spec.remotes ?? [],
+        stored: spec.stored ?? [],
         shapes: spec.shapes ?? {},
         next: spec.next ?? [],
         hints: spec.hints ?? [],

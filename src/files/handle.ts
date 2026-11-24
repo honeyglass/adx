@@ -16,6 +16,7 @@
 import { shown, trySync$ } from '@honeyglass/utils/ts';
 import type { z } from 'zod';
 import {
+  aboutFile,
   fileNotFound,
   inputTooLarge,
   notAFile,
@@ -62,8 +63,12 @@ export class Handle implements File {
   json<S extends z.ZodType>(limit: number, shape: S): Promise<z.output<S>>;
   async json(limit: number, shape: z.ZodType | Stored<unknown>) {
     const text = await this.text(limit);
-    // A stored kind reads its own text, converting an older format.
-    if (isStored(shape)) return shape.parse(text);
+    // A stored kind reads its own text, converting an older format, and knows no file.
+    if (isStored(shape)) {
+      const read = trySync$(() => shape.parse(text));
+      if (read.error !== null) throw aboutFile(read.error, this.rel);
+      return read.data;
+    }
     const parsed = trySync$((): unknown => JSON.parse(text));
     if (parsed.error !== null) throw invalid(`${shown(this.rel)} holds no JSON`, parsed.error);
     const checked = shape.safeParse(parsed.data);

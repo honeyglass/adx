@@ -12,6 +12,7 @@
  * dir, inFile, outFile, id, multiline: the field schemas adx gives.
  * paged: one page of a list cut out of a whole array.
  * remote, envUrl, bearer: a server the tool talks to, its address and its token.
+ * stored: a kind of data the tool keeps, with the number of its format.
  * tool: the tool, whose main() runs one call.
  *
  * @example import { code, read, tool } from '@honeyglass/adx';
@@ -23,5 +24,6 @@ export { paged } from './list/index.ts';
 export { bearer, envUrl, remote } from './remote/index.ts';
 export { check } from './shapes/index.ts';
 export { hint, schema, tell } from './steps/index.ts';
+export { stored } from './stored/index.ts';
 export { tool } from './tool/index.ts';
 export { detailOf, fresh, keyOf, needs } from './values/index.ts';

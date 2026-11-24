@@ -6,6 +6,7 @@
  * NOTHING_CHANGED, UNKNOWN_STATE: a call refused before it changed anything, and one whose
  * changes nobody knows.
  * withLook, lookOf: the step that shows what `apply` left, kept beside a refusal out of it.
+ * aboutText, aboutFile: a refusal of a stored text, and the same refusal said of its file.
  *
  * @example return refusalAnswer(refusedWith([schema.at('name')], NOTHING_CHANGED));
  */
@@ -66,3 +67,22 @@ export const withLook = (error: object, step: Step) => void looks.set(error, ste
 /** @returns the look kept beside a refusal, or undefined */
 export const lookOf = (error: unknown) =>
   typeof error === 'object' && error !== null ? looks.get(error) : undefined;
+
+const files = new WeakMap<object, (file: string) => Refused>();
+
+/**
+ * A stored kind reads a text and knows no file, so the reader of the file says it again of the
+ * file: the person has to find the file to fix it.
+ *
+ * @param refused - the refusal of the text
+ * @param ofFile - the same refusal said of a file, by its path in its root
+ * @returns the refusal of the text
+ */
+export const aboutText = (refused: Refused, ofFile: (file: string) => Refused) => {
+  files.set(refused, ofFile);
+  return refused;
+};
+
+/** @returns the refusal of a stored text said of the file it came from, or the error as it came */
+export const aboutFile = (error: unknown, file: string) =>
+  (typeof error === 'object' && error !== null ? files.get(error)?.(file) : undefined) ?? error;

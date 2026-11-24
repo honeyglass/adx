@@ -5,8 +5,8 @@
  * schemaTargetOf: the shape or the command a name after `schema` shows.
  *
  * `schema` alone names every command with its input, the shapes, the roots with their variable
- * and option, the variables of the remotes, never their values, what each kind asks the caller
- * and adx's own codes. `schema <command>` shows the
+ * and option, the variables of the remotes, never their values, the stored kinds with the
+ * format number each is written in, what each kind asks the caller and adx's own codes. `schema <command>` shows the
  * input as JSON Schema with what --help shows, and of a list its item, key, outline and page
  * size; `schema <shape>` shows the shape. Each prints the JSON Schema of the same Zod schema adx
  * checks with, so the two never differ. `schema` comes before the command table, and takes no
@@ -79,8 +79,10 @@ function overviewOf(shell) {
         ...(variable === undefined ? {} : { variable, option: `--${name}` }),
     }));
     const variables = shell.remotes.flatMap(variablesOf);
+    const stored = shell.stored.map(({ name, version }) => ({ name, version }));
     const codes = ADX_CODES.map(factsOf);
-    return { commands, shapes: Object.keys(shell.shapes), roots, variables, kinds, codes };
+    const shapes = Object.keys(shell.shapes);
+    return { commands, shapes, roots, variables, stored, kinds, codes };
 }
 function commandSchemaOf(runner) {
     const { command, does, ...facts } = runner.schemaFacts();

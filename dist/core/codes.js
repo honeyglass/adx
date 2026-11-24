@@ -13,6 +13,7 @@
  * missing file, an entry of the wrong kind, and a file a write would replace without --replace.
  * urlNotAllowed: an address of a request that adx does not send to.
  * rootNotFound, storedInvalid: a root that is not there, and a file that fails its schema.
+ * newerVersion: a stored file of a newer format than the tool reads.
  * envMissing: a variable the tool reads, such as its token, that is not set.
  * declaration: a setup of the tool that is wrong in a way the compiler cannot see.
  * systemRefused, networkFailed, serverBusy, accessRefused, remoteRefused: an error nobody mapped.
@@ -52,6 +53,7 @@ export const urlNotAllowed = code('URL_NOT_ALLOWED', 'fix', 'Give a value that n
 export const rootNotFound = code('ROOT_NOT_FOUND', 'ask', 'Ask the person for the folder: the one the message names is not there');
 export const envMissing = code('ENV_MISSING', 'ask', 'Ask the person to set the variable the message names');
 export const storedInvalid = code('STORED_INVALID', 'ask', 'Ask the person to fix the file the message names');
+export const newerVersion = code('NEWER_VERSION', 'ask', 'Ask the person to update the tool, which reads an older format of the data');
 export const declaration = code('DECLARATION', 'bug', 'Stop and tell the person: the setup of the tool is wrong where the message says');
 export const systemRefused = code('SYSTEM_REFUSED', 'ask', 'Ask the person to fix the file or the disk the message names');
 export const networkFailed = code('NETWORK_FAILED', 'retry', 'Call again in a minute');
@@ -84,6 +86,7 @@ export const ADX_CODES = [
     systemRefused,
     accessRefused,
     remoteRefused,
+    newerVersion,
     storedInvalid,
     networkFailed,
     serverBusy,

@@ -12,7 +12,7 @@
  * @example const writer = staging({ replace: spec.replace, replacing: run.replace, retry });
  */
 import { shown, trySync$ } from '@honeyglass/utils/ts';
-import { alreadyExists, atField, declaration, NOTHING_CHANGED, Refused, refusedOf, refusedWith, withHint, } from "../core/index.js";
+import { aboutFile, alreadyExists, atField, declaration, NOTHING_CHANGED, Refused, refusedOf, refusedWith, withHint, } from "../core/index.js";
 import { changesOf } from "./changes.js";
 import { Handle, readBytes, textOf, Tree } from "./handle.js";
 import { CHANGES_BYTES, FILE_MODE, FOLDER_MODE } from "./limits.js";
@@ -122,7 +122,11 @@ class Staging {
         const at = handleOf(file);
         const old = readBytes(at, limit);
         const text = textOf(at, old);
-        const next = change(text);
+        // A stored kind the change reads knows no file, so a refusal of its text is said of it.
+        const changed = trySync$(() => change(text));
+        if (changed.error !== null)
+            throw aboutFile(changed.error, at.rel);
+        const next = changed.data;
         const { disk } = located();
         const bytes = disk.encode(next);
         const to = this.#once(openedOrThrown(target(at.root, at.rel)));

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { z } from 'zod';
-import { code, effect, global, read, tool } from '@honeyglass/adx';
+import { code, effect, global, read, stored, tool } from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
 
@@ -13,6 +13,11 @@ const Team = z.object({ title: z.string(), lead: Person });
 const Profile = z.object({ cv: z.string() });
 const Cat = z.object({ kind: z.literal('cat'), lives: z.number() });
 const Dog = z.object({ kind: z.literal('dog'), name: z.string() });
+const Friend = stored('friend', 2, z.object({ langs: z.array(z.string()) })).from(
+  1,
+  z.object({ lang: z.string() }),
+  old => ({ langs: [old.lang] }),
+);
 
 const greet = read({
   does: 'greets one person',
@@ -53,6 +58,7 @@ const hello = tool({
   version: '0.1.0',
   does: 'greets people',
   shapes: { person: Person, team: Team, profile: Profile, cat: Cat },
+  stored: [Friend],
   commands: { greet, 'greet-all': greetAll, profile: { set: setProfile } },
 });
 
@@ -64,11 +70,12 @@ const answerOf = async (tool: typeof hello, ...argv: string[]) => {
 const Overview = z.object({
   commands: z.array(z.object({ command: z.string(), does: z.string(), input: z.unknown() })),
   shapes: z.array(z.string()),
+  stored: z.array(z.object({ name: z.string(), version: z.number() })),
   kinds: z.record(z.string(), z.object({ exit: z.number(), does: z.string() })),
   codes: z.array(z.object({ code: z.string(), kind: z.string(), hint: z.string() })),
 });
 
-test('schema alone names every command with its input, the shapes, the kinds and the codes', async () => {
+test('schema alone names every command with its input, the shapes, the stored kinds with their format numbers, the kinds and the codes', async () => {
   const { exit, out } = await run(hello, ['schema']);
   const schema = answerIn(out, Overview).result;
   assert.equal(exit, 0);
@@ -91,6 +98,7 @@ test('schema alone names every command with its input, the shapes, the kinds and
     required: ['name'],
   });
   assert.deepEqual(schema?.shapes, ['person', 'team', 'profile', 'cat']);
+  assert.deepEqual(schema?.stored, [{ name: 'friend', version: 2 }]);
   assert.deepEqual(schema?.kinds.ask, {
     exit: 1,
     does: 'only the person can solve it: stop and ask',
@@ -111,13 +119,14 @@ test('schema alone names every command with its input, the shapes, the kinds and
   });
   const codes = schema?.codes.map(c => [c.code, c.kind]);
   assert.deepEqual(
-    ['SCHEMA', 'MISSING_INPUT', 'INPUT_TOO_LARGE', 'DECLARATION'].map(name =>
+    ['SCHEMA', 'MISSING_INPUT', 'INPUT_TOO_LARGE', 'NEWER_VERSION', 'DECLARATION'].map(name =>
       codes?.find(([code]) => code === name),
     ),
     [
       ['SCHEMA', 'fix'],
       ['MISSING_INPUT', 'fix'],
       ['INPUT_TOO_LARGE', 'fix'],
+      ['NEWER_VERSION', 'ask'],
       ['DECLARATION', 'bug'],
     ],
   );

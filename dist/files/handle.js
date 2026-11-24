@@ -14,7 +14,7 @@
  * @example const text = await home.file('notes.txt').text(4096);
  */
 import { shown, trySync$ } from '@honeyglass/utils/ts';
-import { fileNotFound, inputTooLarge, notAFile, NOTHING_CHANGED, refusedOf, refusedWith, shownAs, storedInvalid, } from "../core/index.js";
+import { aboutFile, fileNotFound, inputTooLarge, notAFile, NOTHING_CHANGED, refusedOf, refusedWith, shownAs, storedInvalid, } from "../core/index.js";
 import { cleaned, found, openedOrThrown } from "./paths.js";
 import { located } from "./located.js";
 export class Handle {
@@ -40,9 +40,13 @@ export class Handle {
     }
     async json(limit, shape) {
         const text = await this.text(limit);
-        // A stored kind reads its own text, converting an older format.
-        if (isStored(shape))
-            return shape.parse(text);
+        // A stored kind reads its own text, converting an older format, and knows no file.
+        if (isStored(shape)) {
+            const read = trySync$(() => shape.parse(text));
+            if (read.error !== null)
+                throw aboutFile(read.error, this.rel);
+            return read.data;
+        }
         const parsed = trySync$(() => JSON.parse(text));
         if (parsed.error !== null)
             throw invalid(`${shown(this.rel)} holds no JSON`, parsed.error);

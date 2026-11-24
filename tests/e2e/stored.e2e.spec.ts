@@ -2,16 +2,16 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const STORED = join(PROTO, 'examples', 'stored.ts');
 
 const hello = (home: string, ...argv: string[]) => program(STORED, argv, { home });
 
-pending('P9', 'reads a friend of the older format, and writes the new one', async t => {
+test('reads a friend of the older format, and writes the new one', async t => {
   const home = await scratch(t);
   const friends = join(home, '.hello', 'friends');
   await mkdir(friends, { recursive: true });

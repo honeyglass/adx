@@ -5,6 +5,7 @@
  * schemasAlong: every schema a path passes inside a schema, for the shape a SCHEMA issue lies in.
  * Failure, failuresOf: one issue of a parse as the places and messages of SCHEMA issues.
  * unknownKeysIn: each key of a value that an object of the schema does not name.
+ * keysOf: the keys an object of the schema names, such as those of a stored format.
  * MULTILINE, brokenLinesIn: the mark of a string that may hold line breaks, and each plain string
  * of a value that holds a line break or another control character.
  *
@@ -53,6 +54,8 @@ export declare function failuresOf(issue: z.core.$ZodIssue): Failure[];
  * @returns one failure per key an object drops, at its place below the value
  */
 export declare function unknownKeysIn(schema: z.core.$ZodType, value: unknown, below?: Part[]): Failure[];
+/** @returns the keys the object the schema checks names; none for a schema of no object */
+export declare function keysOf(schema: z.core.$ZodType): string[];
 /** The check multiline() carries: it lets line breaks and tabs through, and no other control. */
 export declare const MULTILINE: z.core.$ZodCheck<string>;
 /**

@@ -6,8 +6,8 @@
  * Path, Issue, withCommand, withHint, atField, stepOf: an issue, its place, command, hint, field
  * and step.
  * SchemaPlace, placed, placeOf: where a SCHEMA issue stands in the schema that failed.
- * layersOf, baseOf, schemasAlong, failuresOf, unknownKeysIn: a Zod schema's layers and parts,
- * the failures of a parse, and the keys an object would drop.
+ * layersOf, baseOf, schemasAlong, failuresOf, unknownKeysIn, keysOf: a Zod schema's layers and
+ * parts, the failures of a parse, the keys an object would drop, and those it names.
  * MULTILINE, brokenLinesIn: the mark of multiline(), and each plain string that is no one line.
  * codePointsIn: the length of a text in characters.
  * Page, Listing: one page a list asks for, and what its handler answers.
@@ -18,6 +18,7 @@
  * ADX_CODES, all of them.
  * Refused, refusedWith, NOTHING_CHANGED, UNKNOWN_STATE: the refusal of adx, and what it left.
  * withLook, lookOf: the look of `apply`, kept beside a refusal out of it.
+ * aboutText, aboutFile: a refusal of a stored text, and the same refusal said of its file.
  * failed, refusedOf, answerOfError, answerOfRefused: any error as a refusal of adx, and as an
  * answer.
  * isDecimal, escaped, oneLine: the one form of a number, and text escaped for a terminal.
@@ -33,8 +34,8 @@
  * File, Dir, Root, RootSource, Stored, Changes, Written, Files, Writer: roots and files, and the
  * writes of one call.
  * shownAs, pathOf: a file or folder adx made, and its path as adx shows it.
- * pathOutside, fileNotFound, notAFile, notAFolder, alreadyExists, rootNotFound, storedInvalid:
- * the codes of roots and files.
+ * pathOutside, fileNotFound, notAFile, notAFolder, alreadyExists, rootNotFound, storedInvalid,
+ * newerVersion: the codes of roots and files.
  * STDIN_LIMIT: how many characters of stdin `--json -` takes.
  *
  * @example import { code, Refused } from '../core/index.ts';
@@ -55,6 +56,7 @@ export {
   missingInput,
   missingValue,
   networkFailed,
+  newerVersion,
   notAFile,
   notAFolder,
   notInList,
@@ -83,6 +85,8 @@ export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from '
 export type { Kind } from './kind.ts';
 export { STDIN_LIMIT } from './limits.ts';
 export {
+  aboutFile,
+  aboutText,
   lookOf,
   NOTHING_CHANGED,
   Refused,
@@ -95,6 +99,7 @@ export {
   baseOf,
   brokenLinesIn,
   failuresOf,
+  keysOf,
   layersOf,
   MULTILINE,
   schemasAlong,

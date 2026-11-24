@@ -13,6 +13,7 @@
  */
 import { shown, trySync$ } from '@honeyglass/utils/ts';
 import {
+  aboutFile,
   alreadyExists,
   atField,
   declaration,
@@ -155,7 +156,10 @@ class Staging implements Writer {
     const at = handleOf(file);
     const old = readBytes(at, limit);
     const text = textOf(at, old);
-    const next = change(text);
+    // A stored kind the change reads knows no file, so a refusal of its text is said of it.
+    const changed = trySync$(() => change(text));
+    if (changed.error !== null) throw aboutFile(changed.error, at.rel);
+    const next = changed.data;
     const { disk } = located();
     const bytes = disk.encode(next);
     const to = this.#once(openedOrThrown(target(at.root, at.rel)));
