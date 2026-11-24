@@ -4,13 +4,16 @@
  * started: the answer, and its text for a person at a terminal.
  *
  * The answer holds the name, the version, what the tool does, the path of the skill, the commands
- * and the first steps, and no data of the tool (decision 72): data comes from a command. A tool
- * cannot name a skill yet, so `skill` is null. Without `start`, the first step is `schema`.
+ * and the first steps, and no data of the tool (decision 72): data comes from a command. The
+ * absolute path of the skill needs the folder of the tool's package.json, and how adx finds that
+ * folder is not decided yet (decision 36), so `skill` is null. Without `start`, the first step is
+ * `schema`.
  *
  * @example if (routed.words.length === 0) return started(shell);
  */
 import { commandsIn } from "../command/index.js";
 import { everySchema, stepAnswer } from "../steps/index.js";
+import { knows } from "./schema.js";
 import { columns } from "./text.js";
 /**
  * @param shell - what the call reads of the tool
@@ -19,7 +22,7 @@ import { columns } from "./text.js";
 export async function started(shell, folders) {
     const commands = commandsIn(shell.commands, []);
     const steps = (await shell.start?.()) ?? [everySchema];
-    const next = await Promise.all(steps.map(step => stepAnswer(step, { tool: shell.name, input: {}, folders })));
+    const next = await Promise.all(steps.map(step => stepAnswer(step, { tool: shell.name, input: {}, folders, knowsSchema: knows(shell) })));
     const result = {
         name: shell.name,
         version: shell.version,

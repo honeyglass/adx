@@ -4,6 +4,7 @@
  * Hint, hint: the command for every issue of one code, for a command its folder does not import.
  * hintFor: the step of the hint for a code, by the name an issue carries.
  * codeOf: the name of the code a hint stands for, so the tool finds two hints for one code.
+ * stepOfHint: the step a hint names, which the start checks before any call.
  *
  * The function gets nothing, so adx can call it without a call. Nothing is checked when hint()
  * is called, since a tool makes its hints when its files load.
@@ -40,6 +41,9 @@ class Helped implements Hint {
 
 /** @returns the name of the code the hint stands for, or undefined for any other value */
 export const codeOf = (made: Hint) => helping.get(made)?.code;
+
+/** @returns the step the hint names, or undefined for any other value */
+export const stepOfHint = (made: Hint) => helping.get(made)?.step();
 
 /**
  * @param hints - the hints of the tool, at most one per code, as the start checks

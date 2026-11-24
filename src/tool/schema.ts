@@ -2,7 +2,8 @@
  * adx's own command `schema`: what every command takes, the shapes, the kinds and the codes.
  *
  * namesSchema, schemaAnswer: whether a call names `schema`, and its answer.
- * schemaTargetOf: the shape or the command a name after `schema` shows.
+ * schemaTargetOf, knows: the shape or the command a name after `schema` shows, and whether
+ * `schema` knows a name.
  *
  * `schema` alone names every command with its input, the shapes, the roots with their variable
  * and option, the variables of the remotes, never their values, the stored kinds with the
@@ -71,6 +72,9 @@ export function schemaTargetOf(shell: Shell, name: string) {
   const runner = [...runnersIn(shell.commands)].find(listed => listed.name === name);
   return runner === undefined ? undefined : { runner };
 }
+
+/** @returns whether `schema` of the tool shows the name, for a step to it */
+export const knows = (shell: Shell) => (name: string) => schemaTargetOf(shell, name) !== undefined;
 
 function overviewOf(shell: Shell) {
   const commands = [...runnersIn(shell.commands)].map(runner => ({

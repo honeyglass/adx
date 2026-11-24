@@ -14,6 +14,8 @@ class Helped {
 }
 /** @returns the name of the code the hint stands for, or undefined for any other value */
 export const codeOf = (made) => helping.get(made)?.code;
+/** @returns the step the hint names, or undefined for any other value */
+export const stepOfHint = (made) => helping.get(made)?.step();
 /**
  * @param hints - the hints of the tool, at most one per code, as the start checks
  * @param code - the code of an issue

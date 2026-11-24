@@ -40,6 +40,7 @@ import { hintFor, schema, stepAnswer } from "../steps/index.js";
 import { sources } from "../values/index.js";
 import { detailsOf } from "./detail.js";
 import { inScratch } from "./scene.js";
+import { knows } from "./schema.js";
 /**
  * @param shell - what the call reads of the tool
  * @param call - the command, the input as its caller gave it, and what the run is asked for
@@ -61,7 +62,7 @@ export function invoked(shell, call) {
 }
 async function answeredIn(shell, call, roots, line) {
     const input = call.runner.shown(isRecord(call.input) ? call.input : {});
-    const context = { tool: shell.name, input, folders: roots.moved() };
+    const context = { tool: shell.name, input, folders: roots.moved(), knowsSchema: knows(shell) };
     const staged = staging({
         replace: call.runner.spec.replace,
         replacing: call.run.replace,

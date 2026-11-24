@@ -6,7 +6,8 @@ export type NextStep = {
 };
 /**
  * `tool` names the tool that answers; `input` is the input of the call as its caller gave it;
- * `folders` holds each root the call moved, by its option, so a named command lands there too.
+ * `folders` holds each root the call moved, by its option, so a named command lands there too;
+ * `knowsSchema` says whether the tool's `schema` shows a name.
  */
 export type Context = {
     tool: string;

@@ -9,7 +9,7 @@ export { answerOfError, answerOfRefused, failed, refusedOf } from "./failed.js";
 export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from "./issue.js";
 export { STDIN_LIMIT } from "./limits.js";
 export { aboutFile, aboutText, lookOf, NOTHING_CHANGED, Refused, refusedWith, UNKNOWN_STATE, withLook, } from "./refused.js";
-export { baseOf, brokenLinesIn, failuresOf, keysOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, } from "./shape.js";
+export { baseOf, brokenLinesIn, failuresOf, ID, isId, keysOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, } from "./shape.js";
 export { freshBrand, needsBrand, refBrand } from "./source.js";
 export { status } from "./status.js";
 export { issueOf } from "./unmapped.js";

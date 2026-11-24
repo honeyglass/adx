@@ -150,7 +150,7 @@ test('schema of a command shows its input as JSON Schema, what it takes and its 
   );
   assert.deepEqual(
     shown.options.map(o => o.option),
-    ['--json', '--help', '--fields'],
+    ['--json', '--output', '--help', '--fields'],
   );
 });
 

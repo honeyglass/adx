@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { z } from 'zod';
-import { effect, envDir, id, outFile, root, tool } from '@honeyglass/adx';
+import { effect, envDir, fresh, id, outFile, root, tool } from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
 
@@ -28,9 +28,13 @@ const friendFile = (name: string) => home.file(`friends/${name}.json`);
 
 const Friend = z.object({ name: id(), lang: z.string() });
 
+// An id() field needs a source; this one lists the names taken and refuses none.
+const taken = fresh(async () => (await home.list('friends', '.json')).map(file => file.stem));
+
 const add = effect({
   does: 'remembers a friend',
   input: Friend,
+  values: { name: taken },
   example: { name: 'ada', lang: 'de' },
   plan: (friend, { files }) => files.write(friendFile(friend.name), JSON.stringify(friend)),
 });
@@ -38,6 +42,7 @@ const add = effect({
 const keep = effect({
   does: 'remembers a friend once',
   input: Friend,
+  values: { name: taken },
   example: { name: 'ada', lang: 'de' },
   replace: false,
   plan: (friend, { files }) => files.write(friendFile(friend.name), JSON.stringify(friend)),
@@ -46,6 +51,7 @@ const keep = effect({
 const edit = effect({
   does: "changes a friend's language",
   input: Friend,
+  values: { name: taken },
   example: { name: 'ada', lang: 'en' },
   replace: false,
   plan: ({ name, lang }, { files }) =>

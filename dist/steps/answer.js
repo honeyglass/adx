@@ -10,6 +10,8 @@
  * --json takes, then each folder the call moved (decision 13); a listed field comes after them,
  * alone, with no value, so the call lists its values, and the options of adx come last. `needs`
  * names each required field the line leaves open, and each the step names, but never a listed one.
+ * A step to `schema` names a shape or a command the tool's `schema` knows (decision 77); a step
+ * made in a function, such as in `next`, is checked here, where the answer writes it out.
  *
  * @example const next = await stepAnswer(greet.step(), { tool: 'hello', input, folders: [] });
  */
@@ -20,7 +22,8 @@ import { schemaNameOf } from "./schema.js";
  * @param step - a step a command, a hint or the tool named
  * @param context - the call that answers it
  * @returns the step as the answer writes it; a step from tell has no command
- * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists
+ * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists, or to a name
+ * `schema` does not know
  */
 export async function stepAnswer(step, context) {
     const parts = partsOfStep(step);
@@ -28,6 +31,10 @@ export async function stepAnswer(step, context) {
         return commandAnswer(parts, context);
     const name = schemaNameOf(step);
     if (name !== undefined) {
+        if (name !== '' && context.knowsSchema(name) === false) {
+            const message = `a step names ${context.tool} schema ${name}, and schema knows no ${name}`;
+            throw refusedWith([declaration.issue(message)], UNKNOWN_STATE);
+        }
         const words = name === '' ? [] : name.split(' ');
         return { does: step.does, command: lineOf([context.tool, 'schema', ...words]) };
     }

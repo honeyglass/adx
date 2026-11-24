@@ -9,6 +9,7 @@
  * layersOf, baseOf, schemasAlong, failuresOf, unknownKeysIn, keysOf: a Zod schema's layers and
  * parts, the failures of a parse, the keys an object would drop, and those it names.
  * MULTILINE, brokenLinesIn: the mark of multiline(), and each plain string that is no one line.
+ * ID, isId: the check of id(), and whether a field is one.
  * codePointsIn: the length of a text in characters.
  * Page, Listing: one page a list asks for, and what its handler answers.
  * Step, CommandStep, commandStep, Target, StepOption, partsOfStep: a next move, and one to a
@@ -57,7 +58,7 @@ export type { Kind } from './kind.ts';
 export { STDIN_LIMIT } from './limits.ts';
 export { aboutFile, aboutText, lookOf, NOTHING_CHANGED, Refused, refusedWith, UNKNOWN_STATE, withLook, } from './refused.ts';
 export type { Failure } from './shape.ts';
-export { baseOf, brokenLinesIn, failuresOf, keysOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, } from './shape.ts';
+export { baseOf, brokenLinesIn, failuresOf, ID, isId, keysOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, } from './shape.ts';
 export type { AnyList, Choice, Declared, Fresh, Known, Listed, ListRef, Needs, Source, Sourced, Sources, } from './source.ts';
 export { freshBrand, needsBrand, refBrand } from './source.ts';
 export type { Act, Address, Auth, Fake, Incoming, Network, Outgoing, Remote, Request, Unreached, } from './remote.ts';

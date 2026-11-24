@@ -348,7 +348,7 @@ test('start names the first steps, among them a step to schema', async () => {
   ]);
 });
 
-test('an after or a step that names a command the tool does not list, and two hints for one code, are DECLARATION errors', async () => {
+test('an after, a hint or a step that names a command the tool does not list, and two hints for one code, are DECLARATION errors', async () => {
   const stray = read({ does: 'is listed nowhere', run: () => ({}) });
   const named = read({ does: 'names a stray step', run: () => ({}), next: () => [stray.step()] });
   const followed = tool({
@@ -361,16 +361,63 @@ test('an after or a step that names a command the tool does not list, and two hi
   const declared = await answerOf(followed, 'greet');
   assert.deepEqual([declared.exit, declared.issues?.map(i => i.code)], [2, ['DECLARATION']]);
   const twice = code('TWICE', 'fix', 'x');
+  const listed = greetOne();
   const hinted = tool({
     name: 'hello',
     version: '0.1.0',
     does: 'x',
-    commands: { greet: greetOne() },
-    hints: [hint(twice, () => greet.step()), hint(twice, () => note.step())],
+    commands: { greet: listed },
+    hints: [hint(twice, () => listed.step()), hint(twice, () => listed.step())],
   });
   const doubled = await answerOf(hinted, 'greet');
   assert.deepEqual([doubled.exit, doubled.issues?.map(i => i.code)], [2, ['DECLARATION']]);
+  // the function of a hint gets nothing, so its step is checked before the call runs
+  const strayHint = tool({
+    name: 'hello',
+    version: '0.1.0',
+    does: 'x',
+    commands: { greet: greetOne() },
+    hints: [hint(twice, () => stray.step())],
+  });
+  const hintedAway = await answerOf(strayHint, 'greet');
+  assert.deepEqual(
+    [hintedAway.exit, hintedAway.issues?.map(i => i.message)],
+    [
+      2,
+      ['the hint for TWICE names the command that is listed nowhere, and hello does not list it'],
+    ],
+  );
   const stepped = tool({ name: 'hello', version: '0.1.0', does: 'x', commands: { named } });
   const answered = await answerOf(stepped, 'named');
   assert.deepEqual([answered.exit, answered.issues?.map(i => i.code)], [2, ['DECLARATION']]);
+});
+
+test('a step to schema with a name schema does not know is a DECLARATION error', async () => {
+  const person = z.object({ name: z.string() });
+  const pointing = (name: string) =>
+    read({ does: 'points at a schema', run: () => ({}), next: () => [schema.step(name)] });
+  const known = tool({
+    name: 'hello',
+    version: '0.1.0',
+    does: 'x',
+    shapes: { person },
+    commands: {
+      shape: pointing('person'),
+      command: pointing('friends add'),
+      friends: { add: greetOne() },
+    },
+  });
+  assert.deepEqual(commandsOf(await answerOf(known, 'shape')), ['hello schema person']);
+  assert.deepEqual(commandsOf(await answerOf(known, 'command')), ['hello schema friends add']);
+  const typo = tool({
+    name: 'hello',
+    version: '0.1.0',
+    does: 'x',
+    commands: { typo: pointing('persn') },
+  });
+  const refused = await answerOf(typo, 'typo');
+  assert.deepEqual(
+    [refused.exit, refused.issues?.map(i => i.message)],
+    [2, ['a step names hello schema persn, and schema knows no persn']],
+  );
 });

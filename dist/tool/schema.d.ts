@@ -23,3 +23,5 @@ export declare function schemaTargetOf(shell: Shell, name: string): {
     runner: Runner;
     shape?: undefined;
 } | undefined;
+/** @returns whether `schema` of the tool shows the name, for a step to it */
+export declare const knows: (shell: Shell) => (name: string) => boolean;

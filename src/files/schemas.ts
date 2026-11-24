@@ -12,12 +12,9 @@
  * @example const NoteIn = z.object({ file: outFile(home), text: multiline() });
  */
 import { z } from 'zod';
-import { MULTILINE } from '../core/index.ts';
+import { ID, MULTILINE } from '../core/index.ts';
 import type { Dir, File, Root } from '../core/index.ts';
 import { handle, tree } from './handle.ts';
-
-/** An allow-list: a character not named here, such as `.` or `/`, can lead out of a folder. */
-const ID = /^[A-Za-z0-9_-]+$/;
 
 export function dir(root: Root): z.ZodType<Dir, string> {
   return z.string().transform(rel => tree(root, rel));
@@ -32,7 +29,7 @@ export function outFile(root: Root): z.ZodType<File, string> {
 }
 
 export function id() {
-  return z.string().regex(ID, { error: 'an id holds letters, digits, - and _ only' });
+  return z.string().check(ID);
 }
 
 /** A string that may hold line breaks; a plain z.string() takes one line. */

@@ -54,6 +54,7 @@ import type { Context } from '../steps/index.ts';
 import { sources } from '../values/index.ts';
 import { detailsOf } from './detail.ts';
 import { inScratch } from './scene.ts';
+import { knows } from './schema.ts';
 import type { Shell } from './tool.ts';
 
 type Call = { runner: Runner; input: unknown; run: Run };
@@ -80,7 +81,7 @@ export function invoked(shell: Shell, call: Call & { scene: Scene }) {
 
 async function answeredIn(shell: Shell, call: Call, roots: Located, line: Line) {
   const input = call.runner.shown(isRecord(call.input) ? call.input : {});
-  const context = { tool: shell.name, input, folders: roots.moved() };
+  const context = { tool: shell.name, input, folders: roots.moved(), knowsSchema: knows(shell) };
   const staged = staging({
     replace: call.runner.spec.replace,
     replacing: call.run.replace,

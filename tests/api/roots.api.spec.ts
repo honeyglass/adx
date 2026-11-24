@@ -305,6 +305,39 @@ test('id() takes letters, digits, - and _ only; multiline() takes line breaks', 
   assert.equal(good.exit, 0);
 });
 
+test('an id() field needs a source in values, however the field is written', async () => {
+  const named = (input: z.ZodObject) =>
+    tool({
+      name: 'hello',
+      version: '0.1.0',
+      does: 'x',
+      commands: { show: read({ does: 'shows a friend', input, run: () => ({}) }) },
+    });
+  const bare = named(z.object({ name: id() }));
+  const ran = answerIn((await run(bare, ['show', '--name', 'ada'])).out, z.unknown());
+  assert.deepEqual(
+    ran.issues?.map(i => [i.code, i.message]),
+    [['DECLARATION', 'hello show has the id field name, and no source in values lists its values']],
+  );
+  const wrapped = named(z.object({ name: id().min(2).optional().describe('the friend') }));
+  assert.equal(codeOf(answerIn((await run(wrapped, ['show'])).out, z.unknown())), 'DECLARATION');
+  // an id inside a list, a union or a lazy schema is an id field too
+  for (const field of [
+    z.array(id()),
+    z.union([id(), z.number()]),
+    z.lazy(() => id()),
+    z.array(z.lazy(() => id().optional())).default([]),
+  ]) {
+    const inner = named(z.object({ name: field }));
+    const declared = answerIn((await run(inner, ['show'])).out, z.unknown());
+    assert.equal(codeOf(declared), 'DECLARATION');
+  }
+  const plain = named(z.object({ name: z.string() }));
+  assert.equal((await run(plain, ['show', '--name', 'ada'])).exit, 0);
+  // add of the tool above gives its id() field the source fresh(), so hello starts
+  assert.equal((await answer(['add', '--name', 'ada', '--dry-run'])).exit, 0);
+});
+
 test('every command takes --home, and a field named like a root is a DECLARATION error', async () => {
   const help = await answer(['show', '--help']);
   const options = z

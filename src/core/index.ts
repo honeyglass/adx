@@ -9,6 +9,7 @@
  * layersOf, baseOf, schemasAlong, failuresOf, unknownKeysIn, keysOf: a Zod schema's layers and
  * parts, the failures of a parse, the keys an object would drop, and those it names.
  * MULTILINE, brokenLinesIn: the mark of multiline(), and each plain string that is no one line.
+ * ID, isId: the check of id(), and whether a field is one.
  * codePointsIn: the length of a text in characters.
  * Page, Listing: one page a list asks for, and what its handler answers.
  * Step, CommandStep, commandStep, Target, StepOption, partsOfStep: a next move, and one to a
@@ -99,6 +100,8 @@ export {
   baseOf,
   brokenLinesIn,
   failuresOf,
+  ID,
+  isId,
   keysOf,
   layersOf,
   MULTILINE,
