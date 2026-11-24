@@ -35,20 +35,17 @@ type NotBuilt =
   | 'after'
   | 'bearer'
   | 'check'
-  | 'code'
   | 'cwd'
   | 'detailOf'
   | 'dir'
   | 'effect'
   | 'envDir'
   | 'envUrl'
-  | 'failed'
   | 'fresh'
   | 'global'
   | 'hint'
   | 'id'
   | 'inFile'
-  | 'Issue'
   | 'keyOf'
   | 'list'
   | 'marker'
@@ -56,25 +53,39 @@ type NotBuilt =
   | 'needs'
   | 'outFile'
   | 'paged'
-  | 'read'
-  | 'Refused'
   | 'remote'
   | 'root'
   | 'schema'
-  | 'status'
   | 'stored'
-  | 'tell'
-  | 'tool';
+  | 'tell';
 /**
  * The brands of index.d.ts. A .d.ts exports each top-level name, so its brands count as values,
  * yet they exist on the type level only and the package exports none of them.
  */
 type Brands =
   'builtFor' | 'follows' | 'freshBrand' | 'helps' | 'needsBrand' | 'realRun' | 'refBrand';
-type NotBuiltTest = 'conformance' | 'fake' | 'reply' | 'run';
+type NotBuiltTest = 'conformance' | 'fake' | 'reply';
+
+/**
+ * The built values whose declared type carries a brand of index.d.ts, such as the `builtFor` of
+ * a Command. A brand is a `unique symbol`, one type per declaration, so no built value fits a
+ * branded declaration. tests/tsconfig.json checks them by use instead: it compiles the files of
+ * proto/ that a package made work against dist/, and each package adds the files it made work.
+ */
+type ByUse = 'read';
 
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
-type TypePairs = [];
+type TypePairs = [
+  [Built.Answer<unknown>, Declared.Answer<unknown>],
+  [Built.Code, Declared.Code],
+  [Built.Issue, Declared.Issue],
+  [Built.Kind, Declared.Kind],
+  [Built.Refused, Declared.Refused],
+  [Built.Step, Declared.Step],
+  [Built.Tool, Declared.Tool],
+  [BuiltTest.Checked, DeclaredTest.Checked],
+  [BuiltTest.Ran, DeclaredTest.Ran],
+];
 /** Each index whose built type is any or differs from its declaration in either direction. */
 type UnfitTypes<P> = {
   [I in keyof P]: P[I] extends [infer B, infer D] ? (Same<B, D> extends true ? never : I) : I;
@@ -83,7 +94,8 @@ type Same<B, D> =
   IsAny<B> extends true ? false : [B] extends [D] ? ([D] extends [B] ? true : false) : false;
 
 export type Checked = [
-  Nothing<Unfit<typeof Built, typeof Declared>>,
+  Nothing<Unfit<Omit<typeof Built, ByUse>, typeof Declared>>,
+  Nothing<Exclude<ByUse, keyof typeof Built>>,
   Nothing<Undeclared<typeof Built, typeof Declared>>,
   Nothing<Exclude<Missing<typeof Built, typeof Declared>, NotBuilt | Brands>>,
   Nothing<Exclude<NotBuilt, Missing<typeof Built, typeof Declared>>>,

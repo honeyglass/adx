@@ -4,5 +4,5 @@
     "noEmit": true,
     "skipLibCheck": false
   },
-  "include": ["."]
+  "include": [".", "../proto/hello.ts"]
 }
