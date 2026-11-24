@@ -11,7 +11,7 @@ changes an earlier one, both say so.
    tokens itself: an option followed by another option counts as given without a value, an unknown
    option is collected and reading goes on, all mistakes of a call come back in one answer.
    Routing and help come from adx's own command table.
-3. **`unbash` in the test kit** splits every command a tool names in `next` or in a hint into shell
+3. **`unbash` in the test kit** (a dependency of adx, 84) splits every command a tool names in `next` or in a hint into shell
    words, and the kit checks that adx knows each call. That holds for the command of a `hint` (73)
    too. One whole call in the process of the test: 74.
 4. **The agent skill is not part of the toolkit.** adx never reads, embeds or prints a skill.
@@ -19,11 +19,11 @@ changes an earlier one, both say so.
    (rule 14, `hello.start(...)`; since 65 the property `start` of the tool) and from hints in
    refusals; care that is no step belongs in the skill. What the start answer holds, and that a
    tool adds no data to it: 72.
-6. **RxJS under the hood of `api`.** Retries, timeouts and cancelling several requests run on RxJS
+6. **RxJS under the hood of `api`** (a dependency of adx, 83). Retries, timeouts and cancelling several requests run on RxJS
    inside adx; the author never sees it. `api` stays its own thing rather than plain `fetch`: it checks
    every answer against a schema, maps a status to a kind, sends only through `act.send` in `apply`
    (so a dry run cannot send), and lets the test kit fake the server.
-7. **`skill` is optional, a path.** Without it there is no skill and nothing is checked. With it, the
+7. **`skill` is optional, a path** (since 82 a name). Without it there is no skill and nothing is checked. With it, the
    test kit checks that the file exists and that it is a skill: a frontmatter with `name` and
    `description`. The kit does not read the commands, options or codes in it; the tool explains
    itself, and an agent finds out the rest from it. Rule 6 keeps its basic form; its strong form
@@ -196,7 +196,7 @@ confirmed each recommendation).
 35. **The default folder may be missing.** A folder named by `--home` or the variable must exist
     (`ROOT_NOT_FOUND`, 32). The default folder, such as `~/.hello`, may be missing; the first real write
     creates it (modes: 17). A read and a dry run create nothing.
-36. **The form of the skill path.** A plain string, relative to the folder of the tool's `package.json`:
+36. **The form of the skill path** (replaced by 82). A plain string, relative to the folder of the tool's `package.json`:
     `skill: 'SKILL.md'`. The start answer shows the absolute path, or `null` without a skill.
 37. **Stored kinds register in the tool.** `tool({ stored: [Friend] })`. The test kit writes the
     fingerprint of each stored schema (21) into a file next to `package.json` on its first run; after
@@ -642,6 +642,30 @@ decision, both say so.
     - Use case, oriko: `profile set` with the profile that is already stored answers ok and
       writes nothing.
     - Type-checked in `proto/oriko/tests/oriko.test.ts`.
+
+The next three settle points the build of adx left open (the person, 2026-11-24).
+
+82. **A tool names its skill by name, and the skill lies where Claude Code looks for it**
+    (changes 7 and 36):
+    - `skill` in `tool()` takes the name of the skill, such as `skill: 'oriko'`, not a path.
+    - The skill lies at the standard place of Claude Code, `~/.claude/skills/<name>/SKILL.md`.
+      The tool's own install puts it there: oriko's `install.sh` links it.
+    - The start answer shows the name, or `null` without a skill.
+    - adx no longer looks for the tool's `package.json` because of the skill. The fingerprint
+      file of 37 still lies next to `package.json`.
+    - The test kit's check "agent skill" checks the skill by its name: the file exists and starts
+      with a frontmatter that has `name` and `description`, as 7 says.
+    - Reason: Claude Code finds a skill at its standard place, not next to the tool. A path
+      relative to `package.json` made adx find that folder at run time, which no rule settled.
+83. **RxJS is a dependency of adx** (confirms 6):
+    - Retries, timeouts and the cancelling of requests run on RxJS, inside adx; the author never
+      sees it.
+    - adx names the newest version that `minimumReleaseAge` lets through, at least three days old.
+    - Reason: the first build used a plain loop, because its brief forbade new dependencies. That
+      brief was wrong; 6 stands.
+84. **`unbash` is a dependency of adx** (confirms 3):
+    - The test kit splits every named command with `unbash`. It replaces adx's own splitter.
+    - Reason: as for 83, the brief of the first build was wrong; 3 stands.
 
 ## Clarifications
 
