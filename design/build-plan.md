@@ -111,7 +111,7 @@ round is done. The e2e line names the tests the package turns green.
 - e2e: ship
 
 ### P9 stored
-- [ ] `stored()`, format numbers, older formats converted, newer refused
+- [x] `stored()`, format numbers, older formats converted, newer refused
 
 ### P10 finish
 - [ ] the start checks: utils present (75), hint and schema names known (73, 77)
