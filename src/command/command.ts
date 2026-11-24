@@ -77,8 +77,15 @@ export class Command<
   /** Answers as the tool prints it: a refusal and a bug resolve as an answer, never reject. */
   invoke(input: Given<I> & UseGiven<Given<G>, U>, options?: InvokeOptions): Promise<Answer<O>>;
   async invoke(input: unknown, options: InvokeOptions = {}): Promise<Answer<unknown>> {
-    const run = { dryRun: options.dryRun ?? false, fields: undefined, lists: undefined };
-    const { data, error } = await $try(() => this.#runner.through(input, run));
+    const run = {
+      dryRun: options.dryRun ?? false,
+      fields: undefined,
+      lists: undefined,
+      replace: options.replace ?? false,
+      folders: {},
+    };
+    const scene = { env: options.env, seed: options.seed };
+    const { data, error } = await $try(() => this.#runner.through(input, run, scene));
     return error === null ? data.answer : answerOfError(error).answer;
   }
 }

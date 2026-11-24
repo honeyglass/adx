@@ -49,6 +49,14 @@ export const withCommand = (issue, step) => partsOf(issue).step === undefined ? 
  */
 export const withHint = (issue, hint) => new Issue(issue.code, issue.path, { ...partsOf(issue), hint });
 /**
+ * For an issue of a value that came from a field, such as a file whose path the input named.
+ *
+ * @param issue - an issue at no field
+ * @param path - the field, and the place below it
+ * @returns the issue at that place
+ */
+export const atField = (issue, path) => new Issue(issue.code, path, partsOf(issue));
+/**
  * The tool names the command of such an issue, since only it knows its shapes.
  *
  * @param issue - a SCHEMA issue

@@ -17,7 +17,7 @@
  * @example const greet = read({ does: 'greets', input, example: { name: 'Ada' }, run });
  */
 import type { z } from 'zod';
-import type { Declared, Fresh, Issue, ListRef, Refused, Source, Step } from '../core/index.ts';
+import type { Declared, Files, Fresh, Issue, ListRef, Refused, Source, Step } from '../core/index.ts';
 import type { Entry } from './command.ts';
 export type Obj = z.ZodObject;
 export type Empty = z.ZodObject<{}>;
@@ -109,8 +109,16 @@ export interface ListSpec<I extends Obj, G extends Obj, T extends Obj, U = {}, L
     text?: (item: In<T>) => string;
 }
 export interface EffectSpec<I extends Obj, G extends Obj, O, A extends object | void, U = {}, L extends Field<I> = never> extends Common<I, G, U, Merged<O, A>, Always, L> {
-    /** Runs every check. Its answer is the answer of the dry run. */
+    /**
+     * Every effect takes `--replace`. `false` switches the option off, and `schema` does not list it.
+     * `'always'` switches it off too, and is for a command that writes derived files, ones the tool
+     * builds again from what it stores: every `files.write` of the command replaces an existing file
+     * without the option, and `schema` shows it.
+     */
+    replace?: false | 'always';
+    /** Runs every check and stages every file. Its answer is the answer of the dry run. */
     plan: (input: All<I, G, U>, ctx: {
+        files: Files;
         refuse: Refuse<Fields<I, G, U>>;
     }) => Out<O, I, G, U>;
     /**
@@ -124,7 +132,10 @@ export interface EffectSpec<I extends Obj, G extends Obj, O, A extends object | 
     text?: (out: Either<O, A>) => string;
 }
 export interface InvokeOptions {
+    env?: Record<string, string>;
+    seed?: string;
     dryRun?: boolean;
+    replace?: boolean;
 }
 /** The refuse of any handler, as a method, so the refuse of each typed spec fits it. */
 type LooseRefuse = {
@@ -143,11 +154,14 @@ export interface Spec {
     readonly values?: SourceTable;
     readonly output?: z.ZodType;
     readonly pageSize?: number;
+    readonly replace?: false | 'always';
     check?(input: unknown): readonly Issue[];
     run?(input: unknown, ctx: LooseRefuse & {
         page?: Page;
     }): unknown;
-    plan?(input: unknown, ctx: LooseRefuse): unknown;
+    plan?(input: unknown, ctx: LooseRefuse & {
+        files?: Files;
+    }): unknown;
     apply?(input: unknown, ctx: LooseRefuse & {
         planned: unknown;
     }): unknown;

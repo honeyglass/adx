@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { z } from 'zod';
-import { after, code, effect, global, hint, read, schema, tell, tool } from '@honeyglass/adx';
+import {
+  after,
+  code,
+  effect,
+  global,
+  hint,
+  multiline,
+  read,
+  schema,
+  tell,
+  tool,
+} from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
 
@@ -24,7 +35,7 @@ const add = effect({
 
 const note = read({
   does: 'notes a name',
-  input: z.object({ text: z.string() }),
+  input: z.object({ text: multiline() }),
   run: ({ text }) => ({ text }),
   next: (_, { text }) => [greet.step({ name: text }).needs('style')],
 });

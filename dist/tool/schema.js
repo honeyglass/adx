@@ -4,15 +4,17 @@
  * namesSchema, schemaAnswer: whether a call names `schema`, and its answer.
  * schemaTargetOf: the shape or the command a name after `schema` shows.
  *
- * `schema` alone names every command with its input, the shapes, what each kind asks the caller
- * and adx's own codes. `schema <command>` shows the input as JSON Schema with what --help shows,
- * and `schema <shape>` the shape. Each prints the JSON Schema of the same Zod schema adx checks
- * with, so the two never differ. `schema` comes before the command table, and takes no option.
+ * `schema` alone names every command with its input, the shapes, the roots with their variable
+ * and option, what each kind asks the caller and adx's own codes. `schema <command>` shows the
+ * input as JSON Schema with what --help shows, and `schema <shape>` the shape. Each prints the
+ * JSON Schema of the same Zod schema adx checks with, so the two never differ. `schema` comes
+ * before the command table, and takes no option.
  *
  * @example if (namesSchema(tokens)) return schemaAnswer(shell, tokens);
  */
 import { refused, runnersIn } from "../command/index.js";
 import { ADX_CODES, exitOf, factsOf, unknownCommand, unknownOption } from "../core/index.js";
+import { rootOptions } from "../files/index.js";
 import { jsonSchemaOf } from "../shapes/index.js";
 /** The word of adx's own command. */
 const SCHEMA = 'schema';
@@ -69,7 +71,12 @@ function overviewOf(shell) {
         input: jsonSchemaOf(runner.input, 'input'),
     }));
     const kinds = Object.fromEntries(KINDS.map(([kind, does]) => [kind, { exit: exitOf({ ok: false, kind }), does }]));
-    return { commands, shapes: Object.keys(shell.shapes), kinds, codes: ADX_CODES.map(factsOf) };
+    const roots = rootOptions(shell.roots).map(({ name, variable }) => ({
+        root: name,
+        ...(variable === undefined ? {} : { variable, option: `--${name}` }),
+    }));
+    const codes = ADX_CODES.map(factsOf);
+    return { commands, shapes: Object.keys(shell.shapes), roots, kinds, codes };
 }
 function commandSchemaOf(runner) {
     const { command, does, ...facts } = runner.schemaFacts();

@@ -9,6 +9,9 @@
  * nothing piped in, and stdin past its limit.
  * notInList, notInListAt: a value outside the list of its option, and its issue at a field.
  * schemaFailed: an input that fails the schema of its command.
+ * pathOutside, fileNotFound, notAFile, notAFolder, alreadyExists: a path out of its root, a
+ * missing file, an entry of the wrong kind, and a file a write would replace without --replace.
+ * rootNotFound, storedInvalid: a root that is not there, and a file that fails its schema.
  * declaration: a setup of the tool that is wrong in a way the compiler cannot see.
  * systemRefused, networkFailed, serverBusy, accessRefused, remoteRefused: an error nobody mapped.
  * unknownError: any other error, a bug.
@@ -69,6 +72,33 @@ export const notInList = code('NOT_IN_LIST', 'fix', 'Use a value the list answer
 export const notInListAt = (path: Path<string>, value: unknown) =>
   notInList.at(path, `${JSON.stringify(value)} is not in the list of ${path[0]}`);
 
+export const pathOutside = code('PATH_OUTSIDE', 'fix', 'Name a path inside the folder of the root');
+
+export const fileNotFound = code('FILE_NOT_FOUND', 'fix', 'Name a file that exists');
+
+export const notAFile = code('NOT_A_FILE', 'fix', 'Name a file, not a folder');
+
+export const notAFolder = code('NOT_A_FOLDER', 'fix', 'Name a folder, not a file');
+
+/** Its issues say per file whether --replace helps, since a command may not take it. */
+export const alreadyExists = code(
+  'ALREADY_EXISTS',
+  'fix',
+  'Add --replace to overwrite the file, or pick another name',
+);
+
+export const rootNotFound = code(
+  'ROOT_NOT_FOUND',
+  'ask',
+  'Ask the person for the folder: the one the message names is not there',
+);
+
+export const storedInvalid = code(
+  'STORED_INVALID',
+  'ask',
+  'Ask the person to fix the file the message names',
+);
+
 export const declaration = code(
   'DECLARATION',
   'bug',
@@ -113,9 +143,16 @@ export const ADX_CODES = [
   inputTooLarge,
   schemaFailed,
   notInList,
+  pathOutside,
+  fileNotFound,
+  notAFile,
+  notAFolder,
+  alreadyExists,
+  rootNotFound,
   systemRefused,
   accessRefused,
   remoteRefused,
+  storedInvalid,
   networkFailed,
   serverBusy,
   declaration,

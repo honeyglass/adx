@@ -36,8 +36,15 @@ export class Command {
         return commandStep(this.#runner, { ...input });
     }
     async invoke(input, options = {}) {
-        const run = { dryRun: options.dryRun ?? false, fields: undefined, lists: undefined };
-        const { data, error } = await $try(() => this.#runner.through(input, run));
+        const run = {
+            dryRun: options.dryRun ?? false,
+            fields: undefined,
+            lists: undefined,
+            replace: options.replace ?? false,
+            folders: {},
+        };
+        const scene = { env: options.env, seed: options.seed };
+        const { data, error } = await $try(() => this.#runner.through(input, run, scene));
         return error === null ? data.answer : answerOfError(error).answer;
     }
 }

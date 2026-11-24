@@ -11,16 +11,20 @@
  */
 import { commandsIn } from '../command/index.ts';
 import type { Answered } from '../command/index.ts';
+import type { Moved } from '../files/index.ts';
 import { everySchema, stepAnswer } from '../steps/index.ts';
 import { columns } from './text.ts';
 import type { Shell } from './tool.ts';
 
-/** @param shell - what the call reads of the tool */
-export async function started(shell: Shell): Promise<Answered> {
+/**
+ * @param shell - what the call reads of the tool
+ * @param folders - each root the call moved, which the steps carry
+ */
+export async function started(shell: Shell, folders: readonly Moved[]): Promise<Answered> {
   const commands = commandsIn(shell.commands, []);
   const steps = (await shell.start?.()) ?? [everySchema];
   const next = await Promise.all(
-    steps.map(step => stepAnswer(step, { tool: shell.name, input: {} })),
+    steps.map(step => stepAnswer(step, { tool: shell.name, input: {}, folders })),
   );
   const result = {
     name: shell.name,

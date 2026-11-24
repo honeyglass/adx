@@ -32,21 +32,7 @@ type Undeclared<B, D> = Exclude<keyof B, keyof D>;
 type Missing<B, D> = Exclude<keyof D, keyof B>;
 
 /** The declared values the package does not export yet; never once all are built. */
-type NotBuilt =
-  | 'bearer'
-  | 'cwd'
-  | 'dir'
-  | 'envDir'
-  | 'envUrl'
-  | 'id'
-  | 'inFile'
-  | 'marker'
-  | 'multiline'
-  | 'outFile'
-  | 'paged'
-  | 'remote'
-  | 'root'
-  | 'stored';
+type NotBuilt = 'bearer' | 'envUrl' | 'paged' | 'remote' | 'stored';
 /**
  * The brands of index.d.ts. A .d.ts exports each top-level name, so its brands count as values,
  * yet they exist on the type level only and the package exports none of them.
@@ -82,16 +68,23 @@ type StepInput = { cv: string; block: string };
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
 type TypePairs = [
   [Built.Answer<unknown>, Declared.Answer<unknown>],
+  [Built.Changes, Declared.Changes],
   [Built.Choice, Declared.Choice],
   [Built.Code, Declared.Code],
   [Built.CommandStep<StepInput, 'block'>, Declared.CommandStep<StepInput, 'block'>],
+  [Built.Dir, Declared.Dir],
   [Built.Field<Sample>, Declared.Field<Sample>],
+  [Built.File, Declared.File],
+  [Built.Files, Declared.Files],
   [Built.GlobalUse<Sample>, Declared.GlobalUse<Sample>],
   [Built.Issue, Declared.Issue],
   [Built.Kind, Declared.Kind],
   [Built.Refused, Declared.Refused],
+  [Built.Root, Declared.Root],
+  [Built.RootSource, Declared.RootSource],
   [Built.Step, Declared.Step],
   [Built.Tool, Declared.Tool],
+  [Built.Written, Declared.Written],
   [BuiltTest.Checked, DeclaredTest.Checked],
   [BuiltTest.Ran, DeclaredTest.Ran],
 ];

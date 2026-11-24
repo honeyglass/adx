@@ -5,13 +5,17 @@
  * schemasAlong: every schema a path passes inside a schema, for the shape a SCHEMA issue lies in.
  * Failure, failuresOf: one issue of a parse as the places and messages of SCHEMA issues.
  * unknownKeysIn: each key of a value that an object of the schema does not name.
+ * MULTILINE, brokenLinesIn: the mark of a string that may hold line breaks, and each plain string
+ * of a value that holds a line break or another control character.
  *
  * The input check of a command and check() of a handler both answer SCHEMA, so both say it alike.
  * Zod drops a key an object does not name; adx refuses it, at any depth (rule 15). An object that
  * declares its other keys, loose or with a catchall, and a record keep them. A union takes the
  * first option that passes the value, a discriminated union the one its key names, and a
- * preprocess the schema after it, with the value it makes. This is the one file of core/ that
- * calls Zod.
+ * preprocess the schema after it, with the value it makes. A plain `z.string()` takes one
+ * visible line, so adx refuses a line break or another control character in it, at any depth;
+ * `multiline()` carries the mark that lets line breaks and tabs through. This is the one file of
+ * core/ that calls Zod.
  *
  * @example const failures = [...unknownKeysIn(shape, value), ...parsed.error.issues.flatMap(failuresOf)];
  */
@@ -49,4 +53,13 @@ export declare function failuresOf(issue: z.core.$ZodIssue): Failure[];
  * @returns one failure per key an object drops, at its place below the value
  */
 export declare function unknownKeysIn(schema: z.core.$ZodType, value: unknown, below?: Part[]): Failure[];
+/** The check multiline() carries: it lets line breaks and tabs through, and no other control. */
+export declare const MULTILINE: z.core.$ZodCheck<string>;
+/**
+ * @param schema - the schema of the value
+ * @param value - the value as the caller gave it
+ * @param below - the place of the value inside the one the walk began at
+ * @returns one failure per string of a plain z.string() that does not keep to one line
+ */
+export declare function brokenLinesIn(schema: z.core.$ZodType, value: unknown, below?: Part[]): Failure[];
 export {};

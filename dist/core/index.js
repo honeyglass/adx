@@ -1,14 +1,14 @@
 export { exitOf, refusalAnswer } from "./answer.js";
 export { code, factsOf } from "./code.js";
-export { ADX_CODES, declaration, inputTooLarge, invalidJson, missingInput, missingValue, notInList, notInListAt, optionBeforeCommand, repeatedOption, schemaFailed, systemRefused, unexpectedArgument, unexpectedValue, unknownCommand, unknownOption, } from "./codes.js";
+export { ADX_CODES, alreadyExists, declaration, fileNotFound, inputTooLarge, invalidJson, missingInput, missingValue, notAFile, notAFolder, notInList, notInListAt, optionBeforeCommand, pathOutside, repeatedOption, rootNotFound, schemaFailed, storedInvalid, systemRefused, unexpectedArgument, unexpectedValue, unknownCommand, unknownOption, } from "./codes.js";
 export { isDecimal } from "./decimal.js";
 export { escaped, oneLine } from "./escape.js";
 export { codePointsIn } from "./length.js";
 export { answerOfError, answerOfRefused, failed, refusedOf } from "./failed.js";
-export { Issue, placed, placeOf, stepOf, withCommand, withHint } from "./issue.js";
+export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from "./issue.js";
 export { STDIN_LIMIT } from "./limits.js";
 export { NOTHING_CHANGED, Refused, refusedWith, UNKNOWN_STATE } from "./refused.js";
-export { baseOf, failuresOf, layersOf, schemasAlong, unknownKeysIn } from "./shape.js";
+export { baseOf, brokenLinesIn, failuresOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, } from "./shape.js";
 export { freshBrand, needsBrand, refBrand } from "./source.js";
 export { status } from "./status.js";
 export { commandStep, partsOfStep } from "./step.js";

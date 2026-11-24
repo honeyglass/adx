@@ -13,7 +13,8 @@ import { $try } from '@honeyglass/utils/ts';
 import { listed, refused, route } from '../command/index.ts';
 import type { Answered, Runner } from '../command/index.ts';
 import { answerOfError, exitOf } from '../core/index.ts';
-import type { Around, Issue, Ran, Stdin, Token } from '../core/index.ts';
+import type { Around, Issue, Ran, Surroundings, Token } from '../core/index.ts';
+import { Located, within } from '../files/index.ts';
 import { namesSchema, schemaAnswer } from './schema.ts';
 import { setupIssues } from './setup.ts';
 import { started } from './start.ts';
@@ -35,13 +36,14 @@ export async function call(shell: Shell, around: Around): Promise<Ran> {
 }
 
 // The setup first, so a mistake in it shows on every call, then the words, then the command.
-async function answered(shell: Shell, { tokens, stdin }: Around): Promise<Answered> {
+async function answered(shell: Shell, around: Around): Promise<Answered> {
+  const { tokens } = around;
   const [wrong, ...more] = setupIssues(shell);
   if (wrong !== undefined) return refused([wrong, ...more]);
   if (namesSchema(tokens)) return schemaAnswer(shell, tokens);
   const routed = route(shell.commands, tokens, shell.name);
-  if (routed.found === 'command') return commandAnswered(shell, routed, stdin);
-  if (routed.found === 'group' && routed.words.length === 0) return started(shell);
+  if (routed.found === 'command') return commandAnswered(shell, routed, around);
+  if (routed.found === 'group' && routed.words.length === 0) return startedIn(shell, around);
   if (routed.found === 'group') return listed(routed.table, [shell.name, ...routed.words]);
   const [first, ...rest] = routed.issues;
   return refused([first, ...rest]);
@@ -51,10 +53,18 @@ async function answered(shell: Shell, { tokens, stdin }: Around): Promise<Answer
 async function commandAnswered(
   shell: Shell,
   routed: { runner: Runner; rest: readonly Token[]; before: readonly Issue[] },
-  stdin: Stdin,
+  around: Around,
 ) {
-  const read = await routed.runner.read(routed.rest, routed.before, stdin);
-  return 'answer' in read ? read : through(shell, { runner: routed.runner, ...read });
+  const read = await routed.runner.read(routed.rest, routed.before, around.stdin);
+  return 'answer' in read ? read : through(shell, { runner: routed.runner, ...read }, around);
+}
+
+// The first steps carry a folder the variable moved, as every step does (decision 13).
+async function startedIn(shell: Shell, around: Surroundings) {
+  const roots = new Located(shell, around, {});
+  const [missing, ...more] = roots.issues();
+  if (missing !== undefined) return refused([missing, ...more]);
+  return within(roots, () => started(shell, roots.moved()));
 }
 
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.

@@ -1,16 +1,16 @@
 // proto/examples/check.ts as a program, with the answers of the guide's "Input that has parts".
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const CHECK = join(PROTO, 'examples', 'check.ts');
 
 const hello = (home: string, ...argv: string[]) => program(CHECK, argv, { home });
 
-pending('P6', 'names the shape to write, and refuses a part that fails it', async t => {
+test('names the shape to write, and refuses a part that fails it', async t => {
   const home = await scratch(t);
   const added = await hello(home, 'friends', 'add', '--name', 'ada', '--kind', 'colleague');
   assert.deepEqual(

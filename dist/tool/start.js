@@ -12,11 +12,14 @@
 import { commandsIn } from "../command/index.js";
 import { everySchema, stepAnswer } from "../steps/index.js";
 import { columns } from "./text.js";
-/** @param shell - what the call reads of the tool */
-export async function started(shell) {
+/**
+ * @param shell - what the call reads of the tool
+ * @param folders - each root the call moved, which the steps carry
+ */
+export async function started(shell, folders) {
     const commands = commandsIn(shell.commands, []);
     const steps = (await shell.start?.()) ?? [everySchema];
-    const next = await Promise.all(steps.map(step => stepAnswer(step, { tool: shell.name, input: {} })));
+    const next = await Promise.all(steps.map(step => stepAnswer(step, { tool: shell.name, input: {}, folders })));
     const result = {
         name: shell.name,
         version: shell.version,

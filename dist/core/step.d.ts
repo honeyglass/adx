@@ -49,18 +49,21 @@ export interface Target {
      */
     accepts(field: string, value: unknown, beside: Readonly<Record<string, unknown>>): Promise<boolean>;
 }
+/** `switches` are options of adx the call repeats, such as `replace`, written after the fields. */
 export type StepParts = {
     target: Target;
     given: Readonly<Record<string, unknown>>;
     needed: readonly string[];
     carried: readonly string[];
     listed: string | undefined;
+    switches: readonly string[];
 };
 /**
  * @param target - the command the step names
  * @param given - the fields the step gives, as a caller writes them
+ * @param switches - the options of adx the step gives, such as replace, without dashes
  * @returns the step, which needs, carries and lists nothing yet
  */
-export declare function commandStep<I, L extends string>(target: Target, given: Readonly<Record<string, unknown>>): CommandStep<I, L>;
+export declare function commandStep<I, L extends string>(target: Target, given: Readonly<Record<string, unknown>>, switches?: readonly string[]): CommandStep<I, L>;
 /** @returns the parts of a step to a command, or undefined for any other step */
 export declare const partsOfStep: (step: Step) => StepParts | undefined;

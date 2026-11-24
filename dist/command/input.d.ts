@@ -41,7 +41,8 @@ export declare function sharedWithGlobal(spec: Spec, global: Obj | undefined): s
 /** @returns each field of the schema in its order, with what its option takes */
 export declare function fieldsOf(schema: Obj): FieldOf[];
 /**
- * A key the schema does not name is refused at any depth, never dropped.
+ * A key the schema does not name is refused at any depth, never dropped, and so is a line break
+ * in a plain string.
  *
  * @param schema - the input schema of the command
  * @param value - the input of the call

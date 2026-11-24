@@ -5,13 +5,17 @@
  * schemasAlong: every schema a path passes inside a schema, for the shape a SCHEMA issue lies in.
  * Failure, failuresOf: one issue of a parse as the places and messages of SCHEMA issues.
  * unknownKeysIn: each key of a value that an object of the schema does not name.
+ * MULTILINE, brokenLinesIn: the mark of a string that may hold line breaks, and each plain string
+ * of a value that holds a line break or another control character.
  *
  * The input check of a command and check() of a handler both answer SCHEMA, so both say it alike.
  * Zod drops a key an object does not name; adx refuses it, at any depth (rule 15). An object that
  * declares its other keys, loose or with a catchall, and a record keep them. A union takes the
  * first option that passes the value, a discriminated union the one its key names, and a
- * preprocess the schema after it, with the value it makes. This is the one file of core/ that
- * calls Zod.
+ * preprocess the schema after it, with the value it makes. A plain `z.string()` takes one
+ * visible line, so adx refuses a line break or another control character in it, at any depth;
+ * `multiline()` carries the mark that lets line breaks and tabs through. This is the one file of
+ * core/ that calls Zod.
  *
  * @example const failures = [...unknownKeysIn(shape, value), ...parsed.error.issues.flatMap(failuresOf)];
  */
@@ -117,6 +121,51 @@ function entriesOf(schema: z.core.$ZodType, value: unknown): [Part, unknown][] {
   const keyed = schema instanceof z.ZodObject || schema instanceof z.ZodRecord;
   return keyed && isRecord(value) ? Object.entries(value) : [];
 }
+
+/** A control character, or a line or paragraph separator: none shows on one line. */
+const NOT_ONE_LINE = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+
+/** The line breaks and the tab that text of many lines holds. */
+const LAYOUT = /[\n\r\t]/g;
+
+/** The check multiline() carries: it lets line breaks and tabs through, and no other control. */
+export const MULTILINE = z.refine<string>(
+  (text: string) => /\p{Cc}/u.test(text.replace(LAYOUT, '')) === false,
+  { error: 'the text holds a control character other than a line break or a tab' },
+);
+
+/**
+ * @param schema - the schema of the value
+ * @param value - the value as the caller gave it
+ * @param below - the place of the value inside the one the walk began at
+ * @returns one failure per string of a plain z.string() that does not keep to one line
+ */
+export function brokenLinesIn(
+  schema: z.core.$ZodType,
+  value: unknown,
+  below: Part[] = [],
+): Failure[] {
+  const base = layersAt(schema, value).at(-1) ?? { schema, value };
+  if (typeof base.value === 'string') {
+    const broken = isOneLine(base.schema) && NOT_ONE_LINE.test(base.value);
+    return broken
+      ? [
+          {
+            below,
+            message:
+              'the field takes one line, and the value holds a line break or a control character',
+          },
+        ]
+      : [];
+  }
+  return entriesOf(base.schema, base.value).flatMap(([part, item]) => {
+    const child = childOf(base.schema, part);
+    return child === undefined ? [] : brokenLinesIn(child, item, [...below, part]);
+  });
+}
+
+const isOneLine = (schema: z.core.$ZodType) =>
+  schema instanceof z.ZodString && (schema._zod.def.checks ?? []).includes(MULTILINE) === false;
 
 const unknownKey = (below: Part[]) => ({
   below,

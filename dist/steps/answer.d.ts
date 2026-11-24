@@ -4,10 +4,17 @@ export type NextStep = {
     command?: string;
     needs?: string[];
 };
-/** `tool` names the tool that answers; `input` is the input of the call as its caller gave it. */
+/**
+ * `tool` names the tool that answers; `input` is the input of the call as its caller gave it;
+ * `folders` holds each root the call moved, by its option, so a named command lands there too.
+ */
 export type Context = {
     tool: string;
     input: Readonly<Record<string, unknown>>;
+    folders: readonly {
+        option: string;
+        folder: string;
+    }[];
 };
 /**
  * @param step - a step a command, a hint or the tool named

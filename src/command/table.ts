@@ -18,7 +18,7 @@ import { declaration } from '../core/index.ts';
 import type { Issue } from '../core/index.ts';
 import { runnerOf } from './command.ts';
 import type { Sources } from '../core/index.ts';
-import type { Runner, Through } from './runner.ts';
+import type { RootOption, Runner, Through } from './runner.ts';
 
 export type Table = { readonly [word: string]: object };
 
@@ -36,19 +36,19 @@ export const isTable = (value: object): value is Table =>
 
 /**
  * @param table - the command table, or a group of it
- * @param tool - the name of the tool that lists it, how it answers a call of a command, and the
- * port to the sources of the fields
+ * @param tool - the name of the tool that lists it, how it answers an invoke of a command, the
+ * port to the sources of the fields, and the roots of the tool
  * @param words - the words of the group
  */
 export function placeAll(
   table: Table,
-  tool: { name: string; through: Through; sources: Sources },
+  tool: { name: string; through: Through; sources: Sources; roots: readonly RootOption[] },
   words: readonly string[] = [],
 ) {
   for (const [word, entry] of Object.entries(table)) {
     const runner = runnerOf(entry);
-    const { through, sources } = tool;
-    const place = { tool: tool.name, words: [...words, word].join(' '), through, sources };
+    const { through, sources, roots } = tool;
+    const place = { tool: tool.name, words: [...words, word].join(' '), through, sources, roots };
     if (runner !== undefined) runner.places.push(place);
     else if (isTable(entry)) placeAll(entry, tool, [...words, word]);
   }

@@ -13,7 +13,7 @@
  * @example const said = check(ABOUT[friend.kind], about, ['about']);
  */
 import type { z } from 'zod';
-import { failuresOf, placed, schemaFailed, unknownKeysIn } from '../core/index.ts';
+import { brokenLinesIn, failuresOf, placed, schemaFailed, unknownKeysIn } from '../core/index.ts';
 import type { Issue, Path } from '../core/index.ts';
 
 /**
@@ -32,6 +32,7 @@ export function check<S extends z.ZodType, const P extends string>(
   const parsed = shape.safeParse(value);
   const failures = [
     ...unknownKeysIn(shape, value),
+    ...brokenLinesIn(shape, value),
     ...(parsed.success ? [] : parsed.error.issues.flatMap(failuresOf)),
   ];
   const [field, ...within] = path;

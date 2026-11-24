@@ -59,6 +59,11 @@ test('--help answers the fields, the options of adx and the example, and runs no
       { option: '--json', takes: 'json', does: 'the whole input as one JSON object' },
       { option: '--help', takes: 'switch', does: 'shows what the command takes' },
       { option: '--dry-run', takes: 'switch', does: 'runs plan only and changes nothing' },
+      {
+        option: '--replace',
+        takes: 'switch',
+        does: 'lets a write replace a file that holds other bytes',
+      },
     ],
     example: { name: 'ada' },
   });
@@ -79,6 +84,7 @@ test('--help at a terminal is text for people', async () => {
       '  --json <json>     the whole input as one JSON object',
       '  --help            shows what the command takes',
       '  --dry-run         runs plan only and changes nothing',
+      '  --replace         lets a write replace a file that holds other bytes',
       '',
       'example  {"name":"ada"}',
       '',

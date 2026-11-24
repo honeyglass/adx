@@ -2,8 +2,11 @@
  * The internal types of core/: what one call gets from its surroundings, and what it leaves.
  *
  * Token: one word of the arguments, as util.parseArgs reads it in its lenient mode.
- * Piped, Stdin, Around: what is piped in, its read, and the tokens, whether stdout is a terminal,
- * and stdin.
+ * Piped, Stdin: what is piped in, and its read.
+ * Disk, Entry: the port to the file system, and what stands at a path.
+ * Scope: the port that keeps a value per call across its awaits.
+ * Surroundings, Around: the variables, the home folder, the working directory and the disk of a
+ * call, and with them its tokens, whether stdout is a terminal, and stdin.
  * Ran: the exit code and what the call wrote to stdout and stderr; the test kit's run answers it.
  *
  * main() takes them from Node, and run() from its options, so both go through one call. Only
@@ -36,7 +39,64 @@ export type Piped = {
 } | null;
 /** Read only for `--json -`, so a call that does not name stdin never waits on it. */
 export type Stdin = () => Promise<Piped>;
-export type Around = {
+/** What stands at a path, its last link not followed. */
+export type Entry = 'file' | 'folder' | 'link' | 'other';
+/**
+ * Synchronous, since `files.write` answers at once and `exists` is a property. A path is absolute;
+ * `rel` is relative, with `/` between its parts. A system error is thrown as Node raised it.
+ */
+export interface Disk {
+    isAbsolute(path: string): boolean;
+    join(folder: string, rel: string): string;
+    parent(path: string): string;
+    /** Every link followed; undefined when nothing stands there. */
+    real(path: string): string | undefined;
+    /** Whether the path is the folder or lies below it. */
+    within(path: string, folder: string): boolean;
+    /** Undefined when nothing stands there. */
+    entry(path: string): Entry | undefined;
+    /** Opens no link; undefined when the file holds more than `limit` bytes. */
+    read(path: string, limit: number): Uint8Array | undefined;
+    /** The names in a folder, sorted. */
+    names(folder: string): string[];
+    mode(path: string): number;
+    /** The size in bytes, a final link followed. */
+    size(path: string): number;
+    makeFolder(path: string, mode: number): void;
+    /** Removes an empty folder. */
+    removeFolder(path: string): void;
+    /** A temporary file beside the path, whole and on disk; it answers the temporary path. */
+    stage(path: string, bytes: Uint8Array, mode: number): string;
+    move(from: string, to: string): void;
+    remove(path: string): void;
+    /** Text as a file holds it, in UTF-8. */
+    encode(text: string): Uint8Array;
+    /** The text of a file's bytes, a byte order mark kept; undefined for bytes that are no UTF-8. */
+    decode(bytes: Uint8Array): string | undefined;
+}
+/**
+ * The value one call keeps across its awaits, such as its roots, so two calls in one process,
+ * as two tests that run at once, never read each other's.
+ */
+export interface Scope {
+    run<T>(value: object, work: () => Promise<T>): Promise<T>;
+    /** The value of the call that runs, or undefined outside every call. */
+    get(): object | undefined;
+}
+export type Surroundings = {
+    readonly env: Readonly<Record<string, string | undefined>>;
+    /** The folder `~` names. */
+    readonly home: string;
+    readonly cwd: string;
+    readonly disk: Disk;
+    readonly scope: Scope;
+    /**
+     * The scratch folder of a test, which no root leaves: a root at an absolute place of its own
+     * lies in it, and a marker is looked for no higher.
+     */
+    readonly confined?: string;
+};
+export type Around = Surroundings & {
     readonly tokens: readonly Token[];
     readonly tty: boolean;
     readonly stdin: Stdin;

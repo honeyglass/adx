@@ -4,15 +4,16 @@
  * Checked, run: what run() takes as the tool, and run() itself.
  *
  * run() and main() go through the same call, so the answer, the text form and the exit code are
- * the program's; only the surroundings come from the options, stdin among them. What a handler writes with
- * console stands before the answer in out and err, as in the program.
+ * the program's; only the surroundings come from the options: stdin, the variables, the working
+ * directory, and a fresh data folder with the seed copied in. What a handler writes with console
+ * stands before the answer in out and err, as in the program.
  *
  * @example const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { tty: true });
  */
 import { RefusalError } from '@honeyglass/utils/ts';
 import type { Ran } from '../core/index.ts';
 import { captured, tokensOf } from '../node/index.ts';
-import { call, specOf } from '../tool/index.ts';
+import { call, inScratch, specOf } from '../tool/index.ts';
 
 export interface Checked {
   readonly main: () => Promise<void>;
@@ -20,6 +21,12 @@ export interface Checked {
 
 /** What run() reads of the surroundings of a call. */
 type RunOptions = {
+  /** The variables of the call; none of the process reaches it. */
+  env?: Record<string, string>;
+  /** A folder of files copied into the data folder of the call. */
+  seed?: string;
+  /** The working directory of the call. Without it, a fresh scratch folder. */
+  cwd?: string;
   /** The text the call reads from stdin, or `null` when nothing is piped in. Default `null`. */
   stdin?: string | null;
   /** Whether stdout is a terminal: `true` answers text, `false` JSON. Default `false`. */
@@ -49,7 +56,9 @@ export async function run(
   }
   const piped = options.stdin ?? null;
   const stdin = async () => (piped === null ? null : { text: piped });
-  const around = { tokens: tokensOf(argv), tty: options.tty ?? false, stdin };
-  const { data, out, err } = await captured(() => call(spec, around));
+  const asked = { tokens: tokensOf(argv), tty: options.tty ?? false, stdin };
+  const { data, out, err } = await inScratch(spec, options, around =>
+    captured(() => call(spec, { ...around, ...asked })),
+  );
   return { exit: data.exit, out: `${out}${data.out}`, err: `${err}${data.err}` };
 }

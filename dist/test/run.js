@@ -4,14 +4,15 @@
  * Checked, run: what run() takes as the tool, and run() itself.
  *
  * run() and main() go through the same call, so the answer, the text form and the exit code are
- * the program's; only the surroundings come from the options, stdin among them. What a handler writes with
- * console stands before the answer in out and err, as in the program.
+ * the program's; only the surroundings come from the options: stdin, the variables, the working
+ * directory, and a fresh data folder with the seed copied in. What a handler writes with console
+ * stands before the answer in out and err, as in the program.
  *
  * @example const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { tty: true });
  */
 import { RefusalError } from '@honeyglass/utils/ts';
 import { captured, tokensOf } from "../node/index.js";
-import { call, specOf } from "../tool/index.js";
+import { call, inScratch, specOf } from "../tool/index.js";
 /**
  * @param tool - the value tool() returned
  * @param argv - the arguments after the program
@@ -31,7 +32,7 @@ export async function run(tool, argv, options = {}) {
     }
     const piped = options.stdin ?? null;
     const stdin = async () => (piped === null ? null : { text: piped });
-    const around = { tokens: tokensOf(argv), tty: options.tty ?? false, stdin };
-    const { data, out, err } = await captured(() => call(spec, around));
+    const asked = { tokens: tokensOf(argv), tty: options.tty ?? false, stdin };
+    const { data, out, err } = await inScratch(spec, options, around => captured(() => call(spec, { ...around, ...asked })));
     return { exit: data.exit, out: `${out}${data.out}`, err: `${err}${data.err}` };
 }

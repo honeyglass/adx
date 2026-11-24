@@ -17,7 +17,7 @@
  * @example const parsed = parsedBy(inputOf(spec, global), { name: 'Ada' });
  */
 import { z } from 'zod';
-import { baseOf, failuresOf, layersOf, notInListAt, placed, schemaFailed, unknownKeysIn, } from "../core/index.js";
+import { baseOf, brokenLinesIn, failuresOf, layersOf, notInListAt, placed, schemaFailed, unknownKeysIn, } from "../core/index.js";
 const EMPTY = z.object({});
 /**
  * @param spec - the spec of the command
@@ -85,7 +85,8 @@ function takesOf(base) {
     }
 }
 /**
- * A key the schema does not name is refused at any depth, never dropped.
+ * A key the schema does not name is refused at any depth, never dropped, and so is a line break
+ * in a plain string.
  *
  * @param schema - the input schema of the command
  * @param value - the input of the call
@@ -93,7 +94,7 @@ function takesOf(base) {
  */
 export function parsedBy(schema, value) {
     const parsed = schema.safeParse(value);
-    const unnamed = unknownKeysIn(schema, value).map(failure => placedIn(schema, value, failure));
+    const unnamed = [...unknownKeysIn(schema, value), ...brokenLinesIn(schema, value)].map(failure => placedIn(schema, value, failure));
     if (parsed.success && unnamed.length === 0)
         return { data: parsed.data, issues: [] };
     const failed = parsed.success
@@ -117,7 +118,12 @@ export function knownOf(schema, given) {
     for (const [field, shape] of Object.entries(schema.shape)) {
         const present = Object.hasOwn(given, field);
         const parsed = z.safeParse(shape, present ? given[field] : undefined);
-        const unnamed = present ? unknownKeysIn(shape, given[field], [field]) : [];
+        const unnamed = present
+            ? [
+                ...unknownKeysIn(shape, given[field], [field]),
+                ...brokenLinesIn(shape, given[field], [field]),
+            ]
+            : [];
         issues.push(...unnamed.map(failure => placedIn(schema, given, failure)));
         if (parsed.success && unnamed.length === 0 && parsed.data !== undefined) {
             data[field] = parsed.data;
@@ -186,7 +192,9 @@ function schemaIssue(path, message) {
  */
 export function acceptsValue(schema, field, value) {
     const shape = Object.hasOwn(schema.shape, field) ? schema.shape[field] : undefined;
-    return shape !== undefined && z.safeParse(shape, value).success;
+    if (shape === undefined || brokenLinesIn(shape, value).length > 0)
+        return false;
+    return z.safeParse(shape, value).success;
 }
 /**
  * @param output - the schema of the answer of a read

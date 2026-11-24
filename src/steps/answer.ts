@@ -7,10 +7,11 @@
  * A step to a command carries the fields it gives, the global fields of the call that the
  * command takes, and each field it carries when the command would take the call's value. The
  * global fields stand first, then the command's own in the order of its schema, then what only
- * --json takes; a listed field comes last and alone, with no value, so the call lists its values. `needs` names
- * each required field the line leaves open, and each the step names, but never a listed one.
+ * --json takes, then each folder the call moved (decision 13); a listed field comes after them,
+ * alone, with no value, so the call lists its values, and the switches of adx come last. `needs`
+ * names each required field the line leaves open, and each the step names, but never a listed one.
  *
- * @example const next = await stepAnswer(greet.step({ lang: 'de' }), { tool: 'hello', input });
+ * @example const next = await stepAnswer(greet.step(), { tool: 'hello', input, folders: [] });
  */
 import { declaration, isDecimal, partsOfStep, refusedWith, UNKNOWN_STATE } from '../core/index.ts';
 import type { Step, StepParts, TargetField } from '../core/index.ts';
@@ -19,8 +20,15 @@ import { schemaNameOf } from './schema.ts';
 
 export type NextStep = { does: string; command?: string; needs?: string[] };
 
-/** `tool` names the tool that answers; `input` is the input of the call as its caller gave it. */
-export type Context = { tool: string; input: Readonly<Record<string, unknown>> };
+/**
+ * `tool` names the tool that answers; `input` is the input of the call as its caller gave it;
+ * `folders` holds each root the call moved, by its option, so a named command lands there too.
+ */
+export type Context = {
+  tool: string;
+  input: Readonly<Record<string, unknown>>;
+  folders: readonly { option: string; folder: string }[];
+};
 
 /**
  * @param step - a step a command, a hint or the tool named
@@ -57,7 +65,9 @@ async function commandAnswer(parts: StepParts, context: Context): Promise<NextSt
   const words = [
     ...target.call,
     ...optionsOf(fields, values),
+    ...context.folders.flatMap(({ option, folder }) => optionWords(option, folder)),
     ...(listed?.option === undefined ? [] : [`--${listed.option}`]),
+    ...parts.switches.map(name => `--${name}`),
   ];
   const needs = fields
     .filter(field => field.required || parts.needed.includes(field.field))

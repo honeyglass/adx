@@ -6,6 +6,7 @@
  * issueAnswer: the issue as the answer writes it.
  * withCommand, stepOf: the issue with a command, unless it names one of its own, and its step.
  * withHint: the issue with a hint of its own in place of its code's.
+ * atField: the issue at a place of the input, once the field that named it is known.
  * SchemaPlace, placed, placeOf: where a SCHEMA issue stands in the schema that failed.
  *
  * The parts stay in a table beside the issue, not in private fields: an Issue then has the
@@ -92,6 +93,16 @@ export const withCommand = (issue: Issue, step: Step) =>
  */
 export const withHint = (issue: Issue, hint: string) =>
   new Issue(issue.code, issue.path, { ...partsOf(issue), hint });
+
+/**
+ * For an issue of a value that came from a field, such as a file whose path the input named.
+ *
+ * @param issue - an issue at no field
+ * @param path - the field, and the place below it
+ * @returns the issue at that place
+ */
+export const atField = (issue: Issue, path: Path<string>) =>
+  new Issue(issue.code, path, partsOf(issue));
 
 /**
  * The tool names the command of such an issue, since only it knows its shapes.

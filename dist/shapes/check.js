@@ -1,4 +1,4 @@
-import { failuresOf, placed, schemaFailed, unknownKeysIn } from "../core/index.js";
+import { brokenLinesIn, failuresOf, placed, schemaFailed, unknownKeysIn } from "../core/index.js";
 /**
  * @param shape - the schema the part must pass
  * @param value - the part
@@ -10,6 +10,7 @@ export function check(shape, value, path, options) {
     const parsed = shape.safeParse(value);
     const failures = [
         ...unknownKeysIn(shape, value),
+        ...brokenLinesIn(shape, value),
         ...(parsed.success ? [] : parsed.error.issues.flatMap(failuresOf)),
     ];
     const [field, ...within] = path;

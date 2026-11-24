@@ -48,6 +48,7 @@ const hello = tool({
     unsaid: throwing(failed('', new TypeError('boom'))),
     part: throwing(new Refused(refusal('fix'), [atPart])),
     empty: answering(() => ({})),
+    controlled: answering(() => ({ greeting: 'Hello, Ada\u001b[2J\u0007\u009b!' })),
     nothing: answering(() => undefined),
     noisy: answering(() => {
       console.log('debug');
@@ -79,7 +80,7 @@ test('a result without fields prints as its JSON at a terminal, and no result pr
 });
 
 test('the text form escapes control characters, the JSON keeps them', async () => {
-  const argv = ['greet', '--name', 'Ada\u001b[2J\u0007\u009b'];
+  const argv = ['controlled'];
   const { out } = await run(hello, argv, { tty: true });
   assert.equal(out, 'greeting  Hello, Ada\\u{1b}[2J\\u{7}\\u{9b}!\n');
   const piped = answerIn((await run(hello, argv)).out, z.object({ greeting: z.string() }));

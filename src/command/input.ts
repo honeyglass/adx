@@ -19,6 +19,7 @@
 import { z } from 'zod';
 import {
   baseOf,
+  brokenLinesIn,
   failuresOf,
   layersOf,
   notInListAt,
@@ -114,7 +115,8 @@ function takesOf(base: z.core.$ZodType): Takes {
 }
 
 /**
- * A key the schema does not name is refused at any depth, never dropped.
+ * A key the schema does not name is refused at any depth, never dropped, and so is a line break
+ * in a plain string.
  *
  * @param schema - the input schema of the command
  * @param value - the input of the call
@@ -122,7 +124,9 @@ function takesOf(base: z.core.$ZodType): Takes {
  */
 export function parsedBy(schema: Obj, value: unknown) {
   const parsed = schema.safeParse(value);
-  const unnamed = unknownKeysIn(schema, value).map(failure => placedIn(schema, value, failure));
+  const unnamed = [...unknownKeysIn(schema, value), ...brokenLinesIn(schema, value)].map(failure =>
+    placedIn(schema, value, failure),
+  );
   if (parsed.success && unnamed.length === 0) return { data: parsed.data, issues: [] };
   const failed = parsed.success
     ? []
@@ -146,7 +150,12 @@ export function knownOf(schema: Obj, given: Readonly<Record<string, unknown>>) {
   for (const [field, shape] of Object.entries(schema.shape)) {
     const present = Object.hasOwn(given, field);
     const parsed = z.safeParse(shape, present ? given[field] : undefined);
-    const unnamed = present ? unknownKeysIn(shape, given[field], [field]) : [];
+    const unnamed = present
+      ? [
+          ...unknownKeysIn(shape, given[field], [field]),
+          ...brokenLinesIn(shape, given[field], [field]),
+        ]
+      : [];
     issues.push(...unnamed.map(failure => placedIn(schema, given, failure)));
     if (parsed.success && unnamed.length === 0 && parsed.data !== undefined) {
       data[field] = parsed.data;
@@ -220,7 +229,8 @@ function schemaIssue(path: readonly (string | number)[], message: string): Issue
  */
 export function acceptsValue(schema: Obj, field: string, value: unknown) {
   const shape = Object.hasOwn(schema.shape, field) ? schema.shape[field] : undefined;
-  return shape !== undefined && z.safeParse(shape, value).success;
+  if (shape === undefined || brokenLinesIn(shape, value).length > 0) return false;
+  return z.safeParse(shape, value).success;
 }
 
 /**

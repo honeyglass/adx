@@ -7,47 +7,66 @@
  * given alone; through, for invoke; what a step and the sources read of the command; and what
  * `schema` shows of it.
  *
- * adx checks in layers: the arguments, then the schema, then each value against its list, then
- * `check`, then the handler. Each layer collects all its issues, and a later layer runs only when
- * the earlier ones passed. From the schema on, a refusal is thrown, as one the handler throws, so
- * the tool answers them alike, with the commands that help. The sources come from the tool that
- * lists the command, so a command no tool lists checks no value against a list. A SCHEMA issue
- * placed in the input gets its command from the tool, which knows the shapes it may lie in.
+ * adx checks in layers: the arguments, then the schema, then each path of a file against the
+ * disk, then each value against its list, then `check`, then the handler. Each layer collects
+ * all its issues, and a later layer runs only when the earlier ones passed. From the schema on, a
+ * refusal is thrown, as one the handler throws, so the tool answers them alike, with the commands
+ * that help. The sources come from the tool that lists the command, so a command no tool lists
+ * checks no value against a list. A SCHEMA issue placed in the input gets its command from the
+ * tool, which knows the shapes it may lie in.
  *
  * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
 import type { z } from 'zod';
-import type { Declared, Issue, Sourced, Sources, Stdin, Step, TargetField, Token } from '../core/index.ts';
+import type { Declared, Issue, Sourced, Sources, Stdin, Step, TargetField, Token, Writer } from '../core/index.ts';
 import type { Answered } from './answered.ts';
 import type { AdxOption } from './help.ts';
 import type { Obj, Shared, Spec } from './types.ts';
 export type Kind = 'read' | 'list' | 'effect';
-/** `fields` holds the names --fields gave, if any; `lists` the field whose option came alone. */
+/**
+ * `fields` holds the names --fields gave, if any; `lists` the field whose option came alone;
+ * `replace` whether the call said --replace; `folders` the folder each root option gave, by the
+ * name of its root.
+ */
 export type Run = {
     dryRun: boolean;
     fields: readonly string[] | undefined;
     lists: string | undefined;
+    replace: boolean;
+    folders: Readonly<Record<string, string>>;
+};
+/** The samples of an invoke in a test: its variables and the seed of its data folder. */
+export type Scene = {
+    env?: Readonly<Record<string, string>>;
+    seed?: string;
 };
 /** The input of a call as its options and --json gave it, and what the run is asked for. */
 export type Ready = {
     input: Record<string, unknown>;
     run: Run;
 };
-/** The tool answers a call of its command with the steps after it and the hints of its codes. */
+/** The tool answers an invoke of its command with the steps after it and the hints of its codes. */
 export type Through = (call: {
     runner: Runner;
     input: unknown;
     run: Run;
+    scene: Scene;
 }) => Promise<Answered>;
+/** A root of the tool; one with a variable the call can also move with an option of its name. */
+export type RootOption = {
+    name: string;
+    variable?: string;
+};
 /**
- * `tool` is the name of the tool, `words` the words of the command in its table, and `sources`
- * the port through which the command asks the sources of its fields.
+ * `tool` is the name of the tool, `words` the words of the command in its table, `sources` the
+ * port through which the command asks the sources of its fields, and `roots` the tool's roots.
  */
 export type Place = {
     tool: string;
     words: string;
     through: Through;
     sources: Sources;
+    roots: readonly RootOption[];
 };
 export declare class Runner implements Sourced {
     #private;
@@ -91,17 +110,19 @@ export declare class Runner implements Sourced {
      * invoke answers as the tool that lists the command, and as the command alone before one does.
      *
      * @param input - the input of the call
-     * @param run - whether it is a dry run
+     * @param run - whether it is a dry run, and whether it may replace a file
+     * @param scene - the variables and the seed of the test that invokes the command
      * @returns the answer; a refusal and a bug are thrown
      */
-    through(input: unknown, run: Run): Promise<Answered>;
+    through(input: unknown, run: Run, scene: Scene): Promise<Answered>;
     /**
      * @param value - the input of the call, from its options and --json, or from invoke
      * @param run - whether it is a dry run, the fields the answer keeps, and a field to list
-     * @returns the answer, or the values of the field to list; a refusal of the schema, of a list,
-     * of `check` or of the handler, and a bug, are thrown
+     * @param writer - the writes of the call, which a tool gives; none for a command no tool lists
+     * @returns the answer, or the values of the field to list; a refusal of the schema, of a path,
+     * of a list, of `check` or of the handler, and a bug, are thrown
      */
-    answered(value: unknown, run: Run): Promise<Answered>;
+    answered(value: unknown, run: Run, writer: Writer | undefined): Promise<Answered>;
     /**
      * @returns one DECLARATION issue per field named like an option adx gives the command, per
      * option two fields would share, and per field the global input would replace
@@ -112,6 +133,7 @@ export declare class Runner implements Sourced {
      * whose option alone lists their values, and the global fields the command takes
      */
     schemaFacts(): {
+        replace?: string | undefined;
         lists: string[];
         global: string[];
         example?: {} | null | undefined;

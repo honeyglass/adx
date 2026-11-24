@@ -7,12 +7,13 @@
  * given alone; through, for invoke; what a step and the sources read of the command; and what
  * `schema` shows of it.
  *
- * adx checks in layers: the arguments, then the schema, then each value against its list, then
- * `check`, then the handler. Each layer collects all its issues, and a later layer runs only when
- * the earlier ones passed. From the schema on, a refusal is thrown, as one the handler throws, so
- * the tool answers them alike, with the commands that help. The sources come from the tool that
- * lists the command, so a command no tool lists checks no value against a list. A SCHEMA issue
- * placed in the input gets its command from the tool, which knows the shapes it may lie in.
+ * adx checks in layers: the arguments, then the schema, then each path of a file against the
+ * disk, then each value against its list, then `check`, then the handler. Each layer collects
+ * all its issues, and a later layer runs only when the earlier ones passed. From the schema on, a
+ * refusal is thrown, as one the handler throws, so the tool answers them alike, with the commands
+ * that help. The sources come from the tool that lists the command, so a command no tool lists
+ * checks no value against a list. A SCHEMA issue placed in the input gets its command from the
+ * tool, which knows the shapes it may lie in.
  *
  * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
@@ -37,6 +38,7 @@ import type {
   Step,
   TargetField,
   Token,
+  Writer,
 } from '../core/index.ts';
 import { refused } from './answered.ts';
 import type { Answered } from './answered.ts';
@@ -63,24 +65,47 @@ import type { Obj, Shared, Spec } from './types.ts';
 
 export type Kind = 'read' | 'list' | 'effect';
 
-/** `fields` holds the names --fields gave, if any; `lists` the field whose option came alone. */
+/**
+ * `fields` holds the names --fields gave, if any; `lists` the field whose option came alone;
+ * `replace` whether the call said --replace; `folders` the folder each root option gave, by the
+ * name of its root.
+ */
 export type Run = {
   dryRun: boolean;
   fields: readonly string[] | undefined;
   lists: string | undefined;
+  replace: boolean;
+  folders: Readonly<Record<string, string>>;
 };
+
+/** The samples of an invoke in a test: its variables and the seed of its data folder. */
+export type Scene = { env?: Readonly<Record<string, string>>; seed?: string };
 
 /** The input of a call as its options and --json gave it, and what the run is asked for. */
 export type Ready = { input: Record<string, unknown>; run: Run };
 
-/** The tool answers a call of its command with the steps after it and the hints of its codes. */
-export type Through = (call: { runner: Runner; input: unknown; run: Run }) => Promise<Answered>;
+/** The tool answers an invoke of its command with the steps after it and the hints of its codes. */
+export type Through = (call: {
+  runner: Runner;
+  input: unknown;
+  run: Run;
+  scene: Scene;
+}) => Promise<Answered>;
+
+/** A root of the tool; one with a variable the call can also move with an option of its name. */
+export type RootOption = { name: string; variable?: string };
 
 /**
- * `tool` is the name of the tool, `words` the words of the command in its table, and `sources`
- * the port through which the command asks the sources of its fields.
+ * `tool` is the name of the tool, `words` the words of the command in its table, `sources` the
+ * port through which the command asks the sources of its fields, and `roots` the tool's roots.
  */
-export type Place = { tool: string; words: string; through: Through; sources: Sources };
+export type Place = {
+  tool: string;
+  words: string;
+  through: Through;
+  sources: Sources;
+  roots: readonly RootOption[];
+};
 
 const JSON_OPTION: AdxOption = {
   option: '--json',
@@ -97,6 +122,11 @@ const DRY_RUN_OPTION: AdxOption = {
   takes: 'switch',
   does: 'runs plan only and changes nothing',
 };
+const REPLACE_OPTION: AdxOption = {
+  option: '--replace',
+  takes: 'switch',
+  does: 'lets a write replace a file that holds other bytes',
+};
 const FIELDS_OPTION: AdxOption = {
   option: '--fields',
   takes: 'text',
@@ -105,9 +135,6 @@ const FIELDS_OPTION: AdxOption = {
 
 /** The options adx gives every command, also those it does not build yet: a field takes none. */
 const ALWAYS_TAKEN = ['json', 'output', 'help', 'dry-run', 'replace'];
-
-/** A read with output that the call names no fields of answers all of them. */
-const NO_FIELDS: Run = { dryRun: false, fields: undefined, lists: undefined };
 
 /** The code a value outside its list is refused with, by its name. */
 const NOT_IN_LIST = notInList.issue().code;
@@ -211,35 +238,37 @@ export class Runner implements Sourced {
     const [first, ...rest] = this.#shown([...before, ...read.issues, ...json.issues]);
     if (first !== undefined) return refused([first, ...rest]);
     if (read.adx.help === true) return this.#help(fields);
+    const run = this.#runOf(read);
     const lists = read.listed === undefined ? undefined : listable.get(read.listed);
-    if (lists !== undefined) return this.#listing(lists, json.input, read);
+    if (lists !== undefined) return this.#listing(lists, json.input, read, run);
     const output = this.output();
-    if (output !== undefined) return this.#withFields(json.input, read, output);
-    const dryRun = read.adx['dry-run'] === true;
-    return { input: json.input, run: { dryRun, fields: undefined, lists: undefined } };
+    if (output !== undefined) return this.#withFields(json.input, read, output, run);
+    return { input: json.input, run };
   }
 
   /**
    * invoke answers as the tool that lists the command, and as the command alone before one does.
    *
    * @param input - the input of the call
-   * @param run - whether it is a dry run
+   * @param run - whether it is a dry run, and whether it may replace a file
+   * @param scene - the variables and the seed of the test that invokes the command
    * @returns the answer; a refusal and a bug are thrown
    */
-  through(input: unknown, run: Run): Promise<Answered> {
+  through(input: unknown, run: Run, scene: Scene): Promise<Answered> {
     const place = this.places[0];
     return place === undefined
-      ? this.answered(input, run)
-      : place.through({ runner: this, input, run });
+      ? this.answered(input, run, undefined)
+      : place.through({ runner: this, input, run, scene });
   }
 
   /**
    * @param value - the input of the call, from its options and --json, or from invoke
    * @param run - whether it is a dry run, the fields the answer keeps, and a field to list
-   * @returns the answer, or the values of the field to list; a refusal of the schema, of a list,
-   * of `check` or of the handler, and a bug, are thrown
+   * @param writer - the writes of the call, which a tool gives; none for a command no tool lists
+   * @returns the answer, or the values of the field to list; a refusal of the schema, of a path,
+   * of a list, of `check` or of the handler, and a bug, are thrown
    */
-  async answered(value: unknown, run: Run): Promise<Answered> {
+  async answered(value: unknown, run: Run, writer: Writer | undefined): Promise<Answered> {
     const given = isRecord(value) ? value : {};
     const sources = this.#sources();
     if (run.lists !== undefined && sources !== undefined) {
@@ -249,11 +278,13 @@ export class Runner implements Sourced {
     const [failed, ...rest] = this.#inputIssues(parsed.issues, given);
     if (failed !== undefined) throw refusedWith([failed, ...rest], NOTHING_CHANGED);
     const input = parsed.data ?? {};
+    const [path, ...paths] = (await writer?.paths(input)) ?? [];
+    if (path !== undefined) throw refusedWith([path, ...paths], NOTHING_CHANGED);
     const [wrong, ...others] = (await sources?.outside(this, { given, checked: input })) ?? [];
     if (wrong !== undefined) throw refusedWith([wrong, ...others], NOTHING_CHANGED);
     const [issue, ...more] = this.spec.check?.(input) ?? [];
     if (issue !== undefined) throw refusedWith([issue, ...more], NOTHING_CHANGED);
-    if (this.kind === 'effect') return this.#effect(input, run);
+    if (this.kind === 'effect') return this.#effect(input, run, writer);
     const page = { cursor: '', size: this.spec.pageSize ?? PAGE_SIZE };
     const result = thrownIfRefused(await this.spec.run?.(input, { refuse, page }));
     const ran = { result, input };
@@ -271,10 +302,11 @@ export class Runner implements Sourced {
       ...ALWAYS_TAKEN,
       ...(this.kind === 'list' ? ['page', 'fields'] : []),
       ...(this.#hasFields() ? ['fields'] : []),
+      ...this.#roots().map(({ name }) => name),
     ]);
     const fields = fieldsOf(this.input).map(({ field }) => field);
     const adxTaken = fields
-      .filter(field => taken.has(optionName(field)))
+      .filter(field => taken.has(optionName(field)) || taken.has(field))
       .map(field => `${this.name} has a field ${field}, and adx gives it --${optionName(field)}`);
     const shared = fields
       .filter((field, i) => fields.findIndex(other => optionName(other) === optionName(field)) < i)
@@ -297,6 +329,7 @@ export class Runner implements Sourced {
       global: this.fields()
         .filter(field => field.global)
         .map(({ field }) => field),
+      ...(this.spec.replace === 'always' ? { replace: 'always' } : {}),
     };
   }
 
@@ -315,16 +348,28 @@ export class Runner implements Sourced {
     };
   }
 
+  // The options of adx a run takes, and the folder of each root option, by its root.
+  #runOf(read: Read): Run {
+    const named = this.#roots().filter(({ name }) => typeof read.adx[name] === 'string');
+    return {
+      dryRun: read.adx['dry-run'] === true,
+      fields: undefined,
+      lists: undefined,
+      replace: read.adx.replace === true,
+      folders: Object.fromEntries(named.map(({ name }) => [name, `${read.adx[name]}`])),
+    };
+  }
+
   // A call that lists values runs nothing else, so an option of a run beside it is refused.
-  #listing(lists: string, input: Record<string, unknown>, read: Read): Answered | Ready {
-    const beside = ['dry-run', 'fields'].filter(name => Object.hasOwn(read.adx, name));
+  #listing(lists: string, input: Record<string, unknown>, read: Read, run: Run): Answered | Ready {
+    const beside = ['dry-run', 'replace', 'fields'].filter(name => Object.hasOwn(read.adx, name));
     const issues = beside.map(name => {
       const message = `--${name} is no option of a call that lists the values of --${read.listed}`;
       return unknownOption.at(name, message);
     });
     const [first, ...rest] = this.#shown(issues);
     if (first !== undefined) return refused([first, ...rest]);
-    return { input, run: { ...NO_FIELDS, lists } };
+    return { input, run: { ...run, lists } };
   }
 
   // The other fields of the call pass their schema first, so a source gets checked values.
@@ -339,29 +384,38 @@ export class Runner implements Sourced {
 
   // --fields alone, or with no name, lists the fields of the answer; else the answer keeps those
   // it names.
-  #withFields(input: Record<string, unknown>, read: Read, output: z.core.$ZodType) {
+  #withFields(input: Record<string, unknown>, read: Read, output: z.core.$ZodType, run: Run) {
     const fields = answerFieldsOf(output);
     if (read.listed === 'fields') return listedAnswer('fields', { values: fields });
-    if (typeof read.adx.fields !== 'string') return { input, run: NO_FIELDS };
+    if (typeof read.adx.fields !== 'string') return { input, run };
     const lists = `${this.#call()} --fields`;
     const named = namesOf(read.adx.fields, fields, { command: this.name, lists });
     const [wrong, ...more] = this.#shown(named.issues);
     if (wrong !== undefined) return refused([wrong, ...more]);
     if (named.names.length === 0) return listedAnswer('fields', { values: fields });
-    return { input, run: { ...NO_FIELDS, fields: named.names } };
+    return { input, run: { ...run, fields: named.names } };
   }
 
   /**
    * A plan answers the dry run; the real run answers `{ ...planned, ...applied }` (decision 24).
    * With apply, a plan that answers no object leaves no place for apply's fields, so both runs
-   * refuse it before apply can send anything.
+   * refuse it before apply can send anything. The files the plan staged are written after it,
+   * before apply, and never on a dry run; --replace is known only to a plan that stages a write
+   * (decision 47).
    */
-  async #effect(input: unknown, run: Run): Promise<Answered> {
-    const planned = thrownIfRefused(await this.spec.plan?.(input, { refuse }));
+  async #effect(input: unknown, run: Run, writer: Writer | undefined): Promise<Answered> {
+    const ctx = { refuse, ...(writer === undefined ? {} : { files: writer.files }) };
+    const planned = thrownIfRefused(await this.spec.plan?.(input, ctx));
+    const message = '--replace is no option of a call whose plan writes no file';
+    const [unknown, ...more] = this.#shown([unknownOption.at('replace', message)]);
+    if (run.replace && (writer?.writes ?? 0) === 0 && unknown !== undefined) {
+      return refused([unknown, ...more]);
+    }
     if (this.spec.apply !== undefined && isRecord(planned) === false) {
       const message = `the plan of ${this.name} answered no object, so apply cannot add to it`;
       return refused([declaration.issue(message)]);
     }
+    if (run.dryRun === false) await writer?.commit();
     if (run.dryRun) {
       const ran = { result: planned, input };
       return { answer: { ok: true, applied: false, result: planned }, ...this.#text(), ran };
@@ -386,12 +440,23 @@ export class Runner implements Sourced {
   }
 
   #adxOptions() {
+    const roots = this.#roots().flatMap(({ name, variable }): AdxOption[] => {
+      if (variable === undefined) return [];
+      const does = `the folder of the root ${name}, in place of ${variable}`;
+      return [{ option: `--${name}`, takes: 'text', does }];
+    });
     return [
       JSON_OPTION,
       HELP_OPTION,
       ...(this.kind === 'effect' ? [DRY_RUN_OPTION] : []),
+      ...(this.kind === 'effect' && this.spec.replace === undefined ? [REPLACE_OPTION] : []),
       ...(this.#hasFields() ? [FIELDS_OPTION] : []),
+      ...roots,
     ];
+  }
+
+  #roots() {
+    return this.places[0]?.roots ?? [];
   }
 
   // --fields of a list comes with its outline, so only a read with output takes it yet.

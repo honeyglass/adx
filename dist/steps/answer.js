@@ -7,10 +7,11 @@
  * A step to a command carries the fields it gives, the global fields of the call that the
  * command takes, and each field it carries when the command would take the call's value. The
  * global fields stand first, then the command's own in the order of its schema, then what only
- * --json takes; a listed field comes last and alone, with no value, so the call lists its values. `needs` names
- * each required field the line leaves open, and each the step names, but never a listed one.
+ * --json takes, then each folder the call moved (decision 13); a listed field comes after them,
+ * alone, with no value, so the call lists its values, and the switches of adx come last. `needs`
+ * names each required field the line leaves open, and each the step names, but never a listed one.
  *
- * @example const next = await stepAnswer(greet.step({ lang: 'de' }), { tool: 'hello', input });
+ * @example const next = await stepAnswer(greet.step(), { tool: 'hello', input, folders: [] });
  */
 import { declaration, isDecimal, partsOfStep, refusedWith, UNKNOWN_STATE } from "../core/index.js";
 import { lineOf, optionWords } from "./line.js";
@@ -50,7 +51,9 @@ async function commandAnswer(parts, context) {
     const words = [
         ...target.call,
         ...optionsOf(fields, values),
+        ...context.folders.flatMap(({ option, folder }) => optionWords(option, folder)),
         ...(listed?.option === undefined ? [] : [`--${listed.option}`]),
+        ...parts.switches.map(name => `--${name}`),
     ];
     const needs = fields
         .filter(field => field.required || parts.needed.includes(field.field))

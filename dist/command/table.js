@@ -26,15 +26,15 @@ export const isWord = (key) => WORD.test(key);
 export const isTable = (value) => Object.values(value).every(entry => typeof entry === 'object' && entry !== null);
 /**
  * @param table - the command table, or a group of it
- * @param tool - the name of the tool that lists it, how it answers a call of a command, and the
- * port to the sources of the fields
+ * @param tool - the name of the tool that lists it, how it answers an invoke of a command, the
+ * port to the sources of the fields, and the roots of the tool
  * @param words - the words of the group
  */
 export function placeAll(table, tool, words = []) {
     for (const [word, entry] of Object.entries(table)) {
         const runner = runnerOf(entry);
-        const { through, sources } = tool;
-        const place = { tool: tool.name, words: [...words, word].join(' '), through, sources };
+        const { through, sources, roots } = tool;
+        const place = { tool: tool.name, words: [...words, word].join(' '), through, sources, roots };
         if (runner !== undefined)
             runner.places.push(place);
         else if (isTable(entry))

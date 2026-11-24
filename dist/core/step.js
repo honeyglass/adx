@@ -21,10 +21,11 @@ class Planned {
 /**
  * @param target - the command the step names
  * @param given - the fields the step gives, as a caller writes them
+ * @param switches - the options of adx the step gives, such as replace, without dashes
  * @returns the step, which needs, carries and lists nothing yet
  */
-export function commandStep(target, given) {
-    return new Planned({ target, given, needed: [], carried: [], listed: undefined });
+export function commandStep(target, given, switches = []) {
+    return new Planned({ target, given, needed: [], carried: [], listed: undefined, switches });
 }
 /** @returns the parts of a step to a command, or undefined for any other step */
 export const partsOfStep = (step) => partsByStep.get(step);

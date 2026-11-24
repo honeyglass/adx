@@ -4,16 +4,18 @@
  * namesSchema, schemaAnswer: whether a call names `schema`, and its answer.
  * schemaTargetOf: the shape or the command a name after `schema` shows.
  *
- * `schema` alone names every command with its input, the shapes, what each kind asks the caller
- * and adx's own codes. `schema <command>` shows the input as JSON Schema with what --help shows,
- * and `schema <shape>` the shape. Each prints the JSON Schema of the same Zod schema adx checks
- * with, so the two never differ. `schema` comes before the command table, and takes no option.
+ * `schema` alone names every command with its input, the shapes, the roots with their variable
+ * and option, what each kind asks the caller and adx's own codes. `schema <command>` shows the
+ * input as JSON Schema with what --help shows, and `schema <shape>` the shape. Each prints the
+ * JSON Schema of the same Zod schema adx checks with, so the two never differ. `schema` comes
+ * before the command table, and takes no option.
  *
  * @example if (namesSchema(tokens)) return schemaAnswer(shell, tokens);
  */
 import { refused, runnersIn } from '../command/index.ts';
 import type { Answered, Runner } from '../command/index.ts';
 import { ADX_CODES, exitOf, factsOf, unknownCommand, unknownOption } from '../core/index.ts';
+import { rootOptions } from '../files/index.ts';
 import type { Kind, Step, Token } from '../core/index.ts';
 import { jsonSchemaOf } from '../shapes/index.ts';
 import type { Shell } from './tool.ts';
@@ -76,7 +78,12 @@ function overviewOf(shell: Shell) {
   const kinds = Object.fromEntries(
     KINDS.map(([kind, does]) => [kind, { exit: exitOf({ ok: false, kind }), does }]),
   );
-  return { commands, shapes: Object.keys(shell.shapes), kinds, codes: ADX_CODES.map(factsOf) };
+  const roots = rootOptions(shell.roots).map(({ name, variable }) => ({
+    root: name,
+    ...(variable === undefined ? {} : { variable, option: `--${name}` }),
+  }));
+  const codes = ADX_CODES.map(factsOf);
+  return { commands, shapes: Object.keys(shell.shapes), roots, kinds, codes };
 }
 
 function commandSchemaOf(runner: Runner) {

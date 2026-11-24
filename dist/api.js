@@ -8,12 +8,15 @@
  * tell, schema: a step for the person, and a step to adx's own command schema.
  * after, hint: the steps after a command, and the command that helps with a code, at the tool.
  * needs, fresh, keyOf, detailOf: what a source answers, and the sources adx makes.
+ * root, envDir, marker, cwd: a folder the tool may use, and where it lies.
+ * dir, inFile, outFile, id, multiline: the field schemas adx gives.
  * tool: the tool, whose main() runs one call.
  *
  * @example import { code, read, tool } from '@honeyglass/adx';
  */
 export { after, effect, global, list, read } from "./command/index.js";
 export { code, failed, Issue, Refused, status } from "./core/index.js";
+export { cwd, dir, envDir, id, inFile, marker, multiline, outFile, root } from "./files/index.js";
 export { check } from "./shapes/index.js";
 export { hint, schema, tell } from "./steps/index.js";
 export { tool } from "./tool/index.js";
