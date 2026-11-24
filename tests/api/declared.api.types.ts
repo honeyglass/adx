@@ -32,7 +32,7 @@ type Undeclared<B, D> = Exclude<keyof B, keyof D>;
 type Missing<B, D> = Exclude<keyof D, keyof B>;
 
 /** The declared values the package does not export yet; never once all are built. */
-type NotBuilt = 'stored';
+type NotBuilt = never;
 /**
  * The brands of index.d.ts. A .d.ts exports each top-level name, so its brands count as values,
  * yet they exist on the type level only and the package exports none of them.
@@ -91,6 +91,7 @@ type TypePairs = [
   [Built.Root, Declared.Root],
   [Built.RootSource, Declared.RootSource],
   [Built.Step, Declared.Step],
+  [Built.Stored<Sample['shape'], StepInput>, Declared.Stored<Sample['shape'], StepInput>],
   [Built.Tool, Declared.Tool],
   [Built.Written, Declared.Written],
   [BuiltTest.Checked, DeclaredTest.Checked],
