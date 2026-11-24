@@ -255,7 +255,7 @@ export const misgiven = (() => {
   return tool({ name: 'hello', version: '0.1.0', does: 'x', commands: { pick, point } });
 })();
 
-/** The values of exact, each of which a named command below writes in another quoting. */
+/** The values of exact, which the named commands below write in other quotings, or bare. */
 const exactly = (steps: string[]) =>
   tool({
     name: 'hello',
@@ -263,8 +263,8 @@ const exactly = (steps: string[]) =>
     does: 'x',
     commands: {
       exact: read({
-        does: 'takes one of two values',
-        input: z.object({ value: z.enum(['C:\\path\\x', 'a#b~c']) }),
+        does: 'takes one of three values',
+        input: z.object({ value: z.enum(['C:\\path\\x', 'a#b~c', 'a|b']) }),
         example: { value: 'a#b~c' },
         run: () => ({}),
       }),
@@ -284,7 +284,7 @@ export const quoting = exactly([
   'hello exact --value a#b~c',
 ]);
 
-// A trailing backslash, which sh does not read as one plain call.
-export const unquoted = exactly(['hello exact --value a#b~c\\']);
+// A value exact takes, left unquoted, so the shell reads its | as a pipe: no plain call.
+export const unquoted = exactly(['hello exact --value a|b']);
 
 export const fixed = remote('fixed', { url: 'https://fixed.example.com' });
