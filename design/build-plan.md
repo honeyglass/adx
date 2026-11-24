@@ -98,6 +98,7 @@ round is done. The e2e line names the tests the package turns green.
 - [ ] roots, `envDir`, `marker`, `cwd`, `dir`, `inFile`, `outFile`
 - [ ] `files.write`, `files.update`, `plan`, all or nothing (rule 9)
 - [ ] `--replace`, `replace: 'always'` (70), same bytes write nothing (81)
+- [ ] `id()` and `multiline()`, the field schemas declared beside `dir` and `inFile`
 - e2e: examples/datafolder
 
 ### P7 list
