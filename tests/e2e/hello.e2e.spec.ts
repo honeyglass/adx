@@ -1,6 +1,7 @@
 // proto/hello.ts as a program, with the answers of the guide's Quickstart, piped.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
 import { pending } from '../utils/pending.ts';
@@ -10,11 +11,17 @@ const HELLO = join(PROTO, 'hello.ts');
 
 const hello = (home: string, ...argv: string[]) => program(HELLO, argv, { home });
 
-pending('P1', 'greets Ada in one JSON document', async t => {
+test('greets Ada in one JSON document', async t => {
   const home = await scratch(t);
   const { exit, out } = await hello(home, 'greet', '--name', 'Ada');
   assert.equal(exit, 0);
   assert.equal(out, '{"ok":true,"result":{"greeting":"Hello, Ada!"}}\n');
+});
+
+test('a reader that leaves before the answer ends the call quietly', async t => {
+  const home = await scratch(t);
+  const ran = await program(HELLO, ['greet', '--name', 'Ada'], { home, gone: true });
+  assert.deepEqual({ exit: ran.exit, err: ran.err }, { exit: 0, err: '' });
 });
 
 pending('P2', 'refuses both mistakes of one call at once', async t => {

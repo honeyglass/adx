@@ -8,7 +8,8 @@
  * The program runs with no environment but PATH and HOME, so no variable of the person, such
  * as HELLO_HOME, reaches it, and its data folder of `~` lies in the test's scratch folder.
  * stdin is empty, and stdout is a pipe, so every answer is JSON. A call that does not end in
- * time is killed, and its test fails.
+ * time is killed, and its test fails. With `gone`, the reader of stdout leaves before the
+ * program writes, as `| true` does.
  *
  * @example const { exit, out } = await program(join(PROTO, 'hello.ts'), ['greet'], { home });
  */
@@ -34,6 +35,8 @@ export type Call = {
   home: string;
   /** More variables, such as SHIP_URL. */
   env?: Record<string, string>;
+  /** Closes the reading end of stdout at once, so the program writes into a closed pipe. */
+  gone?: boolean;
 };
 
 /**
@@ -47,8 +50,9 @@ export async function program(file: string, argv: readonly string[], call: Call)
   const options = { cwd: call.home, env, timeout: TIMEOUT_MS, killSignal: 'SIGKILL' as const };
   const child = spawn(process.execPath, [file, ...argv], options);
   child.stdin.end();
+  if (call.gone === true) child.stdout.destroy();
   const [out, err, [exit, signal]] = await Promise.all([
-    text(child.stdout),
+    call.gone === true ? '' : text(child.stdout),
     text(child.stderr),
     once(child, 'close'),
   ]);
