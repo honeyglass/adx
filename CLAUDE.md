@@ -16,8 +16,9 @@ prototype, and the code with its tests.
 - src/: the code, built by `pnpm run build` into dist/, which is checked in, so a tool installs adx
   from GitHub with no build step. `design/build-plan.md` cuts the work into packages.
 - tests/: `api/` checks the import rules of src/, that dist/ is its build and, in the typecheck,
-  that the built types fit `proto/adx/`; `e2e/` runs the proto tools as programs against dist/,
-  each journey `pending` until the package of the build that turns it green.
+  that the built types fit `proto/adx/` and every file of `proto/` compiles against dist/;
+  `e2e/` runs the proto tools as programs against dist/; `fixtures/` holds the tools the api
+  test of `conformance` probes.
 - tsconfig.base.json: the base a tool extends as `@honeyglass/adx/tsconfig.json`.
 
 ## Changing the API

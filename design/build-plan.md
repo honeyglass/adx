@@ -115,9 +115,9 @@ round is done. The e2e line names the tests the package turns green.
 
 ### P10 finish
 - [ ] the start checks: utils present (75), hint and schema names known (73, 77)
-- [ ] `test/conformance`
+- [x] `test/conformance`
 - [ ] `dist/` built and checked in, README install line points at a real sha
-- [ ] `tests/e2e/oriko.e2e.spec.ts` removed: proto/oriko stays type-only and never runs, since
+- [x] `tests/e2e/oriko.e2e.spec.ts` removed: proto/oriko stays type-only and never runs, since
       it imports functions it only declares (the person, 2026-11-23). The real oriko, migrated
       onto adx after this build, is the acceptance test, with its behavior golden.
 
