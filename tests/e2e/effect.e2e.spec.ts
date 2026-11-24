@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const EFFECT = join(PROTO, 'examples', 'effect.ts');
@@ -14,7 +14,7 @@ const WRITTEN = { file: 'friends/ada.json', bytes: 26, replaces: false };
 
 const hello = (home: string, ...argv: string[]) => program(EFFECT, argv, { home });
 
-pending('P6', 'a dry run stages the friend, and the real run writes it', async t => {
+test('a dry run stages the friend, and the real run writes it', async t => {
   const home = await scratch(t);
   const dry = answerIn((await hello(home, ...ADA, '--dry-run')).out, z.unknown());
   assert.equal(dry.applied, false);
@@ -30,7 +30,7 @@ pending('P6', 'a dry run stages the friend, and the real run writes it', async t
   assert.deepEqual(again.result, { ...WRITTEN, unchanged: true });
 });
 
-pending('P6', 'other content under a taken name needs --replace', async t => {
+test('other content under a taken name needs --replace', async t => {
   const home = await scratch(t);
   await hello(home, ...ADA);
   const en = ['friends', 'add', '--name', 'ada', '--lang', 'en'];

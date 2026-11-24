@@ -1,9 +1,9 @@
 // proto/examples/datafolder.ts as a program, with the answers of the guide's "The data folder".
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const DATAFOLDER = join(PROTO, 'examples', 'datafolder.ts');
@@ -11,7 +11,7 @@ const Written = z.object({ file: z.string(), replaces: z.boolean() });
 
 const hello = (home: string, ...argv: string[]) => program(DATAFOLDER, argv, { home });
 
-pending('P6', 'a dry run of an edit shows what changes', async t => {
+test('a dry run of an edit shows what changes', async t => {
   const home = await scratch(t);
   await hello(home, 'friends', 'add', '--name', 'ada', '--lang', 'de');
   const edit = ['friends', 'edit', '--name', 'ada', '--lang', 'en', '--dry-run'];
@@ -20,7 +20,7 @@ pending('P6', 'a dry run of an edit shows what changes', async t => {
   assert.deepEqual(answerIn(out, Changed).result?.changes.changed, ['lang']);
 });
 
-pending('P6', 'an export builds its file again without --replace', async t => {
+test('an export builds its file again without --replace', async t => {
   const home = await scratch(t);
   const exported = ['friends', 'export', '--file', 'public/friends.txt'];
   await hello(home, 'friends', 'add', '--name', 'ada', '--lang', 'de');
@@ -35,7 +35,7 @@ pending('P6', 'an export builds its file again without --replace', async t => {
   assert.equal(answerIn(schema.out, z.object({ replace: z.string() })).result?.replace, 'always');
 });
 
-pending('P6', 'a data folder that is empty or missing is refused', async t => {
+test('a data folder that is empty or missing is refused', async t => {
   const home = await scratch(t);
   const env = { HELLO_HOME: '' };
   const empty = await program(DATAFOLDER, ['friends', 'add', '--name'], { home, env });
