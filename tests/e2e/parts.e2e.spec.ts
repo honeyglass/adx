@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const PARTS = join(PROTO, 'examples', 'parts.ts');
@@ -20,7 +19,7 @@ test('points at the second place a name stands', async t => {
   assert.deepEqual([issue?.code, issue?.path], ['NAME_TWICE', 'people.2.name']);
 });
 
-pending('P5', 'lists its shapes, shows one, and refuses a part that fails it', async t => {
+test('lists its shapes, shows one, and refuses a part that fails it', async t => {
   const home = await scratch(t);
   const Shapes = z.object({ shapes: z.array(z.string()) });
   assert.deepEqual(answerIn((await hello(home, 'schema')).out, Shapes).result?.shapes, ['person']);

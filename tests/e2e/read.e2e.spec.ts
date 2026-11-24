@@ -4,13 +4,37 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const READ = join(PROTO, 'examples', 'read.ts');
 const HALLO = '{"ok":true,"result":{"greeting":"Hallo, Ada!"}}\n';
 
 const hello = (home: string, ...argv: string[]) => program(READ, argv, { home });
+
+const piped = (home: string, stdin: string | Uint8Array) =>
+  program(READ, ['greet', '--json', '-'], { home, stdin });
+
+const codeOf = (out: string) => answerIn(out, z.unknown()).issues?.map(i => i.code);
+
+test('takes the input through stdin with --json -', async t => {
+  const home = await scratch(t);
+  assert.equal((await piped(home, '{"name":"Ada","lang":"de"}')).out, HALLO);
+});
+
+test('refuses an empty pipe and bytes that are no UTF-8', async t => {
+  const home = await scratch(t);
+  assert.deepEqual(codeOf((await piped(home, '')).out), ['MISSING_INPUT']);
+  const latin1 = Uint8Array.from([...Buffer.from('{"name":"'), 0xe9, ...Buffer.from('"}')]);
+  assert.deepEqual(codeOf((await piped(home, latin1)).out), ['INVALID_JSON']);
+});
+
+// '😀' is one character, four bytes and two UTF-16 units, so a count of either refuses the first.
+test('takes stdin up to 1048576 characters, and refuses one more', async t => {
+  const home = await scratch(t);
+  const of = (length: number) => `{"name":"${'😀'.repeat(length - 11)}"}`;
+  assert.equal((await piped(home, of(1_048_576))).exit, 0);
+  assert.deepEqual(codeOf((await piped(home, of(1_048_577))).out), ['INPUT_TOO_LARGE']);
+});
 
 test('takes the input from options, --json or both', async t => {
   const home = await scratch(t);
@@ -36,7 +60,7 @@ test('lists the values of an option, and refuses one outside', async t => {
   assert.deepEqual([issue?.code, issue?.command], ['NOT_IN_LIST', 'hello greet --name Ada --lang']);
 });
 
-pending('P5', 'shows the input it accepts as JSON Schema', async t => {
+test('shows the input it accepts as JSON Schema', async t => {
   const home = await scratch(t);
   const { exit, out } = await hello(home, 'schema', 'greet');
   const Input = z.object({

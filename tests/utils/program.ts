@@ -7,9 +7,9 @@
  *
  * The program runs with no environment but PATH and HOME, so no variable of the person, such
  * as HELLO_HOME, reaches it, and its data folder of `~` lies in the test's scratch folder.
- * stdin is empty, and stdout is a pipe, so every answer is JSON. A call that does not end in
- * time is killed, and its test fails. With `gone`, the reader of stdout leaves before the
- * program writes, as `| true` does.
+ * stdin is a pipe that holds the given text, else nothing, and stdout is a pipe, so every
+ * answer is JSON. A call that does not end in time is killed, and its test fails. With `gone`,
+ * the reader of stdout leaves before the program writes, as `| true` does.
  *
  * @example const { exit, out } = await program(join(PROTO, 'hello.ts'), ['greet'], { home });
  */
@@ -35,6 +35,8 @@ export type Call = {
   home: string;
   /** More variables, such as SHIP_URL. */
   env?: Record<string, string>;
+  /** The text or bytes piped into stdin; without them, stdin ends at once. */
+  stdin?: string | Uint8Array;
   /** Closes the reading end of stdout at once, so the program writes into a closed pipe. */
   gone?: boolean;
 };
@@ -49,7 +51,7 @@ export async function program(file: string, argv: readonly string[], call: Call)
   const env = { PATH: process.env.PATH, HOME: call.home, ...call.env };
   const options = { cwd: call.home, env, timeout: TIMEOUT_MS, killSignal: 'SIGKILL' as const };
   const child = spawn(process.execPath, [file, ...argv], options);
-  child.stdin.end();
+  child.stdin.end(call.stdin);
   if (call.gone === true) child.stdout.destroy();
   const [out, err, [exit, signal]] = await Promise.all([
     call.gone === true ? '' : text(child.stdout),

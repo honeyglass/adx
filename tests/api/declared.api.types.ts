@@ -34,7 +34,6 @@ type Missing<B, D> = Exclude<keyof D, keyof B>;
 /** The declared values the package does not export yet; never once all are built. */
 type NotBuilt =
   | 'bearer'
-  | 'check'
   | 'cwd'
   | 'dir'
   | 'envDir'
