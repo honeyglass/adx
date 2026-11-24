@@ -1,3 +1,4 @@
+import type { Observable } from 'rxjs';
 import type { Incoming, Outgoing, Remote, Surroundings, Unreached } from '../core/index.ts';
 type Query = Readonly<Record<string, string | number | undefined>>;
 /** A request ready to leave: what the network sends, and the path a fake matches. */
@@ -31,10 +32,10 @@ export declare class Line {
         query?: Query;
         body?: string;
     }): Target;
-    /** A remote with a fake of the test answers from it, and no request leaves the process. */
-    exchange(target: Target): Promise<Incoming | Unreached>;
-    /** A fake answers at once, so a test of a busy server waits for nothing. */
-    pause(remote: Remote, ms: number): Promise<void>;
+    /** Cold, as the network: a remote with a fake of the test answers from it, in the process. */
+    exchange(target: Target): Observable<Incoming | Unreached>;
+    /** A fake answers at once and starts no timer, so a test of a busy server waits for nothing. */
+    pause(remote: Remote, ms: number): Observable<number>;
     /** @returns the send, which counts as without an answer until its answer comes */
     sending(label: string): Sent;
     /** @throws as the first request to a remote of the tool would, before any is made */

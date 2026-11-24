@@ -2,7 +2,7 @@
  * A read and a send of a remote, and the check of every answer against its schema.
  *
  * read: what `get` answers: tried again on a network error, a 429 or a 503 (decision 41), with a
- * status of `on` answered by its value.
+ * status of `on` answered by its value; the tries run on RxJS (decision 83).
  * act: the send of `apply`, never tried again, counted on the line of the call.
  *
  * While adx answers a refusal no request goes out (decision 79): a read or a send then throws
@@ -15,6 +15,7 @@
  * @example const ticket = await read(api, ['tickets', id], Ticket, { on: { 404: undefined } });
  */
 import { trySync$ } from '@honeyglass/utils/ts';
+import { last, lastValueFrom, repeat, takeWhile } from 'rxjs';
 import type { z } from 'zod';
 import {
   declaration,
@@ -73,26 +74,34 @@ export async function read<S extends z.ZodType, O extends On>(
 ): Promise<z.output<S> | O[keyof O]> {
   const line = lineReady();
   const target = line.target(remote, 'GET', path, { query: options.query });
-  for (let attempt = 0; ; attempt += 1) {
-    const again = attempt < RETRIES;
-    const incoming = await line.exchange(target);
-    if ('unreached' in incoming) {
-      if (again) {
-        await line.pause(remote, PAUSE_MS * 2 ** attempt);
-        continue;
-      }
-      throw unreached(incoming, target.what);
-    }
-    const { on } = options;
-    const status: PropertyKey = incoming.status;
-    if (on !== undefined && isKey(on, status)) return valueAt(on, status);
-    if (isOk(incoming.status)) return checked(incoming, answer, target.what);
-    if (again && AGAIN.has(incoming.status)) {
-      await line.pause(remote, PAUSE_MS * 2 ** attempt);
-      continue;
-    }
-    throw refused(issueOf(incoming, target.what), incoming);
-  }
+  const { on } = options;
+  const incoming = await lastValueFrom(tried(line, target, on));
+  if ('unreached' in incoming) throw unreached(incoming, target.what);
+  const status: PropertyKey = incoming.status;
+  if (on !== undefined && isKey(on, status)) return valueAt(on, status);
+  if (isOk(incoming.status)) return checked(incoming, answer, target.what);
+  throw refused(issueOf(incoming, target.what), incoming);
+}
+
+/**
+ * The first answer that is not busy, or the last one, after RETRIES more tries.
+ *
+ * Each try subscribes to the request again, after a pause twice the one before. A status that
+ * `on` names is an answer, even 429 or 503.
+ */
+function tried(line: Line, target: Target, on: On | undefined) {
+  const pause = (count: number) => line.pause(target.remote, PAUSE_MS * 2 ** (count - 1));
+  return line.exchange(target).pipe(
+    repeat({ count: RETRIES + 1, delay: pause }),
+    takeWhile(incoming => isBusy(incoming, on), true),
+    last(),
+  );
+}
+
+function isBusy(incoming: Incoming | Unreached, on: On | undefined) {
+  if ('unreached' in incoming) return true;
+  if (on !== undefined && isKey(on, incoming.status)) return false;
+  return AGAIN.has(incoming.status);
 }
 
 export const act: Act = { send };
@@ -116,7 +125,7 @@ async function send<S extends z.ZodType>(label: string, made: Request, answer: S
   const body = parts.body === undefined ? {} : { body: JSON.stringify(parts.body) };
   const target = line.target(parts.remote, made.method, parts.path, body);
   const sent = line.sending(label);
-  const incoming = await line.exchange(target);
+  const incoming = await lastValueFrom(line.exchange(target));
   if ('unreached' in incoming) throw unreached(incoming, target.what);
   if (isOk(incoming.status) === false) {
     sent.outcome = 'refused';

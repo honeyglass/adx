@@ -18,6 +18,7 @@
  * @example return new Line(shell, around).run(() => answeredIn(shell, call));
  */
 import { UNSAFE_RUN } from '@honeyglass/utils/ts';
+import { defer, of, timer } from 'rxjs';
 import { declaration, entered, refusedWith, UNKNOWN_STATE, valueOf } from "../core/index.js";
 import { addressOf, ready, serverOf, tokenOf } from "./address.js";
 import { fakeAnswer } from "./fake.js";
@@ -76,17 +77,16 @@ export class Line {
         };
         return { remote, outgoing, rel, what: `${method} ${rel}` };
     }
-    /** A remote with a fake of the test answers from it, and no request leaves the process. */
+    /** Cold, as the network: a remote with a fake of the test answers from it, in the process. */
     exchange(target) {
         const fake = this.#fakeOf(target.remote);
-        if (fake !== undefined)
-            return fakeAnswer(fake, target.outgoing.method, target.rel);
-        return this.#around.network.send(target.outgoing);
+        if (fake === undefined)
+            return this.#around.network.send(target.outgoing);
+        return defer(() => fakeAnswer(fake, target.outgoing.method, target.rel));
     }
-    /** A fake answers at once, so a test of a busy server waits for nothing. */
-    async pause(remote, ms) {
-        if (this.#fakeOf(remote) === undefined)
-            await this.#around.network.pause(ms);
+    /** A fake answers at once and starts no timer, so a test of a busy server waits for nothing. */
+    pause(remote, ms) {
+        return this.#fakeOf(remote) === undefined ? timer(ms) : of(0);
     }
     /** @returns the send, which counts as without an answer until its answer comes */
     sending(label) {

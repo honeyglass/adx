@@ -77,7 +77,7 @@ function statusIssue(status: number, said: (text: string) => string) {
 const isPathError = (link: object): link is { syscall: string; path: string; code: string } =>
   isText(link, 'syscall') && isText(link, 'path') && isText(link, 'code');
 
-// A timeout of AbortSignal.timeout() is a DOMException named TimeoutError, with no code.
+// A timeout of the network, RxJS's timeout(), is an error named TimeoutError, with no code.
 function networkOf(link: object) {
   if ('code' in link && typeof link.code === 'string' && NETWORK_CODES.has(link.code)) {
     return link.code;

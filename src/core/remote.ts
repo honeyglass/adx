@@ -13,6 +13,7 @@
  *
  * @example const ticket = await act.send('the new ticket', api.post(path, data), Ticket);
  */
+import type { Observable } from 'rxjs';
 import type { z } from 'zod';
 
 type Path = readonly (string | number)[];
@@ -82,6 +83,6 @@ export type Unreached = { readonly unreached: unknown };
 export interface Network {
   /** Undefined for a text that is no address. */
   parse(url: string): Address | undefined;
-  send(request: Outgoing): Promise<Incoming | Unreached>;
-  pause(ms: number): Promise<void>;
+  /** Cold: each subscription sends once, and an unsubscribe before the answer aborts the request. */
+  send(request: Outgoing): Observable<Incoming | Unreached>;
 }

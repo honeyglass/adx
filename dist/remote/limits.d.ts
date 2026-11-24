@@ -7,7 +7,7 @@
  * FAKES_ONLY, LOOPBACK: the variable the test kit sets in a program it runs, and the addresses
  * of the machine itself, which a call under the kit may reach without a fake.
  *
- * @example await line.pause(server, PAUSE_MS * 2 ** attempt);
+ * @example repeat({ count: RETRIES + 1, delay: count => line.pause(remote, PAUSE_MS * 2 ** (count - 1)) });
  */
 /** Three: a read is tried again up to three times, on a network error, a 429 or a 503. */
 export declare const RETRIES = 3;

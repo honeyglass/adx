@@ -237,18 +237,24 @@ test('a read is tried again up to 3 times on a 503, a 429 or a network error', a
   assert.equal(seen.length, 4);
 });
 
-test('a fake answers a busy server at once, without the pauses of the tries', async () => {
-  const busy = fake(api, { 'GET /items/a1': reply(503) });
-  const started = performance.now();
-  const refused = await answerOf(['show', '--id', 'a1'], {
-    env: { SHOP_TOKEN: 'tok' },
-    fakes: [busy],
-  });
-  // the pauses of the three tries add up to 1.4 s
-  assert.ok(performance.now() - started < 700);
-  assert.deepEqual([refused.kind, codesOf(refused)], ['retry', ['SERVER_BUSY']]);
-  assert.equal(refused.state, 'Nothing was changed.');
-});
+test(
+  'a fake answers a busy server at once, without the pauses of the tries',
+  { timeout: 5_000 },
+  async t => {
+    // a test that mocks the clock never ticks it, so a fake waits on no timer
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+    const busy = fake(api, { 'GET /items/a1': reply(503) });
+    const started = performance.now();
+    const refused = await answerOf(['show', '--id', 'a1'], {
+      env: { SHOP_TOKEN: 'tok' },
+      fakes: [busy],
+    });
+    // the pauses of the three tries add up to 1.4 s
+    assert.ok(performance.now() - started < 700);
+    assert.deepEqual([refused.kind, codesOf(refused)], ['retry', ['SERVER_BUSY']]);
+    assert.equal(refused.state, 'Nothing was changed.');
+  },
+);
 
 test('an answer that is no HTTP is a network failure, and a read tries it again', async t => {
   const { env, seen } = await server(t, () => 'garbage');
