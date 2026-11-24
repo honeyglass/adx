@@ -90,9 +90,9 @@ round is done. The e2e line names the tests the package turns green.
 - [x] an option without its value lists its values (rule 13)
 
 ### P5 shapes
-- [ ] `shapes` (72), the `schema` command
-- [ ] raw JSON input (rule 1)
-- [ ] `check()` with `as` (78), SCHEMA issues with paths (69)
+- [x] `shapes` (72), the `schema` command
+- [x] raw JSON input (rule 1)
+- [x] `check()` with `as` (78), SCHEMA issues with paths (69)
 
 ### P6 files
 - [ ] roots, `envDir`, `marker`, `cwd`, `dir`, `inFile`, `outFile`
