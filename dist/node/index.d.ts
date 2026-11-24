@@ -6,12 +6,23 @@
  * captured: what console writes during a call in the process of a test.
  * network: the port a remote reaches its server through.
  * scratch, seeded: the scratch folders of a call of the test kit, and its seed copied in.
+ * snapshot, testFolder: what a folder holds, and the top of the test's working directory, so
+ * the test kit sees what a call changed.
+ * program, serve: a tool run as a program, and a server that answers for a fake of its remote.
+ * byteLength: the size of a text in bytes, as stdout carries it.
+ * textAt, keep, digestOf: the files the test kit reads and keeps next to the tool's package.json.
  *
  * @example const node = await import('../node/index.ts');
  */
 export { around } from './around.ts';
 export { captured } from './capture.ts';
+export { byteLength } from './bytes.ts';
+export { digestOf, keep, textAt } from './kept.ts';
 export { network } from './network.ts';
+export { program } from './program.ts';
+export type { ProgramCall } from './program.ts';
 export { scratch, seeded } from './scratch.ts';
+export { serve } from './serve.ts';
+export { snapshot, testFolder } from './snapshot.ts';
 export { tokensOf } from './tokens.ts';
 export { write } from './write.ts';

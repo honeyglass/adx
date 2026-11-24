@@ -16,6 +16,8 @@ export declare function variablesOf(remote: Remote): {
     variable: string;
     does: string;
 }[];
+/** @returns the variable of envUrl() the remote reads its address from, or undefined */
+export declare function urlVariableOf(remote: Remote): string | undefined;
 /**
  * @param server - the remote that sends
  * @param env - the variables of the call

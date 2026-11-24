@@ -3,6 +3,7 @@
  *
  * Json, Reply, reply, fake: a JSON value, an answer with a status, and the fake of one remote.
  * fakeAnswer: what a fake answers one request.
+ * heard: a fake that answers as another, and tells the test kit each route it answers.
  *
  * A route is a method and a path below the address of the remote, such as `GET /apps/shop-web`,
  * each part as the request encodes it; the query is no part of it. A JSON value answers 200, a
@@ -20,6 +21,14 @@ export interface Reply {
 }
 export declare function reply(status: number, body?: Json): Reply;
 export declare function fake(remote: Remote, routes: Record<string, Json | Reply>): Fake;
+/**
+ * The test kit sees through it which requests a call sent, such as a POST in a dry run.
+ *
+ * @param made - a fake a test made
+ * @param hear - gets each route the fake answers, such as `POST /tickets`
+ * @returns a fake of the same remote that answers from the same routes
+ */
+export declare function heard(made: Fake, hear: (route: string) => void): Fake;
 /**
  * @param made - the fake of the remote the request goes to
  * @param method - the method of the request

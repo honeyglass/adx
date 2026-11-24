@@ -1,7 +1,8 @@
 /**
  * One whole call of a tool in the process of the test, from the arguments to the exit code.
  *
- * Checked, RunOptions, run: what run() takes as the tool and as the surroundings, and run() itself.
+ * Checked, Samples, RunOptions, run: what run() takes as the tool and as the surroundings, and
+ * run() itself.
  *
  * run() and main() go through the same call, so the answer, the text form and the exit code are
  * the program's; only the surroundings come from the options: stdin, the variables, the fakes of

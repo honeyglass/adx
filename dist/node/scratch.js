@@ -1,8 +1,8 @@
 /**
  * The scratch folders of one call of the test kit, so a test never touches the person's data.
  *
- * scratch: a fresh home folder and, unless the test names one, a fresh working directory; its
- * remove() takes both away again.
+ * scratch: a fresh home folder, a temp folder and, unless the test names one, a fresh working
+ * directory; its remove() takes them away again.
  * seeded: a seed folder copied into a data folder.
  *
  * A relative path of a test, a seed or a working directory, is read from the folder the test
@@ -21,11 +21,13 @@ export function scratch(cwd) {
     const made = mkdtempSync(join(tmpdir(), 'adx-run-'));
     const home = join(made, 'home');
     mkdirSync(home);
+    const tmp = join(made, 'tmp');
+    mkdirSync(tmp);
     const work = cwd === undefined ? join(made, 'work') : resolve(cwd);
     if (cwd === undefined)
         mkdirSync(work);
     const remove = () => rmSync(made, { recursive: true, force: true });
-    return { folder: made, home, cwd: work, disk, scope, network, remove };
+    return { folder: made, home, tmp, cwd: work, disk, scope, network, remove };
 }
 /**
  * @param seed - the folder of files the tool should find

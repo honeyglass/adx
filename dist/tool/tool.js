@@ -25,6 +25,7 @@ export function tool(spec) {
         name: spec.name,
         version: spec.version,
         does: spec.does,
+        skill: spec.skill,
         commands: spec.commands,
         roots: spec.roots ?? [],
         remotes: spec.remotes ?? [],

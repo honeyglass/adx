@@ -7,6 +7,8 @@
  * checked before a call writes a file.
  * setupIssuesOf: what the tool declared of a remote that no call can fix, checked at every start.
  * variablesOf: the variables a remote reads, which `schema` names, never their values.
+ * urlVariableOf: the variable that moves the address of a remote, so the test kit points a
+ * program at its fake.
  *
  * Nothing is read when a remote is made: its file loads before any call, and each call has its
  * own variables. So envUrl answers a text that stands for the variable, and the call reads it.
@@ -53,6 +55,11 @@ export function variablesOf(remote) {
             : [{ variable: url.variable, does: `the address of ${server.name}` }]),
         ...(token === undefined ? [] : [{ variable: token, does: `the token for ${server.name}` }]),
     ];
+}
+/** @returns the variable of envUrl() the remote reads its address from, or undefined */
+export function urlVariableOf(remote) {
+    const server = servers.get(remote);
+    return server === undefined ? undefined : envUrls.get(server.url)?.variable;
 }
 /**
  * @param server - the remote that sends

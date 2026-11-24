@@ -37,6 +37,11 @@ export interface ToolSpec<G extends Obj> {
   name: string;
   version: string;
   does: string;
+  /**
+   * The path of the agent skill, relative to the folder of the tool's package.json. The tool never
+   * opens the file; the start answer shows the path, and the test kit checks that it is a skill.
+   */
+  skill?: string;
   roots?: Root[];
   remotes?: Remote[];
   /** Every kind of data the tool keeps, so `schema` shows its format number and the test kit checks it. */
@@ -64,6 +69,7 @@ export type Shell = {
   readonly name: string;
   readonly version: string;
   readonly does: string;
+  readonly skill: string | undefined;
   readonly commands: Table;
   readonly roots: readonly Root[];
   readonly remotes: readonly Remote[];
@@ -82,6 +88,7 @@ export function tool<G extends Obj = Empty>(spec: ToolSpec<G>): Tool {
     name: spec.name,
     version: spec.version,
     does: spec.does,
+    skill: spec.skill,
     commands: spec.commands,
     roots: spec.roots ?? [],
     remotes: spec.remotes ?? [],

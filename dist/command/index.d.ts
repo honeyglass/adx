@@ -8,6 +8,7 @@
  * every call, the commands a table lists, and a key that is one word.
  * route, listed, commandsIn: the command the words of a call name, and a group called alone.
  * Answered, refused: what a command answers, with its terminal form.
+ * Form, formOf: --output, the form of the answer every call can force.
  * Runner, runnerOf, Ready, Run: what runs a command, the call ready for its handler, and its run.
  * After, after, followsOf: the steps after a command, given at the tool.
  *
@@ -19,6 +20,8 @@ export { refused } from './answered.ts';
 export type { Answered } from './answered.ts';
 export { runnerOf } from './command.ts';
 export { global } from './global.ts';
+export { formOf } from './output.ts';
+export type { Form } from './output.ts';
 export type { Global } from './global.ts';
 export { effect, list, read } from './kinds.ts';
 export { commandsIn, listed, route } from './route.ts';

@@ -10,13 +10,18 @@
  * or sent without an answer). Before a call writes a file, ready() checks the address and the
  * token of every remote, since adx cannot know which one `apply` sends through.
  *
+ * Under the test kit, a request reaches a fake or the machine itself, and nothing beyond it, so a
+ * test never sends to a real server with a token of its samples. The kit is a call with fakes,
+ * as run(), invoke() and conformance make it, or a program whose variable ADX_FAKES_ONLY is 1,
+ * which conformance sets; no other value changes anything.
+ *
  * @example return new Line(shell, around).run(() => answeredIn(shell, call));
  */
 import { UNSAFE_RUN } from '@honeyglass/utils/ts';
 import { declaration, entered, refusedWith, UNKNOWN_STATE, valueOf } from "../core/index.js";
 import { addressOf, ready, serverOf, tokenOf } from "./address.js";
 import { fakeAnswer } from "./fake.js";
-import { ANSWER_BYTES, TIMEOUT_MS } from "./limits.js";
+import { ANSWER_BYTES, FAKES_ONLY, LOOPBACK, TIMEOUT_MS } from "./limits.js";
 /** Each outcome with the words a state names it by, in the order the state lists them. */
 const OUTCOMES = [
     ['answered', 'Answered'],
@@ -51,6 +56,10 @@ export class Line {
         }
         const { env, network } = this.#around;
         const { url, rel } = addressOf(server, env, network, path, more.query ?? {});
+        const origin = network.parse(url)?.origin ?? url;
+        if (this.#leaves(remote, origin)) {
+            throw bug(`the remote ${server.name} has no fake in this test, and a request to ${origin} would leave the machine: add a fake of ${server.name} to the samples`);
+        }
         const token = tokenOf(server, env);
         const headers = {
             accept: 'application/json',
@@ -103,6 +112,11 @@ export class Line {
             const labels = this.#sent.filter(sent => sent.outcome === outcome).map(sent => sent.label);
             return labels.length === 0 ? [] : [`${words}: ${labels.join(', ')}.`];
         });
+    }
+    // The one check of the kit's network: no fake, an address beyond the machine, under the kit.
+    #leaves(remote, origin) {
+        const kit = this.#around.fakes !== undefined || this.#around.env[FAKES_ONLY] === '1';
+        return kit && this.#fakeOf(remote) === undefined && LOOPBACK.test(origin) === false;
     }
     #fakeOf(remote) {
         return this.#around.fakes?.find(fake => fake.remote === remote);

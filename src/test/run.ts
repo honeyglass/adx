@@ -1,7 +1,8 @@
 /**
  * One whole call of a tool in the process of the test, from the arguments to the exit code.
  *
- * Checked, RunOptions, run: what run() takes as the tool and as the surroundings, and run() itself.
+ * Checked, Samples, RunOptions, run: what run() takes as the tool and as the surroundings, and
+ * run() itself.
  *
  * run() and main() go through the same call, so the answer, the text form and the exit code are
  * the program's; only the surroundings come from the options: stdin, the variables, the fakes of
@@ -19,21 +20,25 @@ export interface Checked {
   readonly main: () => Promise<void>;
 }
 
-/** What run() reads of the surroundings of a call. */
-export type RunOptions = {
+/** What only the test knows of a tool's surroundings, for run() and for conformance. */
+export interface Samples {
   /** The fakes that answer in place of the servers of their remotes. */
   fakes?: Fake[];
   /** The variables of the call; none of the process reaches it. */
   env?: Record<string, string>;
   /** A folder of files copied into the data folder of the call. */
   seed?: string;
+}
+
+/** What run() reads of the surroundings of a call. */
+export interface RunOptions extends Samples {
   /** The working directory of the call. Without it, a fresh scratch folder. */
   cwd?: string;
   /** The text the call reads from stdin, or `null` when nothing is piped in. Default `null`. */
   stdin?: string | null;
   /** Whether stdout is a terminal: `true` answers text, `false` JSON. Default `false`. */
   tty?: boolean;
-};
+}
 
 /**
  * @param tool - the value tool() returned

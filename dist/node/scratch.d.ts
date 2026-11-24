@@ -2,6 +2,7 @@
 export declare function scratch(cwd: string | undefined): {
     folder: string;
     home: string;
+    tmp: string;
     cwd: string;
     disk: import("../core/types.ts").Disk;
     scope: import("../core/types.ts").Scope;

@@ -3,8 +3,9 @@
  *
  * stored: a kind, which writes its number and reads an older format converted.
  * kindIssues: the DECLARATION issues of a listed kind's formats, for the start checks.
+ * formatsOf: the number and the schema of each format of a kind, for the test kit's fingerprints.
  *
  * @example import { kindIssues, stored } from '../stored/index.ts';
  */
 export { kindIssues } from './checks.ts';
-export { stored } from './stored.ts';
+export { formatsOf, stored } from './stored.ts';

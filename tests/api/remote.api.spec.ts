@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -458,4 +459,39 @@ test('a remote the tool does not list, a fallback that is no address, and apply 
     const answer = answerIn(out, z.unknown());
     assert.deepEqual([exit, answer.kind, codesOf(answer)], [2, 'bug', ['DECLARATION']]);
   }
+});
+
+test('under the test kit a remote without a fake reaches no server beyond the machine', async t => {
+  const away = remote('away', { url: envUrl('AWAY_URL', 'https://away.example.com/api') });
+  const reads = read({ does: 'reads', run: () => away.get(['x'], z.unknown()) });
+  const far = tool({ name: 'away', version: '0', does: 'x', remotes: [away], commands: { reads } });
+  const answer = answerIn((await run(far, ['reads'])).out, z.unknown());
+  assert.deepEqual(
+    [answer.kind, answer.issues?.map(i => [i.code, i.message])],
+    [
+      'bug',
+      [
+        [
+          'DECLARATION',
+          'the remote away has no fake in this test, and a request to https://away.example.com would leave the machine: add a fake of away to the samples',
+        ],
+      ],
+    ],
+  );
+  // a program the kit runs gets ADX_FAKES_ONLY=1, and its remote without a fake is refused too
+  const home = mkdtempSync(join(tmpdir(), 'adx-remote-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const program = join(import.meta.dirname, '..', 'fixtures', 'hello.program.ts');
+  const env = { PATH: process.env.PATH, HOME: home, ADX_FAKES_ONLY: '1' };
+  const ran = spawnSync(process.execPath, [program, 'whoami'], {
+    env,
+    cwd: home,
+    encoding: 'utf8',
+  });
+  assert.deepEqual(
+    answerIn(ran.stdout, z.unknown()).issues?.map(i => i.message),
+    [
+      'the remote hello has no fake in this test, and a request to https://hello.example.com would leave the machine: add a fake of hello to the samples',
+    ],
+  );
 });

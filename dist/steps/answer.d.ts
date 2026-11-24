@@ -15,11 +15,13 @@ export type Context = {
         option: string;
         folder: string;
     }[];
+    knowsSchema: (name: string) => boolean;
 };
 /**
  * @param step - a step a command, a hint or the tool named
  * @param context - the call that answers it
  * @returns the step as the answer writes it; a step from tell has no command
- * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists
+ * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists, or to a name
+ * `schema` does not know
  */
 export declare function stepAnswer(step: Step, context: Context): Promise<NextStep>;

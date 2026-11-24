@@ -9,5 +9,5 @@
  */
 export { call } from './call.ts';
 export { inScratch } from './scene.ts';
-export type { Tool, ToolSpec } from './tool.ts';
+export type { Shell, Tool, ToolSpec } from './tool.ts';
 export { specOf, tool } from './tool.ts';

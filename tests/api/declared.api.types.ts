@@ -39,13 +39,13 @@ type NotBuilt = never;
  */
 type Brands =
   'builtFor' | 'follows' | 'freshBrand' | 'helps' | 'needsBrand' | 'realRun' | 'refBrand';
-type NotBuiltTest = 'conformance';
+type NotBuiltTest = never;
 
 /**
  * The built values whose declared type carries a brand of index.d.ts, such as the `builtFor` of
  * a Command. A brand is a `unique symbol`, one type per declaration, so no built value fits a
- * branded declaration. tests/tsconfig.json checks them by use instead: it compiles the files of
- * proto/ that a package made work against dist/, and each package adds the files it made work.
+ * branded declaration. tests/tsconfig.json checks them by use instead: it compiles every file of
+ * proto/ against dist/, with no mapping onto the declarations.
  */
 type ByUse =
   | 'after'
@@ -98,6 +98,7 @@ type TypePairs = [
   [BuiltTest.Ran, DeclaredTest.Ran],
   [BuiltTest.Reply, DeclaredTest.Reply],
   [BuiltTest.RunOptions, DeclaredTest.RunOptions],
+  [BuiltTest.Samples, DeclaredTest.Samples],
 ];
 /** Each index whose built type is any or differs from its declaration in either direction. */
 type UnfitTypes<P> = {
