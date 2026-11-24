@@ -1,3 +1,4 @@
+import type { Commands, Empty, Global, Obj, Table } from '../command/index.ts';
 export interface Tool {
     /**
      * Runs one call. It is the outermost function: a refusal that reaches it is answered by its
@@ -5,15 +6,19 @@ export interface Tool {
      */
     main(): Promise<void>;
 }
-/** The command table: a key is one word of the call. */
-export type Commands = {
-    readonly [word: string]: object;
-};
-export type ToolSpec = {
+export interface ToolSpec<G extends Obj> {
     name: string;
     version: string;
     does: string;
-    commands: Commands;
+    /** Leave out for a tool whose commands share no input. */
+    global?: Global<G>;
+    /** Every command of the tool. A command built for another global input does not compile here. */
+    commands: Commands<NoInfer<G>>;
+}
+/** What one call reads of a tool. */
+export type Shell = {
+    readonly name: string;
+    readonly commands: Table;
 };
-export declare function tool(spec: ToolSpec): Tool;
-export declare const specOf: (made: object) => ToolSpec | undefined;
+export declare function tool<G extends Obj = Empty>(spec: ToolSpec<G>): Tool;
+export declare const specOf: (made: object) => Shell | undefined;

@@ -9,10 +9,10 @@
  * @example if (import.meta.main) await hello.main();
  */
 import { call } from './call.ts';
-import type { ToolSpec } from './tool.ts';
+import type { Shell } from './tool.ts';
 
-/** @param spec - the spec of the tool */
-export async function main(spec: ToolSpec) {
+/** @param shell - what the call reads of the tool */
+export async function main(shell: Shell) {
   const node = await import('../node/index.ts');
-  node.write(await call(spec, node.around()));
+  node.write(await call(shell, node.around()));
 }

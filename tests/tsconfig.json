@@ -4,5 +4,5 @@
     "noEmit": true,
     "skipLibCheck": false
   },
-  "include": [".", "../proto/hello.ts"]
+  "include": [".", "../proto/hello.ts", "../proto/examples/read.ts", "../proto/examples/refuse.ts"]
 }

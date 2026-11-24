@@ -11,7 +11,7 @@
  */
 import { RefusalError } from '@honeyglass/utils/ts';
 import type { Ran } from '../core/index.ts';
-import { captured } from '../node/index.ts';
+import { captured, tokensOf } from '../node/index.ts';
 import { call, specOf } from '../tool/index.ts';
 
 export interface Checked {
@@ -45,6 +45,7 @@ export async function run(
       next: 'pass the value that tool() returned',
     });
   }
-  const { data, out, err } = await captured(() => call(spec, { argv, tty: options.tty ?? false }));
+  const around = { tokens: tokensOf(argv), tty: options.tty ?? false };
+  const { data, out, err } = await captured(() => call(spec, around));
   return { exit: data.exit, out: `${out}${data.out}`, err: `${err}${data.err}` };
 }

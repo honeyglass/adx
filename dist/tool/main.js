@@ -9,8 +9,8 @@
  * @example if (import.meta.main) await hello.main();
  */
 import { call } from "./call.js";
-/** @param spec - the spec of the tool */
-export async function main(spec) {
+/** @param shell - what the call reads of the tool */
+export async function main(shell) {
     const node = await import("../node/index.js");
-    node.write(await call(spec, node.around()));
+    node.write(await call(shell, node.around()));
 }

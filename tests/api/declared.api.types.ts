@@ -13,6 +13,7 @@
  *
  * @example type Kind = [Built.Kind, Declared.Kind]; // a pair in TypePairs, once Kind is built
  */
+import type { z } from 'zod';
 import type * as Built from '@honeyglass/adx';
 import type * as BuiltTest from '@honeyglass/adx/test';
 import type * as Declared from '../../proto/adx/index.d.ts';
@@ -38,16 +39,13 @@ type NotBuilt =
   | 'cwd'
   | 'detailOf'
   | 'dir'
-  | 'effect'
   | 'envDir'
   | 'envUrl'
   | 'fresh'
-  | 'global'
   | 'hint'
   | 'id'
   | 'inFile'
   | 'keyOf'
-  | 'list'
   | 'marker'
   | 'multiline'
   | 'needs'
@@ -72,12 +70,17 @@ type NotBuiltTest = 'conformance' | 'fake' | 'reply';
  * branded declaration. tests/tsconfig.json checks them by use instead: it compiles the files of
  * proto/ that a package made work against dist/, and each package adds the files it made work.
  */
-type ByUse = 'read';
+type ByUse = 'effect' | 'global' | 'list' | 'read' | 'tool';
+
+/** A schema with two fields, for the types that take one. */
+type Sample = z.ZodObject<{ project: z.ZodString; team: z.ZodOptional<z.ZodString> }>;
 
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
 type TypePairs = [
   [Built.Answer<unknown>, Declared.Answer<unknown>],
   [Built.Code, Declared.Code],
+  [Built.Field<Sample>, Declared.Field<Sample>],
+  [Built.GlobalUse<Sample>, Declared.GlobalUse<Sample>],
   [Built.Issue, Declared.Issue],
   [Built.Kind, Declared.Kind],
   [Built.Refused, Declared.Refused],

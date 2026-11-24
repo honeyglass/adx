@@ -1,6 +1,7 @@
 // proto/examples/read.ts as a program, with the answers of the guide's "A command that reads".
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
 import { pending } from '../utils/pending.ts';
@@ -11,7 +12,7 @@ const HALLO = '{"ok":true,"result":{"greeting":"Hallo, Ada!"}}\n';
 
 const hello = (home: string, ...argv: string[]) => program(READ, argv, { home });
 
-pending('P2', 'takes the input from options, --json or both', async t => {
+test('takes the input from options, --json or both', async t => {
   const home = await scratch(t);
   assert.equal((await hello(home, 'greet', '--name', 'Ada', '--lang', 'de')).out, HALLO);
   assert.equal((await hello(home, 'greet', '--json', '{"name":"Ada","lang":"de"}')).out, HALLO);

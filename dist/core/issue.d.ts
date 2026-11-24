@@ -4,6 +4,7 @@
  * Step, Path: a next move, and the place of an issue, a field first.
  * Issue, Parts: what a code raises, and what it holds beside its code and path.
  * issueAnswer: the issue as the answer writes it.
+ * withCommand: the issue with a command, unless it names one of its own.
  *
  * The parts stay in a table beside the issue, not in private fields: an Issue then has the
  * members proto/adx/index.d.ts declares and no other, so the built type equals the declared one.
@@ -40,5 +41,14 @@ export declare function issueAnswer(issue: Issue): {
     path?: string | undefined;
     code: string;
 };
+/**
+ * A command the issue already names, such as the list call of its field, says more than one
+ * adx names for every issue, so it stays.
+ *
+ * @param issue - an issue of a refusal
+ * @param step - the step to the command it gets when it names none
+ * @returns the issue with a command
+ */
+export declare const withCommand: (issue: Issue, step: Step) => Issue<string>;
 /** The kind of the code that raised the issue. */
 export declare const kindOfIssue: (issue: Issue) => Kind;

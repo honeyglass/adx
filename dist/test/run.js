@@ -10,7 +10,7 @@
  * @example const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { tty: true });
  */
 import { RefusalError } from '@honeyglass/utils/ts';
-import { captured } from "../node/index.js";
+import { captured, tokensOf } from "../node/index.js";
 import { call, specOf } from "../tool/index.js";
 /**
  * @param tool - the value tool() returned
@@ -29,6 +29,7 @@ export async function run(tool, argv, options = {}) {
             next: 'pass the value that tool() returned',
         });
     }
-    const { data, out, err } = await captured(() => call(spec, { argv, tty: options.tty ?? false }));
+    const around = { tokens: tokensOf(argv), tty: options.tty ?? false };
+    const { data, out, err } = await captured(() => call(spec, around));
     return { exit: data.exit, out: `${out}${data.out}`, err: `${err}${data.err}` };
 }

@@ -1,7 +1,8 @@
 /**
  * The terminal form of an answer, for a person at a terminal.
  *
- * textOf: a result as one field on a line, a refusal as its kind, state and issues.
+ * textOf: a result as one field on a line or as the command's own text, whether an effect
+ * applied, and a refusal as its kind, state and issues.
  *
  * The text leaves for the terminal here, so here every control character is escaped, in a
  * message, a path and a result alike: a terminal runs an escape sequence it is sent. Only the line
@@ -19,21 +20,37 @@ const GAP = 2;
 /** A control character, C0, DEL and C1, by its Unicode category Cc, but the line break and tab. */
 const CONTROL = /(?![\n\t])\p{Cc}/gu;
 
-export function textOf(answer: Answer<unknown>) {
-  const text = answer.ok ? resultText(answer.result) : refusalText(answer);
+/**
+ * @param answer - the answer of the call
+ * @param shown - the command's own text of its result, if it has one
+ * @returns the text for the terminal, every control character escaped
+ */
+export function textOf(answer: Answer<unknown>, shown?: (result: unknown) => string) {
+  const text = answer.ok ? successText(answer, shown) : refusalText(answer);
   return text.replace(CONTROL, char => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`);
 }
 
-// No result prints nothing, as the JSON leaves it out; a record with fields prints them, one on
-// a line, and every other value prints as its JSON.
-function resultText(result: unknown) {
-  if (result === undefined) return '';
-  if (isRecord(result) && Object.keys(result).length > 0) return fieldsText(result);
-  return `${valueText(result)}\n`;
+// A record with fields prints them, one on a line; an effect says whether it applied, beside
+// those fields, or below any other text.
+function successText(answer: Answer<unknown>, shown: ((result: unknown) => string) | undefined) {
+  const { result } = answer;
+  const applied = answer.applied === undefined ? {} : { applied: answer.applied };
+  if (shown !== undefined) return `${lineOf(shown(result))}${fieldsText(applied)}`;
+  if (isRecord(result) && Object.keys(result).length > 0) {
+    return fieldsText({ ...result, ...applied });
+  }
+  return `${resultText(result)}${fieldsText(applied)}`;
 }
+
+// A text that does not end its last line gets the line break the terminal needs.
+const lineOf = (text: string) => (text === '' || text.endsWith('\n') ? text : `${text}\n`);
+
+// No result prints nothing, as the JSON leaves it out; any other value prints as its JSON.
+const resultText = (result: unknown) => (result === undefined ? '' : `${valueText(result)}\n`);
 
 function fieldsText(record: Record<string, unknown>) {
   const keys = Object.keys(record);
+  if (keys.length === 0) return '';
   const width = Math.max(...keys.map(key => key.length)) + GAP;
   return keys.map(key => `${key.padEnd(width)}${valueText(record[key])}\n`).join('');
 }

@@ -1,33 +1,32 @@
-/**
- * A command that reads: its input checked against its schema, then its handler run.
- *
- * Obj, ReadSpec: a Zod object, and what read() takes.
- * Command: the value read() returns; invoke answers one call with typed input.
- * answererOf: the answer of a command for the tool, which lets every error reach its own catch.
- *
- * This is the one file of command/ that reads Zod, so a change of Zod touches one file.
- *
- * @example const answer = await greet.invoke({ name: 'Ada' });
- */
-import type { z } from 'zod';
 import type { Answer } from '../core/index.ts';
-export type Obj = z.ZodObject;
-export type ReadSpec<I extends Obj, O> = {
-    does: string;
-    input: I;
-    example?: z.input<I>;
-    run: (input: z.output<I>) => O | Promise<O>;
-};
-type Answerer = (input: object) => Promise<Answer<unknown>>;
+import { Runner } from './runner.ts';
+import type { Kind } from './runner.ts';
+import type { Empty, Given, In, InvokeOptions, Listing, Obj, Spec, UseGiven } from './types.ts';
+declare const builtFor: unique symbol;
+declare const realRun: unique symbol;
+export interface Entry<G extends Obj> {
+    readonly [builtFor]: (global: G) => G;
+}
+/** @returns the runner of a command, or undefined for a group or any other value */
+export declare const runnerOf: (entry: object) => Runner | undefined;
 /**
- * @param entry - a value of the command table
- * @returns its answerer, which rejects on every error, or undefined for a value read() did not make
+ * `R` is the answer of a real run, which `next` and `after` get. `L` names the fields with a
+ * source in `values`, which a step can list.
  */
-export declare const answererOf: (entry: object) => Answerer | undefined;
-export declare class Command<I extends Obj, O> {
+export declare class Command<I extends Obj, O, G extends Obj = Empty, U = {}, R = O, L extends string = never> implements Entry<G> {
     #private;
-    constructor(spec: ReadSpec<I, O>);
+    readonly [builtFor]: (global: G) => G;
+    readonly [realRun]?: R;
+    constructor(kind: Kind, spec: Spec, global: Obj | undefined);
+    /** The words that call the command, such as `ticket list`. The tool that lists it sets them. */
+    get name(): string;
     /** Answers as the tool prints it: a refusal and a bug resolve as an answer, never reject. */
-    invoke(input: z.input<I>): Promise<Answer<O>>;
+    invoke(input: Given<I> & UseGiven<Given<G>, U>, options?: InvokeOptions): Promise<Answer<O>>;
+}
+export declare class ListCommand<I extends Obj, T extends Obj, G extends Obj = Empty, U = {}, L extends string = never> extends Command<I, Listing<In<T>>, G, U, Listing<In<T>>, L> {
+    readonly item: T;
+    constructor(spec: Spec & {
+        item: T;
+    }, global: Obj | undefined);
 }
 export {};

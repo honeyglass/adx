@@ -1,91 +1,80 @@
 /**
- * A command that reads: its input checked against its schema, then its handler run.
+ * A command as a value: what read(), list() and effect() return, and a tool lists in its table.
  *
- * Obj, ReadSpec: a Zod object, and what read() takes.
- * Command: the value read() returns; invoke answers one call with typed input.
- * answererOf: the answer of a command for the tool, which lets every error reach its own catch.
+ * Entry: a command as the command table sees it; only the global input it was made for counts.
+ * Command, ListCommand: the value, with the words that call it and invoke.
+ * runnerOf: the runner behind a value of the table, for the tool; undefined for a group.
  *
- * This is the one file of command/ that reads Zod, so a change of Zod touches one file.
+ * A command carries only the members proto/adx/index.d.ts declares; what runs a call stays in a
+ * table beside it, so the tool reaches it and an author does not.
  *
  * @example const answer = await greet.invoke({ name: 'Ada' });
  */
-import type { z } from 'zod';
 import { $try } from '@honeyglass/utils/ts';
-import {
-  answerOfError,
-  NOTHING_CHANGED,
-  refusalAnswer,
-  Refused,
-  refusedWith,
-  schemaFailed,
-} from '../core/index.ts';
-import type { Answer, Issue, Path } from '../core/index.ts';
+import { answerOfError } from '../core/index.ts';
+import type { Answer } from '../core/index.ts';
+import { Runner } from './runner.ts';
+import type { Kind } from './runner.ts';
+import type { Empty, Given, In, InvokeOptions, Listing, Obj, Spec, UseGiven } from './types.ts';
 
-export type Obj = z.ZodObject;
+declare const builtFor: unique symbol;
+declare const realRun: unique symbol;
 
-export type ReadSpec<I extends Obj, O> = {
-  does: string;
-  input: I;
-  example?: z.input<I>;
-  run: (input: z.output<I>) => O | Promise<O>;
-};
+export interface Entry<G extends Obj> {
+  readonly [builtFor]: (global: G) => G;
+}
 
-type Answerer = (input: object) => Promise<Answer<unknown>>;
+const runners = new WeakMap<object, Runner>();
+
+/** @returns the runner of a command, or undefined for a group or any other value */
+export const runnerOf = (entry: object) => runners.get(entry);
 
 /**
- * The tool answers a command through this table and not through invoke: invoke answers a bug
- * itself, while the tool also writes the bug's error to stderr.
+ * `R` is the answer of a real run, which `next` and `after` get. `L` names the fields with a
+ * source in `values`, which a step can list.
  */
-const answerers = new WeakMap<object, Answerer>();
+export class Command<
+  I extends Obj,
+  O,
+  G extends Obj = Empty,
+  U = {},
+  R = O,
+  L extends string = never,
+> implements Entry<G> {
+  declare readonly [builtFor]: (global: G) => G;
+  declare readonly [realRun]?: R;
+  readonly #runner: Runner;
 
-/**
- * @param entry - a value of the command table
- * @returns its answerer, which rejects on every error, or undefined for a value read() did not make
- */
-export const answererOf = (entry: object) => answerers.get(entry);
+  constructor(kind: Kind, spec: Spec, global: Obj | undefined) {
+    this.#runner = new Runner(kind, spec, global);
+    runners.set(this, this.#runner);
+  }
 
-export class Command<I extends Obj, O> {
-  readonly #spec: ReadSpec<I, O>;
-
-  constructor(spec: ReadSpec<I, O>) {
-    this.#spec = spec;
-    answerers.set(this, input => this.#answered(input));
+  /** The words that call the command, such as `ticket list`. The tool that lists it sets them. */
+  get name() {
+    return this.#runner.name;
   }
 
   /** Answers as the tool prints it: a refusal and a bug resolve as an answer, never reject. */
-  async invoke(input: z.input<I>): Promise<Answer<O>> {
-    const { data, error } = await $try(() => this.#answered(input));
-    return error === null ? data : answerOfError(error).answer;
-  }
-
-  /**
-   * A field the schema does not name is refused, never dropped, and the handler runs only on an
-   * input that passed. A refusal the handler returns is thrown, as one it throws.
-   */
-  async #answered(input: object): Promise<Answer<O>> {
-    const parsed = this.#spec.input.safeParse(input);
-    const unnamed = unnamedIssues(this.#spec.input, input);
-    if (parsed.success && unnamed.length === 0) {
-      const result = await this.#spec.run(parsed.data);
-      if (result instanceof Refused) throw result;
-      return { ok: true, result };
-    }
-    const failed = parsed.success ? [] : parsed.error.issues;
-    const [first, ...rest] = [...unnamed, ...failed.map(i => schemaIssue(i.path, i.message))];
-    return refusalAnswer(refusedWith([first, ...rest], NOTHING_CHANGED));
+  invoke(input: Given<I> & UseGiven<Given<G>, U>, options?: InvokeOptions): Promise<Answer<O>>;
+  async invoke(input: unknown, options: InvokeOptions = {}): Promise<Answer<unknown>> {
+    const run = { dryRun: options.dryRun ?? false, fields: undefined };
+    const { data, error } = await $try(() => this.#runner.answered(input, run));
+    return error === null ? data.answer : answerOfError(error).answer;
   }
 }
 
-function unnamedIssues(schema: Obj, input: object) {
-  return Object.keys(input)
-    .filter(key => Object.hasOwn(schema.shape, key) === false)
-    .map(key => schemaFailed.at(key, `the input has no field ${key}`));
-}
+export class ListCommand<
+  I extends Obj,
+  T extends Obj,
+  G extends Obj = Empty,
+  U = {},
+  L extends string = never,
+> extends Command<I, Listing<In<T>>, G, U, Listing<In<T>>, L> {
+  readonly item: T;
 
-// An issue at the root of the input names no field, so it has no path.
-function schemaIssue(path: readonly PropertyKey[], message: string): Issue {
-  const [field, ...below] = path;
-  if (typeof field !== 'string') return schemaFailed.issue(message);
-  const parts: Path<string> = [field, ...below.filter(part => typeof part !== 'symbol')];
-  return schemaFailed.at(parts, message);
+  constructor(spec: Spec & { item: T }, global: Obj | undefined) {
+    super('list', spec, global);
+    this.item = spec.item;
+  }
 }

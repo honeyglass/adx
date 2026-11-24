@@ -31,6 +31,15 @@ export function issueAnswer(issue) {
         ...(step?.command === undefined ? {} : { command: step.command }),
     };
 }
+/**
+ * A command the issue already names, such as the list call of its field, says more than one
+ * adx names for every issue, so it stays.
+ *
+ * @param issue - an issue of a refusal
+ * @param step - the step to the command it gets when it names none
+ * @returns the issue with a command
+ */
+export const withCommand = (issue, step) => partsOf(issue).step === undefined ? issue.command(step) : issue;
 /** The kind of the code that raised the issue. */
 export const kindOfIssue = (issue) => partsOf(issue).kind;
 // An object of the shape of an Issue that no constructor made has no parts.
