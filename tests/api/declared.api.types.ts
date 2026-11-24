@@ -36,17 +36,13 @@ type NotBuilt =
   | 'bearer'
   | 'check'
   | 'cwd'
-  | 'detailOf'
   | 'dir'
   | 'envDir'
   | 'envUrl'
-  | 'fresh'
   | 'id'
   | 'inFile'
-  | 'keyOf'
   | 'marker'
   | 'multiline'
-  | 'needs'
   | 'outFile'
   | 'paged'
   | 'remote'
@@ -66,7 +62,18 @@ type NotBuiltTest = 'conformance' | 'fake' | 'reply';
  * branded declaration. tests/tsconfig.json checks them by use instead: it compiles the files of
  * proto/ that a package made work against dist/, and each package adds the files it made work.
  */
-type ByUse = 'after' | 'effect' | 'global' | 'hint' | 'list' | 'read' | 'tool';
+type ByUse =
+  | 'after'
+  | 'detailOf'
+  | 'effect'
+  | 'fresh'
+  | 'global'
+  | 'hint'
+  | 'keyOf'
+  | 'list'
+  | 'needs'
+  | 'read'
+  | 'tool';
 
 /** A schema with two fields, for the types that take one. */
 type Sample = z.ZodObject<{ project: z.ZodString; team: z.ZodOptional<z.ZodString> }>;
@@ -76,6 +83,7 @@ type StepInput = { cv: string; block: string };
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
 type TypePairs = [
   [Built.Answer<unknown>, Declared.Answer<unknown>],
+  [Built.Choice, Declared.Choice],
   [Built.Code, Declared.Code],
   [Built.CommandStep<StepInput, 'block'>, Declared.CommandStep<StepInput, 'block'>],
   [Built.Field<Sample>, Declared.Field<Sample>],

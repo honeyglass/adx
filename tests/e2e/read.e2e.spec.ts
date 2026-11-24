@@ -22,7 +22,7 @@ test('takes the input from options, --json or both', async t => {
   assert.equal(answerIn(twice.out, z.unknown()).issues?.[0]?.code, 'REPEATED_OPTION');
 });
 
-pending('P4', 'lists the values of an option, and refuses one outside', async t => {
+test('lists the values of an option, and refuses one outside', async t => {
   const home = await scratch(t);
   const Values = z.object({ values: z.array(z.object({ value: z.string() })) });
   const listed = answerIn((await hello(home, 'greet', '--lang')).out, Values);
