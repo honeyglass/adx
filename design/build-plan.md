@@ -86,8 +86,8 @@ round is done. The e2e line names the tests the package turns green.
 - [x] `hint` (73), `needs`, `carry` with its rules (79), `lists`, `schema.step` (77)
 
 ### P4 values
-- [ ] `Source`, `needs()`, `fresh()`, `keyOf`, `detailOf`
-- [ ] an option without its value lists its values (rule 13)
+- [x] `Source`, `needs()`, `fresh()`, `keyOf`, `detailOf`
+- [x] an option without its value lists its values (rule 13)
 
 ### P5 shapes
 - [ ] `shapes` (72), the `schema` command
