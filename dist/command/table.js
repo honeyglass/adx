@@ -2,6 +2,7 @@
  * The command table of a tool: where each command stands, and the setup the compiler cannot see.
  *
  * Table, isTable: a table of words, each a command or a nested table, a group.
+ * isWord: whether a key is one word of a call, as a key of the table and of the tool's shapes.
  * placeAll: gives each command the words that call it, its tool's answer, and the sources of its
  * fields, when a tool lists it.
  * declarationIssues: one DECLARATION issue per mistake in the setup of the table.
@@ -20,6 +21,7 @@ import { runnerOf } from "./command.js";
  * letters, digits and `-`, not first.
  */
 const WORD = /^[A-Za-z0-9][A-Za-z0-9-]*$/;
+export const isWord = (key) => WORD.test(key);
 /** A value of the table that is an object of objects, which a group is; a command is one too. */
 export const isTable = (value) => Object.values(value).every(entry => typeof entry === 'object' && entry !== null);
 /**
@@ -55,7 +57,7 @@ export function runnersIn(table) {
 }
 function keyIssues(table, words) {
     return Object.entries(table).flatMap(([word, entry]) => {
-        const issues = WORD.test(word) ? [] : [badKey(word, words)];
+        const issues = isWord(word) ? [] : [badKey(word, words)];
         if (runnerOf(entry) === undefined && isTable(entry))
             issues.push(...keyIssues(entry, [...words, word]));
         return issues;

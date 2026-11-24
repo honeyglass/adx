@@ -6,6 +6,7 @@
  * issueAnswer: the issue as the answer writes it.
  * withCommand, stepOf: the issue with a command, unless it names one of its own, and its step.
  * withHint: the issue with a hint of its own in place of its code's.
+ * SchemaPlace, placed, placeOf: where a SCHEMA issue stands in the schema that failed.
  *
  * The parts stay in a table beside the issue, not in private fields: an Issue then has the
  * members proto/adx/index.d.ts declares and no other, so the built type equals the declared one.
@@ -15,11 +16,23 @@
 import type { Kind } from './kind.ts';
 import type { Step } from './step.ts';
 export type Path<P extends string> = readonly [P, ...(string | number)[]];
+/**
+ * Where a SCHEMA issue stands in the schema that failed, so the tool that answers it can name the
+ * shape the part lies in: `root` is that schema, `value` what it checked, which picks the option
+ * of a union, `below` the path inside it, and `named` the shape check() names for the root.
+ */
+export type SchemaPlace = {
+    root: object;
+    value: unknown;
+    below: readonly (string | number)[];
+    named?: object;
+};
 export type Parts = {
     kind: Kind;
     message: string;
     hint: string;
     step?: Step;
+    place?: SchemaPlace;
 };
 export declare class Issue<P extends string = string> {
     readonly code: string;
@@ -56,6 +69,16 @@ export declare const withCommand: (issue: Issue, step: Step) => Issue<string>;
  * @returns the issue with that hint
  */
 export declare const withHint: (issue: Issue, hint: string) => Issue<string>;
+/**
+ * The tool names the command of such an issue, since only it knows its shapes.
+ *
+ * @param issue - a SCHEMA issue
+ * @param place - where it stands in the schema that failed
+ * @returns the issue with its place
+ */
+export declare const placed: <P extends string>(issue: Issue<P>, place: SchemaPlace) => Issue<P>;
+/** @returns where a SCHEMA issue stands in the schema that failed, or undefined for any other */
+export declare const placeOf: (issue: Issue) => SchemaPlace | undefined;
 /** @returns the step the issue names, which the answer writes out, or undefined */
 export declare const stepOf: (issue: Issue) => Step | undefined;
 /** The kind of the code that raised the issue. */

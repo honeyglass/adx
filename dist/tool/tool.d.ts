@@ -1,5 +1,6 @@
 import type { After, Commands, Empty, Global, Obj, Table } from '../command/index.ts';
 import type { Step } from '../core/index.ts';
+import type { Shapes } from '../shapes/index.ts';
 import type { Hint } from '../steps/index.ts';
 export interface Tool {
     /**
@@ -17,6 +18,12 @@ export interface ToolSpec<G extends Obj> {
     global?: Global<G>;
     /** Every command of the tool. A command built for another global input does not compile here. */
     commands: Commands<NoInfer<G>>;
+    /**
+     * Schemas a caller writes and no command takes whole, each under the word that names it.
+     * `schema` lists the names, `schema <name>` prints one, and a `SCHEMA` issue inside one names
+     * that call.
+     */
+    shapes?: Shapes;
     /** Steps `after` a command, for the steps that cross folders. */
     next?: After<NoInfer<G>>[];
     /** The command of a `hint` for a code, for the hints that cross folders. */
@@ -30,6 +37,7 @@ export type Shell = {
     readonly version: string;
     readonly does: string;
     readonly commands: Table;
+    readonly shapes: Shapes;
     readonly next: readonly object[];
     readonly hints: readonly Hint[];
     readonly start: (() => Maybe<readonly Step[]>) | undefined;

@@ -12,6 +12,12 @@ const greet = read({
   run: ({ name, lang }) => ({ greeting: `${lang === 'de' ? 'Hallo' : 'Hello'}, ${name}!` }),
 });
 
+const tagged = read({
+  does: 'keeps tags',
+  input: z.object({ tags: z.record(z.string(), z.string()) }),
+  run: ({ tags }) => ({ tags }),
+});
+
 const strict = read({
   does: 'greets, and takes no other field',
   input: z.strictObject({ name: z.string() }),
@@ -22,7 +28,7 @@ const hello = tool({
   name: 'hello',
   version: '0.1.0',
   does: 'greets',
-  commands: { greet, strict },
+  commands: { greet, strict, tagged },
 });
 
 const HALLO = { greeting: 'Hallo, Ada!' };
@@ -61,5 +67,74 @@ test('--json without a value is refused', async () => {
   assert.deepEqual(
     answer.issues?.map(i => [i.code, i.path]),
     [['MISSING_VALUE', 'json']],
+  );
+});
+
+test('--json - reads the object from stdin, beside the options', async () => {
+  const stdin = '{"name":"Ada","lang":"de"}';
+  const piped = await run(hello, ['greet', '--json', '-'], { stdin });
+  assert.deepEqual(answerIn(piped.out, z.unknown()).result, HALLO);
+  const both = await run(hello, ['greet', '--name', 'Ada', '--json', '-'], {
+    stdin: '{"lang":"de"}',
+  });
+  assert.deepEqual(answerIn(both.out, z.unknown()).result, HALLO);
+});
+
+test('--json - is refused when nothing is piped in, and when stdin holds no object', async () => {
+  const cases = [
+    { stdin: null, code: 'MISSING_INPUT' },
+    { stdin: '', code: 'MISSING_INPUT' },
+    { stdin: ' \n', code: 'MISSING_INPUT' },
+    { stdin: '["Ada"]', code: 'INVALID_JSON' },
+  ];
+  for (const { stdin, code } of cases) {
+    const { exit, out } = await run(hello, ['greet', '--json', '-'], { stdin });
+    const answer = answerIn(out, z.unknown());
+    assert.deepEqual(
+      [code, exit, answer.issues?.map(i => [i.code, i.path])],
+      [code, 1, [[code, 'json']]],
+    );
+  }
+});
+
+// '😀' is one character and two UTF-16 units, so a count of units would refuse the first call.
+test('--json - takes stdin up to 1048576 characters, and refuses one more', async () => {
+  const of = (length: number) => `{"name":"${'😀'.repeat(length - 11)}"}`;
+  const atLimit = await run(hello, ['greet', '--json', '-'], { stdin: of(1_048_576) });
+  assert.equal(atLimit.exit, 0);
+  const above = await run(hello, ['greet', '--json', '-'], { stdin: of(1_048_577) });
+  assert.deepEqual(
+    answerIn(above.out, z.unknown()).issues?.map(i => [i.code, i.path]),
+    [['INPUT_TOO_LARGE', 'json']],
+  );
+});
+
+test('--help answers without reading stdin', async () => {
+  const { exit, out } = await run(hello, ['greet', '--json', '-', '--help']);
+  assert.equal(exit, 0);
+  assert.equal(
+    z.object({ command: z.string() }).parse(answerIn(out, z.unknown()).result).command,
+    'hello greet',
+  );
+});
+
+test('a key __proto__ is refused at any depth of the raw input, never dropped', async () => {
+  const cases = [
+    ['{"tags":{"__proto__":"x"}}', 'tags.__proto__'],
+    ['{"tags":{},"__proto__":{}}', '__proto__'],
+  ];
+  for (const [json, path] of cases) {
+    const answer = await answerOf('tagged', '--json', json ?? '');
+    assert.deepEqual(
+      [json, answer.exit, answer.issues?.map(i => [i.code, i.path])],
+      [json, 1, [['SCHEMA', path]]],
+    );
+  }
+  const piped = await run(hello, ['tagged', '--json', '-'], {
+    stdin: '{"tags":{"__proto__":"x"}}',
+  });
+  assert.deepEqual(
+    answerIn(piped.out, z.unknown()).issues?.map(i => [i.code, i.path]),
+    [['SCHEMA', 'tags.__proto__']],
   );
 });

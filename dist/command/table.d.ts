@@ -4,6 +4,7 @@ import type { Runner, Through } from './runner.ts';
 export type Table = {
     readonly [word: string]: object;
 };
+export declare const isWord: (key: string) => boolean;
 /** A value of the table that is an object of objects, which a group is; a command is one too. */
 export declare const isTable: (value: object) => value is Table;
 /**

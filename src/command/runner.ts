@@ -4,21 +4,24 @@
  * Kind, Run, Ready: the three kinds, what a run is asked for, and a call ready for its handler.
  * Place, Through: where a tool lists a command, and how that tool answers a call of it.
  * Runner: read, a call from its tokens; answered, its handler run, or the values of an option
- * given alone; through, for invoke; and what a step and the sources read of the command.
+ * given alone; through, for invoke; what a step and the sources read of the command; and what
+ * `schema` shows of it.
  *
  * adx checks in layers: the arguments, then the schema, then each value against its list, then
  * `check`, then the handler. Each layer collects all its issues, and a later layer runs only when
  * the earlier ones passed. From the schema on, a refusal is thrown, as one the handler throws, so
  * the tool answers them alike, with the commands that help. The sources come from the tool that
- * lists the command, so a command no tool lists checks no value against a list.
+ * lists the command, so a command no tool lists checks no value against a list. A SCHEMA issue
+ * placed in the input gets its command from the tool, which knows the shapes it may lie in.
  *
- * @example const read = runnerOf(greet)?.read(tokens, []);
+ * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
 import type { z } from 'zod';
 import {
   declaration,
   NOTHING_CHANGED,
   notInList,
+  placeOf,
   Refused,
   refusedWith,
   unknownOption,
@@ -30,6 +33,7 @@ import type {
   Known,
   Sourced,
   Sources,
+  Stdin,
   Step,
   TargetField,
   Token,
@@ -39,8 +43,8 @@ import type { Answered } from './answered.ts';
 import { argumentsOf, optionName } from './argv.ts';
 import type { Option, Read } from './argv.ts';
 import { namesOf, picked } from './fields.ts';
-import { helpOf } from './help.ts';
-import type { AdxOption } from './help.ts';
+import { helpFacts, helpOf } from './help.ts';
+import type { AdxOption, Help } from './help.ts';
 import {
   acceptsValue,
   answerFieldsOf,
@@ -52,7 +56,7 @@ import {
   sharedWithGlobal,
 } from './input.ts';
 import type { FieldOf } from './input.ts';
-import { withJson } from './json.ts';
+import { jsonInput } from './json.ts';
 import { PAGE_SIZE } from './limits.ts';
 import { listedAnswer } from './listed.ts';
 import type { Obj, Shared, Spec } from './types.ts';
@@ -186,9 +190,14 @@ export class Runner implements Sourced {
   /**
    * @param tokens - the tokens of the call after the command words
    * @param before - the issues of the tokens before the command words
+   * @param stdin - what the call reads from stdin, read only for `--json -` and never for --help
    * @returns the answer when the call ends before its handler, else the call ready for it
    */
-  read(tokens: readonly Token[], before: readonly Issue[]): Answered | Ready {
+  async read(
+    tokens: readonly Token[],
+    before: readonly Issue[],
+    stdin: Stdin,
+  ): Promise<Answered | Ready> {
     const fields = fieldsOf(this.input);
     const listable = this.#listable(fields);
     const read = argumentsOf(tokens, this.#optionsOf(fields), {
@@ -197,14 +206,14 @@ export class Runner implements Sourced {
     });
     const json =
       typeof read.adx.json === 'string'
-        ? withJson(read.given, read.adx.json)
+        ? await jsonInput(read.given, read.adx.json, read.adx.help === true ? undefined : stdin)
         : { input: read.given, issues: [] };
     const [first, ...rest] = this.#shown([...before, ...read.issues, ...json.issues]);
     if (first !== undefined) return refused([first, ...rest]);
     if (read.adx.help === true) return this.#help(fields);
     const lists = read.listed === undefined ? undefined : listable.get(read.listed);
     if (lists !== undefined) return this.#listing(lists, json.input, read);
-    const output = this.#output();
+    const output = this.output();
     if (output !== undefined) return this.#withFields(json.input, read, output);
     const dryRun = read.adx['dry-run'] === true;
     return { input: json.input, run: { dryRun, fields: undefined, lists: undefined } };
@@ -274,6 +283,36 @@ export class Runner implements Sourced {
       field => `${this.name} has a field ${field}, and so has the global input`,
     );
     return [...adxTaken, ...shared, ...replaced].map(message => declaration.issue(message));
+  }
+
+  /**
+   * @returns what `schema <command>` shows beside its input: the facts of --help, the fields
+   * whose option alone lists their values, and the global fields the command takes
+   */
+  schemaFacts() {
+    const fields = fieldsOf(this.input);
+    return {
+      ...helpFacts(this.#facts(fields)),
+      lists: [...this.#listable(fields).values()],
+      global: this.fields()
+        .filter(field => field.global)
+        .map(({ field }) => field),
+    };
+  }
+
+  /** @returns the schema of the answer, which only a read declares, with `output` */
+  output() {
+    return this.kind === 'read' ? this.spec.output : undefined;
+  }
+
+  /** @returns the step to what the command takes, or undefined while no tool lists it */
+  schemaStep(): Step | undefined {
+    const place = this.places[0];
+    if (place === undefined) return undefined;
+    return {
+      does: `shows what ${this.name} takes`,
+      command: `${place.tool} schema ${place.words}`,
+    };
   }
 
   // A call that lists values runs nothing else, so an option of a run beside it is refused.
@@ -356,23 +395,22 @@ export class Runner implements Sourced {
   }
 
   // --fields of a list comes with its outline, so only a read with output takes it yet.
-  #output() {
-    return this.kind === 'read' ? this.spec.output : undefined;
-  }
-
   #hasFields() {
-    return this.#output() !== undefined;
+    return this.output() !== undefined;
   }
 
   #help(fields: readonly FieldOf[]) {
-    const example = this.spec.example;
-    return helpOf({
+    return helpOf(this.#facts(fields));
+  }
+
+  #facts(fields: readonly FieldOf[]): Help {
+    return {
       command: this.#call(),
       does: this.spec.does,
       fields,
       options: this.#adxOptions(),
-      example,
-    });
+      example: this.spec.example,
+    };
   }
 
   // The terminal form of a list is its items, each by its own text, which a list builds later.
@@ -411,15 +449,12 @@ export class Runner implements Sourced {
     return this.#shown(listed);
   }
 
-  // Each of adx's own issues names the call that shows what the command takes.
+  // Each of adx's own issues names the call that shows what the command takes, but one placed in
+  // the input, whose command the tool names.
   #shown(issues: readonly Issue[]) {
-    const place = this.places[0];
-    if (place === undefined) return [...issues];
-    const step: Step = {
-      does: `shows what ${this.name} takes`,
-      command: `${place.tool} schema ${place.words}`,
-    };
-    return issues.map(issue => withCommand(issue, step));
+    const step = this.schemaStep();
+    if (step === undefined) return [...issues];
+    return issues.map(issue => (placeOf(issue) === undefined ? withCommand(issue, step) : issue));
   }
 
   #call() {

@@ -8,6 +8,8 @@ export declare const missingValue: import("./code.ts").Code;
 export declare const unexpectedValue: import("./code.ts").Code;
 export declare const repeatedOption: import("./code.ts").Code;
 export declare const invalidJson: import("./code.ts").Code;
+export declare const missingInput: import("./code.ts").Code;
+export declare const inputTooLarge: import("./code.ts").Code;
 export declare const notInList: import("./code.ts").Code;
 /**
  * An enum and a source of `values` both refuse a value with it, so both say it alike.
@@ -24,3 +26,5 @@ export declare const serverBusy: import("./code.ts").Code;
 export declare const accessRefused: import("./code.ts").Code;
 export declare const remoteRefused: import("./code.ts").Code;
 export declare const unknownError: import("./code.ts").Code;
+/** In the order of the guide's list of adx's codes: those of kind fix, then ask, retry, bug. */
+export declare const ADX_CODES: import("./code.ts").Code[];

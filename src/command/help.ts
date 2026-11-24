@@ -1,8 +1,9 @@
 /**
  * The answer of --help: what a command takes, made from its declaration, as facts and as text.
  *
- * AdxOption: an option adx gives a command, with what it does.
+ * AdxOption, Help: an option adx gives a command, with what it does, and what help reads.
  * helpOf: the facts, and the text a person at a terminal reads.
+ * helpFacts: the facts alone, which `schema <command>` shows too.
  *
  * There is no help text to write: the words, `does`, the fields with their `.describe()`, the
  * options of adx and the example all come from the command.
@@ -15,7 +16,7 @@ import type { FieldOf, Takes } from './input.ts';
 
 export type AdxOption = { option: string; takes: Takes; does: string };
 
-type Help = {
+export type Help = {
   /** The words of the call, the tool's name first. */
   command: string;
   does: string;
@@ -28,15 +29,17 @@ type Help = {
 const GAP = 2;
 
 export function helpOf(help: Help): Answered {
-  const fields = help.fields.map(fieldFacts);
-  const result = {
+  return { answer: { ok: true, result: helpFacts(help) }, text: () => textOf(help) };
+}
+
+export function helpFacts(help: Help) {
+  return {
     command: help.command,
     does: help.does,
-    fields,
+    fields: help.fields.map(fieldFacts),
     options: help.options,
     ...(help.example === undefined ? {} : { example: help.example }),
   };
-  return { answer: { ok: true, result }, text: () => textOf(help) };
 }
 
 // A field of --json only has no option.

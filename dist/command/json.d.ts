@@ -1,11 +1,12 @@
-import type { Issue } from '../core/index.ts';
+import type { Issue, Stdin } from '../core/index.ts';
 /**
  * @param given - the fields the options of the call gave
- * @param text - the value of --json
- * @returns the input of both, and the issues; JSON.parse defines each key as an own property,
- * so a key named __proto__ stays a field
+ * @param value - the value of --json
+ * @param stdin - what the call reads from stdin, read only for `-`; none for a call that runs
+ * nothing, such as --help
+ * @returns the input of both, and the issues
  */
-export declare function withJson(given: Record<string, unknown>, text: string): {
+export declare function jsonInput(given: Record<string, unknown>, value: string, stdin: Stdin | undefined): Promise<{
     input: {};
     issues: Issue<string>[];
-};
+}>;

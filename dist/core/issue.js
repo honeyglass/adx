@@ -48,6 +48,16 @@ export const withCommand = (issue, step) => partsOf(issue).step === undefined ? 
  * @returns the issue with that hint
  */
 export const withHint = (issue, hint) => new Issue(issue.code, issue.path, { ...partsOf(issue), hint });
+/**
+ * The tool names the command of such an issue, since only it knows its shapes.
+ *
+ * @param issue - a SCHEMA issue
+ * @param place - where it stands in the schema that failed
+ * @returns the issue with its place
+ */
+export const placed = (issue, place) => new Issue(issue.code, issue.path, { ...partsOf(issue), place });
+/** @returns where a SCHEMA issue stands in the schema that failed, or undefined for any other */
+export const placeOf = (issue) => partsOf(issue).place;
 /** @returns the step the issue names, which the answer writes out, or undefined */
 export const stepOf = (issue) => partsOf(issue).step;
 /** The kind of the code that raised the issue. */

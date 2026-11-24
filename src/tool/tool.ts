@@ -7,13 +7,14 @@
  * Nothing is checked when tool() is called: a tool is built when its file loads, and a check
  * belongs in main() or the call. tool() only gives each command the words that call it, the
  * way the tool answers a call of it, so invoke answers as the tool prints, and the sources of its
- * fields.
+ * fields. A shape is kept as given: `schema` reads it, and a SCHEMA issue finds it by its value.
  *
  * @example export const hello = tool({ name: 'hello', version: '0.1.0', does: 'greets', commands: { greet } });
  */
 import { placeAll } from '../command/index.ts';
 import type { After, Commands, Empty, Global, Obj, Table } from '../command/index.ts';
 import type { Step } from '../core/index.ts';
+import type { Shapes } from '../shapes/index.ts';
 import type { Hint } from '../steps/index.ts';
 import { sources } from '../values/index.ts';
 import { main } from './main.ts';
@@ -37,6 +38,12 @@ export interface ToolSpec<G extends Obj> {
   global?: Global<G>;
   /** Every command of the tool. A command built for another global input does not compile here. */
   commands: Commands<NoInfer<G>>;
+  /**
+   * Schemas a caller writes and no command takes whole, each under the word that names it.
+   * `schema` lists the names, `schema <name>` prints one, and a `SCHEMA` issue inside one names
+   * that call.
+   */
+  shapes?: Shapes;
   /** Steps `after` a command, for the steps that cross folders. */
   next?: After<NoInfer<G>>[];
   /** The command of a `hint` for a code, for the hints that cross folders. */
@@ -51,6 +58,7 @@ export type Shell = {
   readonly version: string;
   readonly does: string;
   readonly commands: Table;
+  readonly shapes: Shapes;
   readonly next: readonly object[];
   readonly hints: readonly Hint[];
   readonly start: (() => Maybe<readonly Step[]>) | undefined;
@@ -65,6 +73,7 @@ export function tool<G extends Obj = Empty>(spec: ToolSpec<G>): Tool {
     version: spec.version,
     does: spec.does,
     commands: spec.commands,
+    shapes: spec.shapes ?? {},
     next: spec.next ?? [],
     hints: spec.hints ?? [],
     start: spec.start,

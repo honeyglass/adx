@@ -1,5 +1,25 @@
-import type { Declared, Issue, Sourced, Sources, TargetField, Token } from '../core/index.ts';
+/**
+ * What runs one command: its options, its layers of checks, and its handler.
+ *
+ * Kind, Run, Ready: the three kinds, what a run is asked for, and a call ready for its handler.
+ * Place, Through: where a tool lists a command, and how that tool answers a call of it.
+ * Runner: read, a call from its tokens; answered, its handler run, or the values of an option
+ * given alone; through, for invoke; what a step and the sources read of the command; and what
+ * `schema` shows of it.
+ *
+ * adx checks in layers: the arguments, then the schema, then each value against its list, then
+ * `check`, then the handler. Each layer collects all its issues, and a later layer runs only when
+ * the earlier ones passed. From the schema on, a refusal is thrown, as one the handler throws, so
+ * the tool answers them alike, with the commands that help. The sources come from the tool that
+ * lists the command, so a command no tool lists checks no value against a list. A SCHEMA issue
+ * placed in the input gets its command from the tool, which knows the shapes it may lie in.
+ *
+ * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
+ */
+import type { z } from 'zod';
+import type { Declared, Issue, Sourced, Sources, Stdin, Step, TargetField, Token } from '../core/index.ts';
 import type { Answered } from './answered.ts';
+import type { AdxOption } from './help.ts';
 import type { Obj, Shared, Spec } from './types.ts';
 export type Kind = 'read' | 'list' | 'effect';
 /** `fields` holds the names --fields gave, if any; `lists` the field whose option came alone. */
@@ -63,9 +83,10 @@ export declare class Runner implements Sourced {
     /**
      * @param tokens - the tokens of the call after the command words
      * @param before - the issues of the tokens before the command words
+     * @param stdin - what the call reads from stdin, read only for `--json -` and never for --help
      * @returns the answer when the call ends before its handler, else the call ready for it
      */
-    read(tokens: readonly Token[], before: readonly Issue[]): Answered | Ready;
+    read(tokens: readonly Token[], before: readonly Issue[], stdin: Stdin): Promise<Answered | Ready>;
     /**
      * invoke answers as the tool that lists the command, and as the command alone before one does.
      *
@@ -86,4 +107,29 @@ export declare class Runner implements Sourced {
      * option two fields would share, and per field the global input would replace
      */
     clashes(): Issue[];
+    /**
+     * @returns what `schema <command>` shows beside its input: the facts of --help, the fields
+     * whose option alone lists their values, and the global fields the command takes
+     */
+    schemaFacts(): {
+        lists: string[];
+        global: string[];
+        example?: {} | null | undefined;
+        command: string;
+        does: string;
+        fields: {
+            repeats?: boolean | undefined;
+            default?: {} | null | undefined;
+            required?: boolean | undefined;
+            does?: string | undefined;
+            takes: import("./input.ts").Takes;
+            option?: string | undefined;
+            field: string;
+        }[];
+        options: readonly AdxOption[];
+    };
+    /** @returns the schema of the answer, which only a read declares, with `output` */
+    output(): z.ZodType<unknown, unknown, z.core.$ZodTypeInternals<unknown, unknown>> | undefined;
+    /** @returns the step to what the command takes, or undefined while no tool lists it */
+    schemaStep(): Step | undefined;
 }

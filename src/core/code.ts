@@ -2,12 +2,13 @@
  * A code a tool declares once, with its kind and hint, and raises as issues.
  *
  * Code, code: the declared code, and the function that declares it.
+ * factsOf: the name, kind and hint of a code, as `schema` lists them.
  *
  * Nothing is checked when code() is called: a tool declares its codes when its files load.
  *
  * @example const noFormal = code('NO_FORMAL_GREETING', 'fix', 'Greet casually');
  */
-import { Issue } from './issue.ts';
+import { Issue, issueAnswer, kindOfIssue } from './issue.ts';
 import type { Parts, Path } from './issue.ts';
 import type { Kind } from './kind.ts';
 
@@ -22,6 +23,12 @@ export interface Code {
 
 export function code(name: string, kind: Kind, hint: string): Code {
   return new Declared(name, kind, hint);
+}
+
+/** An issue without a message repeats the hint of its code, so one issue tells all three. */
+export function factsOf(declared: Code) {
+  const issue = declared.issue();
+  return { code: issue.code, kind: kindOfIssue(issue), hint: issueAnswer(issue).hint };
 }
 
 class Declared implements Code {

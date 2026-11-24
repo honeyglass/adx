@@ -6,6 +6,7 @@
  * issueAnswer: the issue as the answer writes it.
  * withCommand, stepOf: the issue with a command, unless it names one of its own, and its step.
  * withHint: the issue with a hint of its own in place of its code's.
+ * SchemaPlace, placed, placeOf: where a SCHEMA issue stands in the schema that failed.
  *
  * The parts stay in a table beside the issue, not in private fields: an Issue then has the
  * members proto/adx/index.d.ts declares and no other, so the built type equals the declared one.
@@ -17,7 +18,19 @@ import type { Step } from './step.ts';
 
 export type Path<P extends string> = readonly [P, ...(string | number)[]];
 
-export type Parts = { kind: Kind; message: string; hint: string; step?: Step };
+/**
+ * Where a SCHEMA issue stands in the schema that failed, so the tool that answers it can name the
+ * shape the part lies in: `root` is that schema, `value` what it checked, which picks the option
+ * of a union, `below` the path inside it, and `named` the shape check() names for the root.
+ */
+export type SchemaPlace = {
+  root: object;
+  value: unknown;
+  below: readonly (string | number)[];
+  named?: object;
+};
+
+export type Parts = { kind: Kind; message: string; hint: string; step?: Step; place?: SchemaPlace };
 
 /** The parts of an issue made with no parts, such as `new Issue()`: the maker has a bug. */
 const UNRAISED: Parts = {
@@ -79,6 +92,19 @@ export const withCommand = (issue: Issue, step: Step) =>
  */
 export const withHint = (issue: Issue, hint: string) =>
   new Issue(issue.code, issue.path, { ...partsOf(issue), hint });
+
+/**
+ * The tool names the command of such an issue, since only it knows its shapes.
+ *
+ * @param issue - a SCHEMA issue
+ * @param place - where it stands in the schema that failed
+ * @returns the issue with its place
+ */
+export const placed = <P extends string>(issue: Issue<P>, place: SchemaPlace) =>
+  new Issue<P>(issue.code, issue.path, { ...partsOf(issue), place });
+
+/** @returns where a SCHEMA issue stands in the schema that failed, or undefined for any other */
+export const placeOf = (issue: Issue) => partsOf(issue).place;
 
 /** @returns the step the issue names, which the answer writes out, or undefined */
 export const stepOf = (issue: Issue) => partsOf(issue).step;

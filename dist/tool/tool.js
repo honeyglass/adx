@@ -7,7 +7,7 @@
  * Nothing is checked when tool() is called: a tool is built when its file loads, and a check
  * belongs in main() or the call. tool() only gives each command the words that call it, the
  * way the tool answers a call of it, so invoke answers as the tool prints, and the sources of its
- * fields.
+ * fields. A shape is kept as given: `schema` reads it, and a SCHEMA issue finds it by its value.
  *
  * @example export const hello = tool({ name: 'hello', version: '0.1.0', does: 'greets', commands: { greet } });
  */
@@ -23,6 +23,7 @@ export function tool(spec) {
         version: spec.version,
         does: spec.does,
         commands: spec.commands,
+        shapes: spec.shapes ?? {},
         next: spec.next ?? [],
         hints: spec.hints ?? [],
         start: spec.start,

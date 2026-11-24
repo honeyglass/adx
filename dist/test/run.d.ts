@@ -4,6 +4,8 @@ export interface Checked {
 }
 /** What run() reads of the surroundings of a call. */
 type RunOptions = {
+    /** The text the call reads from stdin, or `null` when nothing is piped in. Default `null`. */
+    stdin?: string | null;
     /** Whether stdout is a terminal: `true` answers text, `false` JSON. Default `false`. */
     tty?: boolean;
 };

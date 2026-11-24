@@ -2,15 +2,16 @@ import { optionName } from "./argv.js";
 /** Two spaces between the longest option and its text. */
 const GAP = 2;
 export function helpOf(help) {
-    const fields = help.fields.map(fieldFacts);
-    const result = {
+    return { answer: { ok: true, result: helpFacts(help) }, text: () => textOf(help) };
+}
+export function helpFacts(help) {
+    return {
         command: help.command,
         does: help.does,
-        fields,
+        fields: help.fields.map(fieldFacts),
         options: help.options,
         ...(help.example === undefined ? {} : { example: help.example }),
     };
-    return { answer: { ok: true, result }, text: () => textOf(help) };
 }
 // A field of --json only has no option.
 function fieldFacts(field) {

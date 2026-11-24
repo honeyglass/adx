@@ -4,8 +4,8 @@
  * inputOf: the schema of a command with the global fields it takes.
  * sharedWithGlobal: the fields of a command the global input would replace.
  * fieldsOf, FieldOf, Takes: each field, the option it becomes and what that option takes.
- * parsedBy: the input checked against the schema, or one SCHEMA issue per problem, and one
- * NOT_IN_LIST issue per value an enum field does not list.
+ * parsedBy: the input checked against the schema, or one SCHEMA issue per problem, placed in the
+ * schema, and one NOT_IN_LIST issue per value an enum field does not list.
  * knownOf: the fields a call gave, checked, for a source that gets the input as far as known.
  * choicesOf: the values of an enum field, which lists them as a source does.
  * acceptsValue: whether one field of the schema takes a value, for a field a step carries.
@@ -17,8 +17,16 @@
  * @example const parsed = parsedBy(inputOf(spec, global), { name: 'Ada' });
  */
 import { z } from 'zod';
-import { notInListAt, schemaFailed } from '../core/index.ts';
-import type { Issue, Path } from '../core/index.ts';
+import {
+  baseOf,
+  failuresOf,
+  layersOf,
+  notInListAt,
+  placed,
+  schemaFailed,
+  unknownKeysIn,
+} from '../core/index.ts';
+import type { Failure, Issue, Path } from '../core/index.ts';
 import type { Choice } from '../core/index.ts';
 import type { Obj, Spec } from './types.ts';
 
@@ -88,33 +96,6 @@ function optionOf(base: z.core.$ZodType): { takes: Takes; repeats: boolean } {
   return { takes: 'json', repeats: false };
 }
 
-// The schema and every schema it wraps, the outermost first, down to the one that checks the value.
-function layersOf(schema: z.core.$ZodType): z.core.$ZodType[] {
-  const inner = innerOf(schema);
-  return inner === undefined ? [schema] : [schema, ...layersOf(inner)];
-}
-
-const baseOf = (schema: z.core.$ZodType): z.core.$ZodType => {
-  const inner = innerOf(schema);
-  return inner === undefined ? schema : baseOf(inner);
-};
-
-function innerOf(schema: z.core.$ZodType) {
-  if (
-    schema instanceof z.ZodOptional ||
-    schema instanceof z.ZodNullable ||
-    schema instanceof z.ZodDefault ||
-    schema instanceof z.ZodPrefault ||
-    schema instanceof z.ZodCatch ||
-    schema instanceof z.ZodReadonly ||
-    schema instanceof z.ZodNonOptional
-  ) {
-    return schema.unwrap();
-  }
-  if (schema instanceof z.ZodPipe) return schema.in;
-  return undefined;
-}
-
 // An allow-list: a type not named here, such as an object or a union, goes in through --json only.
 function takesOf(base: z.core.$ZodType): Takes {
   switch (base._zod.def.type) {
@@ -133,15 +114,15 @@ function takesOf(base: z.core.$ZodType): Takes {
 }
 
 /**
- * A field the schema does not name is refused, never dropped.
+ * A key the schema does not name is refused at any depth, never dropped.
  *
  * @param schema - the input schema of the command
  * @param value - the input of the call
- * @returns the checked input, or the issues: first each unnamed field, then Zod's own
+ * @returns the checked input, or the issues: first each unknown key, then Zod's own
  */
 export function parsedBy(schema: Obj, value: unknown) {
   const parsed = schema.safeParse(value);
-  const unnamed = unnamedIssues(schema, value);
+  const unnamed = unknownKeysIn(schema, value).map(failure => placedIn(schema, value, failure));
   if (parsed.success && unnamed.length === 0) return { data: parsed.data, issues: [] };
   const failed = parsed.success
     ? []
@@ -152,7 +133,7 @@ export function parsedBy(schema: Obj, value: unknown) {
 /**
  * Each field is checked by its own schema, so a rule across fields, which needs them all, waits
  * for the whole input. A field the schema does not name is left out: the call refuses it once
- * its schema runs.
+ * its schema runs. A key below a field that the field does not name fails the field.
  *
  * @param schema - the input schema of the command
  * @param given - the fields a call gave, or would hold
@@ -165,7 +146,11 @@ export function knownOf(schema: Obj, given: Readonly<Record<string, unknown>>) {
   for (const [field, shape] of Object.entries(schema.shape)) {
     const present = Object.hasOwn(given, field);
     const parsed = z.safeParse(shape, present ? given[field] : undefined);
-    if (parsed.success && parsed.data !== undefined) data[field] = parsed.data;
+    const unnamed = present ? unknownKeysIn(shape, given[field], [field]) : [];
+    issues.push(...unnamed.map(failure => placedIn(schema, given, failure)));
+    if (parsed.success && unnamed.length === 0 && parsed.data !== undefined) {
+      data[field] = parsed.data;
+    }
     if (parsed.success || present === false) continue;
     const placed = parsed.error.issues.map(issue => ({ ...issue, path: [field, ...issue.path] }));
     issues.push(...placed.flatMap(issue => zodIssues(schema, issue, given)));
@@ -187,27 +172,21 @@ export function choicesOf(schema: Obj, field: string): Choice[] | undefined {
   return item.options.map(option => ({ value: `${option}` }));
 }
 
-function unnamedIssues(schema: Obj, value: unknown) {
-  if (typeof value !== 'object' || value === null) return [];
-  return Object.keys(value)
-    .filter(key => Object.hasOwn(schema.shape, key) === false)
-    .map(key => schemaFailed.at(key, `the input has no field ${key}`));
-}
-
 /**
- * A strict object names its unknown keys in one issue; each becomes an issue at its own path.
- * At the root, unnamedIssues already names them. A value an enum field does not list is a value
- * outside its list, as for a source of `values` (rule 13).
+ * A value an enum field does not list is a value outside its list, as for a source of `values`
+ * (rule 13). Every other issue is SCHEMA, placed in the input, so the tool names the shape its
+ * part lies in.
  */
 function zodIssues(schema: Obj, issue: z.core.$ZodIssue, value: unknown): Issue[] {
   const listed = listedPath(schema, issue.path);
   if (issue.code === 'invalid_value' && listed !== undefined) {
     return [notInListAt(listed, valueAt(value, listed))];
   }
-  if (issue.code !== 'unrecognized_keys') return [schemaIssue(issue.path, issue.message)];
-  if (issue.path.length === 0) return [];
-  return issue.keys.map(key => schemaIssue([...issue.path, key], `the input has no field ${key}`));
+  return failuresOf(issue).map(failure => placedIn(schema, value, failure));
 }
+
+const placedIn = (schema: Obj, value: unknown, { below, message }: Failure) =>
+  placed(schemaIssue(below, message), { root: schema, value, below });
 
 // The path of an enum field, or of one value of a field that holds a list of an enum.
 function listedPath(schema: Obj, path: readonly PropertyKey[]): Path<string> | undefined {
@@ -226,11 +205,11 @@ function valueAt(value: unknown, path: Path<string>) {
 }
 
 // An issue at the root of the input names no field, so it has no path.
-function schemaIssue(path: readonly PropertyKey[], message: string): Issue {
+function schemaIssue(path: readonly (string | number)[], message: string): Issue {
   const [field, ...below] = path;
-  if (typeof field !== 'string') return schemaFailed.issue(message);
-  const parts: Path<string> = [field, ...below.filter(part => typeof part !== 'symbol')];
-  return schemaFailed.at(parts, message);
+  return typeof field === 'string'
+    ? schemaFailed.at([field, ...below], message)
+    : schemaFailed.issue(message);
 }
 
 /**

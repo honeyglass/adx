@@ -4,7 +4,7 @@
  * Checked, run: what run() takes as the tool, and run() itself.
  *
  * run() and main() go through the same call, so the answer, the text form and the exit code are
- * the program's; only the surroundings come from the options. What a handler writes with
+ * the program's; only the surroundings come from the options, stdin among them. What a handler writes with
  * console stands before the answer in out and err, as in the program.
  *
  * @example const { exit, out } = await run(hello, ['greet', '--name', 'Ada'], { tty: true });
@@ -29,7 +29,9 @@ export async function run(tool, argv, options = {}) {
             next: 'pass the value that tool() returned',
         });
     }
-    const around = { tokens: tokensOf(argv), tty: options.tty ?? false };
+    const piped = options.stdin ?? null;
+    const stdin = async () => (piped === null ? null : { text: piped });
+    const around = { tokens: tokensOf(argv), tty: options.tty ?? false, stdin };
     const { data, out, err } = await captured(() => call(spec, around));
     return { exit: data.exit, out: `${out}${data.out}`, err: `${err}${data.err}` };
 }

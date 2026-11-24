@@ -4,8 +4,8 @@
  * inputOf: the schema of a command with the global fields it takes.
  * sharedWithGlobal: the fields of a command the global input would replace.
  * fieldsOf, FieldOf, Takes: each field, the option it becomes and what that option takes.
- * parsedBy: the input checked against the schema, or one SCHEMA issue per problem, and one
- * NOT_IN_LIST issue per value an enum field does not list.
+ * parsedBy: the input checked against the schema, or one SCHEMA issue per problem, placed in the
+ * schema, and one NOT_IN_LIST issue per value an enum field does not list.
  * knownOf: the fields a call gave, checked, for a source that gets the input as far as known.
  * choicesOf: the values of an enum field, which lists them as a source does.
  * acceptsValue: whether one field of the schema takes a value, for a field a step carries.
@@ -41,11 +41,11 @@ export declare function sharedWithGlobal(spec: Spec, global: Obj | undefined): s
 /** @returns each field of the schema in its order, with what its option takes */
 export declare function fieldsOf(schema: Obj): FieldOf[];
 /**
- * A field the schema does not name is refused, never dropped.
+ * A key the schema does not name is refused at any depth, never dropped.
  *
  * @param schema - the input schema of the command
  * @param value - the input of the call
- * @returns the checked input, or the issues: first each unnamed field, then Zod's own
+ * @returns the checked input, or the issues: first each unknown key, then Zod's own
  */
 export declare function parsedBy(schema: Obj, value: unknown): {
     data: Record<string, unknown>;
@@ -57,7 +57,7 @@ export declare function parsedBy(schema: Obj, value: unknown): {
 /**
  * Each field is checked by its own schema, so a rule across fields, which needs them all, waits
  * for the whole input. A field the schema does not name is left out: the call refuses it once
- * its schema runs.
+ * its schema runs. A key below a field that the field does not name fails the field.
  *
  * @param schema - the input schema of the command
  * @param given - the fields a call gave, or would hold

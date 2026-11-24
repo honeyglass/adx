@@ -1,0 +1,52 @@
+/**
+ * What adx reads of a Zod schema in more than one feature: its layers, its parts, and its failures.
+ *
+ * layersOf, baseOf: a schema and each schema it wraps, and the innermost one, which checks the value.
+ * schemasAlong: every schema a path passes inside a schema, for the shape a SCHEMA issue lies in.
+ * Failure, failuresOf: one issue of a parse as the places and messages of SCHEMA issues.
+ * unknownKeysIn: each key of a value that an object of the schema does not name.
+ *
+ * The input check of a command and check() of a handler both answer SCHEMA, so both say it alike.
+ * Zod drops a key an object does not name; adx refuses it, at any depth (rule 15). An object that
+ * declares its other keys, loose or with a catchall, and a record keep them. A union takes the
+ * first option that passes the value, a discriminated union the one its key names, and a
+ * preprocess the schema after it, with the value it makes. This is the one file of core/ that
+ * calls Zod.
+ *
+ * @example const failures = [...unknownKeysIn(shape, value), ...parsed.error.issues.flatMap(failuresOf)];
+ */
+import { z } from 'zod';
+type Part = string | number;
+export type Failure = {
+    below: Part[];
+    message: string;
+};
+/** @returns the schema and every schema it wraps, the outermost first */
+export declare function layersOf(schema: z.core.$ZodType): z.core.$ZodType[];
+/** @returns the innermost schema, the one that checks the value */
+export declare const baseOf: (schema: z.core.$ZodType) => z.core.$ZodType;
+/**
+ * @param root - the schema the path starts in, which is not among the answer
+ * @param value - the value it checked
+ * @param below - the keys and indexes inside it
+ * @returns the schemas each part of the path passes, each with the schemas it wraps, and those
+ * the root wraps; the walk ends at a part no schema can tell
+ */
+export declare function schemasAlong(root: object, value: unknown, below: readonly Part[]): object[];
+/**
+ * A strict object names its unknown keys in one issue; each becomes a failure at its own place.
+ *
+ * @param issue - one issue of a failed parse
+ * @returns each place below the parsed value that failed, with its message
+ */
+export declare function failuresOf(issue: z.core.$ZodIssue): Failure[];
+/**
+ * A strict object is left out: Zod refuses its unknown keys itself.
+ *
+ * @param schema - the schema of the value
+ * @param value - the value as the caller gave it
+ * @param below - the place of the value inside the one the walk began at
+ * @returns one failure per key an object drops, at its place below the value
+ */
+export declare function unknownKeysIn(schema: z.core.$ZodType, value: unknown, below?: Part[]): Failure[];
+export {};

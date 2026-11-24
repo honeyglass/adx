@@ -4,4 +4,4 @@ export { runnerOf } from "./command.js";
 export { global } from "./global.js";
 export { effect, list, read } from "./kinds.js";
 export { commandsIn, listed, route } from "./route.js";
-export { declarationIssues, placeAll, runnersIn } from "./table.js";
+export { declarationIssues, isWord, placeAll, runnersIn } from "./table.js";

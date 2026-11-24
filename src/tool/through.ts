@@ -5,10 +5,11 @@
  * command that helps each issue.
  *
  * A success gets the command's own `next`, then each `after` of the tool for it, in their order;
- * a dry run gets one step instead, the same call for real. An issue keeps the command it names,
- * else it gets the step of the tool's hint for its code, else, at a field with a source, the call
- * that lists the field's values. Each step is written out with the input of the call, so it
- * carries the call's global fields and the fields it carries.
+ * a dry run gets one step instead, the same call for real. An issue keeps the command it names;
+ * a SCHEMA issue gets the schema of the shape it lies in, or of the command; any other gets the
+ * step of the tool's hint for its code, else, at a field with a source, the call that lists the
+ * field's values. Each step is written out with the input of the call, so it carries the call's
+ * global fields and the fields it carries.
  *
  * The $try here answers a refusal of adx only, which the schema, a list, `check`, a handler and
  * failed() throw or return, of any kind. Any other error is thrown again as it came, on the line
@@ -19,9 +20,17 @@
 import { $try } from '@honeyglass/utils/ts';
 import { followsOf, runnerOf } from '../command/index.ts';
 import type { Answered, Run, Runner } from '../command/index.ts';
-import { answerOfRefused, commandStep, Refused, refusedOf, stepOf } from '../core/index.ts';
+import {
+  answerOfRefused,
+  commandStep,
+  placeOf,
+  Refused,
+  refusedOf,
+  stepOf,
+} from '../core/index.ts';
 import type { Issue, Step } from '../core/index.ts';
-import { hintFor, stepAnswer } from '../steps/index.ts';
+import { shapeNameAt } from '../shapes/index.ts';
+import { hintFor, schema, stepAnswer } from '../steps/index.ts';
 import type { Context } from '../steps/index.ts';
 import { sources } from '../values/index.ts';
 import type { Shell } from './tool.ts';
@@ -66,14 +75,15 @@ function stepsAfter(shell: Shell, runner: Runner, ran: { result: unknown; input:
   return [...own, ...afters];
 }
 
-// The command an issue names wins, then the tool's hint for its code, then the source of the
-// field the issue stands at (decision 73).
+// The command an issue names wins, then the schema a SCHEMA issue lies in, then the tool's hint
+// for its code, then the source of the field the issue stands at (decisions 72, 73 and 78).
 function helped(shell: Shell, runner: Runner, issues: readonly Issue[], context: Context) {
   return Promise.all(
     issues.map(async issue => {
       const field = issue.path?.[0];
       const step: Step | undefined =
         stepOf(issue) ??
+        schemaStepOf(shell, runner, issue) ??
         hintFor(shell.hints, issue.code) ??
         (field === undefined ? undefined : sources.listStep(runner, field, context.input));
       if (step === undefined) return issue;
@@ -81,6 +91,14 @@ function helped(shell: Shell, runner: Runner, issues: readonly Issue[], context:
       return issue.command(command === undefined ? { does } : { does, command });
     }),
   );
+}
+
+// A SCHEMA issue inside a shape of the tool shows that shape, any other the command that ran.
+function schemaStepOf(shell: Shell, runner: Runner, issue: Issue) {
+  const place = placeOf(issue);
+  if (place === undefined) return undefined;
+  const name = shapeNameAt(shell.shapes, place);
+  return name === undefined ? runner.schemaStep() : schema.step(name);
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

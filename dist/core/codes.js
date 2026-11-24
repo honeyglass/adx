@@ -5,12 +5,14 @@
  * unknownOption, unexpectedArgument: an option the command does not take, and a stray word.
  * missingValue, unexpectedValue, repeatedOption: an option without its value, a switch with
  * one, and a field given twice.
- * invalidJson: a --json that holds no JSON object.
+ * invalidJson, missingInput, inputTooLarge: a --json that holds no JSON object, a --json - with
+ * nothing piped in, and stdin past its limit.
  * notInList, notInListAt: a value outside the list of its option, and its issue at a field.
  * schemaFailed: an input that fails the schema of its command.
  * declaration: a setup of the tool that is wrong in a way the compiler cannot see.
  * systemRefused, networkFailed, serverBusy, accessRefused, remoteRefused: an error nobody mapped.
  * unknownError: any other error, a bug.
+ * ADX_CODES: every code above, in the order `schema` lists them.
  *
  * @example return refusedWith([unknownCommand.issue(`hello has no command ${word}`)], NOTHING_CHANGED);
  */
@@ -24,6 +26,8 @@ export const missingValue = code('MISSING_VALUE', 'fix', 'Give the option a valu
 export const unexpectedValue = code('UNEXPECTED_VALUE', 'fix', 'Give the switch without a value');
 export const repeatedOption = code('REPEATED_OPTION', 'fix', 'Give each field once, as an option or in --json');
 export const invalidJson = code('INVALID_JSON', 'fix', 'Pass --json one JSON object');
+export const missingInput = code('MISSING_INPUT', 'fix', 'Pipe the JSON object into stdin, or pass it after --json');
+export const inputTooLarge = code('INPUT_TOO_LARGE', 'fix', 'Pass a smaller input');
 export const notInList = code('NOT_IN_LIST', 'fix', 'Use a value the list answers');
 /**
  * An enum and a source of `values` both refuse a value with it, so both say it alike.
@@ -40,3 +44,25 @@ export const serverBusy = code('SERVER_BUSY', 'retry', 'Call again in a minute')
 export const accessRefused = code('ACCESS_REFUSED', 'ask', 'Ask the person for access');
 export const remoteRefused = code('REMOTE_REFUSED', 'ask', 'Ask the person: the server refused the request');
 export const unknownError = code('UNKNOWN_ERROR', 'bug', 'Stop and tell the person: the tool has a bug, and stderr names the error');
+/** In the order of the guide's list of adx's codes: those of kind fix, then ask, retry, bug. */
+export const ADX_CODES = [
+    unknownCommand,
+    optionBeforeCommand,
+    unknownOption,
+    unexpectedArgument,
+    unexpectedValue,
+    repeatedOption,
+    missingValue,
+    missingInput,
+    invalidJson,
+    inputTooLarge,
+    schemaFailed,
+    notInList,
+    systemRefused,
+    accessRefused,
+    remoteRefused,
+    networkFailed,
+    serverBusy,
+    declaration,
+    unknownError,
+];
