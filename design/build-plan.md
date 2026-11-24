@@ -102,7 +102,7 @@ round is done. The e2e line names the tests the package turns green.
 - e2e: examples/datafolder
 
 ### P7 list
-- [ ] `Page`, `Listing`, `paged`, `--page`, outline and `--fields` (rule 16)
+- [x] `Page`, `Listing`, `paged`, `--page`, outline and `--fields` (rule 16)
 
 ### P8 remote
 - [ ] `remote()`, `bearer`, `envUrl`, `get` with `on`, the requests, `status()`
