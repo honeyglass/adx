@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict';
 import { cp } from 'node:fs/promises';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 import type { Call } from '../utils/program.ts';
 import { serve } from '../utils/server.ts';
@@ -44,7 +44,7 @@ async function callWith(t: TestContext, routes: Routes): Promise<Call> {
 
 const ship = (call: Call, ...argv: string[]) => program(SHIP, argv, call);
 
-pending('P8', 'called alone, names the two lists to begin with', async t => {
+test('called alone, names the two lists to begin with', async t => {
   const call = await callWith(t, ROUTES);
   const { exit, out } = await ship(call);
   assert.equal(exit, 0);
@@ -54,14 +54,14 @@ pending('P8', 'called alone, names the two lists to begin with', async t => {
   );
 });
 
-pending('P8', 'a mistyped command exits with 1', async t => {
+test('a mistyped command exits with 1', async t => {
   const call = await callWith(t, ROUTES);
   const { exit, out } = await ship(call, 'relase', 'list', '--app', 'shop-web');
   assert.equal(exit, 1);
   assert.equal(answerIn(out, z.unknown()).issues?.[0]?.code, 'UNKNOWN_COMMAND');
 });
 
-pending('P8', 'a frozen environment stops a promotion', async t => {
+test('a frozen environment stops a promotion', async t => {
   const call = await callWith(t, { ...ROUTES, [`GET ${staging}`]: { ...env, frozen: true } });
   const promote = ['release', 'promote', '--app', 'shop-web', '--release', 'r214'];
   const { exit, out } = await ship(call, ...promote, '--env', 'staging', '--dry-run');
@@ -73,10 +73,11 @@ pending('P8', 'a frozen environment stops a promotion', async t => {
   assert.match(answer.issues?.[0]?.command ?? '', /^ship env list --app shop-web/);
 });
 
-pending('P8', 'a taken draft name needs --replace', async t => {
+test('a taken draft name needs --replace', async t => {
   const call = await callWith(t, ROUTES);
   const draft = ['release', 'notes', 'draft', '--app', 'shop-web', '--name', 'spring'];
-  const text = ['--text', '- gift cards at checkout'];
+  // a value that starts with a dash goes in the --name=value form
+  const text = ['--text=- gift cards at checkout'];
   const refused = await ship(call, ...draft, ...text);
   assert.equal(refused.exit, 1);
   assert.equal(answerIn(refused.out, z.unknown()).issues?.[0]?.code, 'ALREADY_EXISTS');
