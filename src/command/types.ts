@@ -74,7 +74,11 @@ export type Values<S extends Obj, G extends Obj = Empty, K extends Field<S> = Fi
 /** The sources of `values` as adx reads them, whatever input their command types. */
 type SourceTable = { readonly [field: string]: Declared | undefined };
 /** The global input of a tool, with the sources of its fields. */
-export type Shared = { readonly input: Obj; readonly values: SourceTable };
+export type Shared = {
+  readonly input: Obj;
+  readonly values: SourceTable;
+  readonly example: unknown;
+};
 
 export type Refuse<F extends string> = (...issues: [Issue<F>, ...Issue<F>[]]) => Refused<F>;
 

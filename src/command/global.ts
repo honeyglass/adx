@@ -15,8 +15,8 @@ import type { Always, Free, Given, Obj, Shared, Values } from './types.ts';
 export class Global<G extends Obj> extends Kinds<G> {
   readonly input: G;
 
-  constructor(input: G, values: Shared['values']) {
-    super({ input, values });
+  constructor(input: G, values: Shared['values'], example: Shared['example']) {
+    super({ input, values, example });
     this.input = input;
   }
 }
@@ -27,5 +27,5 @@ export function global<G extends Obj>(spec: {
   example: Given<G>;
   values?: Values<G, G>;
 }): Global<G> {
-  return new Global<G>(spec.input, spec.values ?? {});
+  return new Global<G>(spec.input, spec.values ?? {}, spec.example);
 }

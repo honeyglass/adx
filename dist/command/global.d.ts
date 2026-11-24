@@ -13,7 +13,7 @@ import { Kinds } from './kinds.ts';
 import type { Always, Free, Given, Obj, Shared, Values } from './types.ts';
 export declare class Global<G extends Obj> extends Kinds<G> {
     readonly input: G;
-    constructor(input: G, values: Shared['values']);
+    constructor(input: G, values: Shared['values'], example: Shared['example']);
 }
 /** A global field goes to every kind of command, so it takes no name of an option of any kind. */
 export declare function global<G extends Obj>(spec: {

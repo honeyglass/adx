@@ -64,6 +64,7 @@ type SourceTable = {
 export type Shared = {
     readonly input: Obj;
     readonly values: SourceTable;
+    readonly example: unknown;
 };
 export type Refuse<F extends string> = (...issues: [Issue<F>, ...Issue<F>[]]) => Refused<F>;
 interface Common<I extends Obj, G extends Obj, U, R, Taken extends string, L extends Field<I>> {

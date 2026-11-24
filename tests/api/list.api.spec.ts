@@ -363,7 +363,7 @@ test('schema of a list shows its item, key, outline, page size and options', asy
   );
   assert.deepEqual(
     shown.options.map(o => o.option),
-    ['--json', '--help', '--page', '--fields'],
+    ['--json', '--output', '--help', '--page', '--fields'],
   );
   const sized = Shown.parse((await answerOf('schema', 'tickets')).result);
   assert.deepEqual([sized.outline, sized.pageSize], [['id'], 50]);

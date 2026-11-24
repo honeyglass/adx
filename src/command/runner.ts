@@ -128,6 +128,11 @@ const JSON_OPTION: AdxOption = {
   takes: 'json',
   does: 'the whole input as one JSON object',
 };
+const OUTPUT_OPTION: AdxOption = {
+  option: '--output',
+  takes: 'text',
+  does: 'the form of the answer, text or json, in place of the one stdout picks',
+};
 const HELP_OPTION: AdxOption = {
   option: '--help',
   takes: 'switch',
@@ -154,7 +159,7 @@ const FIELDS_OPTION: AdxOption = {
   does: 'the fields of the answer, each whole; alone, it lists them',
 };
 
-/** The options adx gives every command, also those it does not build yet: a field takes none. */
+/** The options adx gives every command: a field takes none. */
 const ALWAYS_TAKEN = ['json', 'output', 'help', 'dry-run', 'replace'];
 
 /** The code a value outside its list is refused with, by its name. */
@@ -513,6 +518,7 @@ export class Runner implements Sourced {
     });
     return [
       JSON_OPTION,
+      OUTPUT_OPTION,
       HELP_OPTION,
       ...(this.kind === 'effect' ? [DRY_RUN_OPTION] : []),
       ...(this.kind === 'effect' && this.spec.replace === undefined ? [REPLACE_OPTION] : []),
@@ -564,8 +570,22 @@ export class Runner implements Sourced {
       does: this.spec.does,
       fields,
       options: this.#adxOptions(),
-      example: this.spec.example,
+      example: this.#example(),
     };
+  }
+
+  // The example of the whole input: the global fields the command takes, from the example of
+  // the global input, then its own, so a call of it passes the schema `schema` shows. A command
+  // without a required field of its own may leave its example out, as one without input does.
+  #example() {
+    const own = this.spec.example;
+    const example = this.#global?.example;
+    const shared = isRecord(example) ? example : {};
+    const taken = Object.keys(shared).filter(field => this.#takesGlobal(field));
+    const global = Object.fromEntries(taken.map(field => [field, shared[field]]));
+    const needsOwn = this.fields().some(field => field.required && field.global === false);
+    if (own === undefined && needsOwn === false && taken.length > 0) return global;
+    return isRecord(own) ? { ...global, ...own } : own;
   }
 
   #text() {

@@ -12,12 +12,12 @@
 import { Kinds } from "./kinds.js";
 export class Global extends Kinds {
     input;
-    constructor(input, values) {
-        super({ input, values });
+    constructor(input, values, example) {
+        super({ input, values, example });
         this.input = input;
     }
 }
 /** A global field goes to every kind of command, so it takes no name of an option of any kind. */
 export function global(spec) {
-    return new Global(spec.input, spec.values ?? {});
+    return new Global(spec.input, spec.values ?? {}, spec.example);
 }

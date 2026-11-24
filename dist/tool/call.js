@@ -1,6 +1,7 @@
 /**
- * One call of a tool: the arguments routed to `schema`, a command, the start answer or a group,
- * and the answer in JSON or as text.
+ * One call of a tool: the arguments routed to `schema`, a command, the start answer, a group or
+ * --version, and the answer in JSON or as text: the form --output forces, else text at a
+ * terminal and JSON when piped.
  *
  * call: the exit code and what the call writes, for main() and for the test kit's run().
  *
@@ -10,7 +11,7 @@
  * @example const ran = await call(shell, { tokens: tokensOf(['greet']), tty: false, stdin });
  */
 import { $try } from '@honeyglass/utils/ts';
-import { listed, refused, route } from "../command/index.js";
+import { formOf, listed, refused, route } from "../command/index.js";
 import { answerOfError, exitOf } from "../core/index.js";
 import { Located, within } from "../files/index.js";
 import { Line } from "../remote/index.js";
@@ -19,25 +20,35 @@ import { setupIssues } from "./setup.js";
 import { started } from "./start.js";
 import { textOf } from "./text.js";
 import { through } from "./through.js";
+import { namesVersion, versionAnswer } from "./version.js";
 /**
  * @param shell - what the call reads of the tool
  * @param around - the tokens of the arguments, and whether stdout is a terminal
  * @returns the exit code, the answer for stdout, and for a bug the error for stderr; it never rejects
  */
 export async function call(shell, around) {
-    const answering = async () => written(await answered(shell, around), around.tty);
+    const read = formOf(around.tokens, shell.name);
+    const tty = 'form' in read && read.form !== undefined ? read.form === 'text' : around.tty;
+    const answering = async () => written(await answered(shell, around, read), tty);
     const { data, error } = await $try(answering);
     if (error === null)
         return data;
     const { answer, err } = answerOfError(error);
-    return { ...written({ answer }, around.tty), err };
+    return { ...written({ answer }, tty), err };
 }
-// The setup first, so a mistake in it shows on every call, then the words, then the command.
-async function answered(shell, around) {
-    const { tokens } = around;
+// The setup first, so a mistake in it shows on every call, then --output, then the words, then
+// the command.
+async function answered(shell, around, read) {
     const [wrong, ...more] = setupIssues(shell, around.network);
     if (wrong !== undefined)
         return refused([wrong, ...more]);
+    if ('answered' in read)
+        return read.answered;
+    if ('issues' in read)
+        return refused(read.issues);
+    const { tokens } = read;
+    if (namesVersion(tokens))
+        return versionAnswer(shell);
     if (namesSchema(tokens))
         return schemaAnswer(shell, tokens);
     const routed = route(shell.commands, tokens, shell.name);

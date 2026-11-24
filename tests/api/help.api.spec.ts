@@ -27,7 +27,7 @@ const tracker = tool({
   version: '0.1.0',
   does: 'x',
   global: project,
-  commands: { friends: { add } },
+  commands: { friends: { add, count: project.read({ does: 'counts friends', run: () => 0 }) } },
 });
 
 test('--help answers the fields, the options of adx and the example, and runs nothing', async () => {
@@ -57,6 +57,11 @@ test('--help answers the fields, the options of adx and the example, and runs no
     ],
     options: [
       { option: '--json', takes: 'json', does: 'the whole input as one JSON object' },
+      {
+        option: '--output',
+        takes: 'text',
+        does: 'the form of the answer, text or json, in place of the one stdout picks',
+      },
       { option: '--help', takes: 'switch', does: 'shows what the command takes' },
       { option: '--dry-run', takes: 'switch', does: 'runs plan only and changes nothing' },
       {
@@ -65,8 +70,15 @@ test('--help answers the fields, the options of adx and the example, and runs no
         does: 'lets a write replace a file that holds other bytes',
       },
     ],
-    example: { name: 'ada' },
+    // the example of the whole input, with the global fields of the global example
+    example: { project: 'web', name: 'ada' },
   });
+  // a command without a required field of its own has the global example as its own
+  const count = await run(tracker, ['friends', 'count', '--help']);
+  assert.deepEqual(
+    z.object({ example: z.unknown() }).parse(answerIn(count.out, z.unknown()).result).example,
+    { project: 'web' },
+  );
 });
 
 test('--help at a terminal is text for people', async () => {
@@ -82,11 +94,12 @@ test('--help at a terminal is text for people', async () => {
       '  people            only in --json',
       '  --project <text>  the project key; required',
       '  --json <json>     the whole input as one JSON object',
+      '  --output <text>   the form of the answer, text or json, in place of the one stdout picks',
       '  --help            shows what the command takes',
       '  --dry-run         runs plan only and changes nothing',
       '  --replace         lets a write replace a file that holds other bytes',
       '',
-      'example  {"name":"ada"}',
+      'example  {"project":"web","name":"ada"}',
       '',
     ].join('\n'),
   );
