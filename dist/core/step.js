@@ -4,7 +4,7 @@ class Planned {
     does;
     #parts;
     constructor(parts) {
-        this.does = parts.target.does;
+        this.does = parts.does;
         this.#parts = parts;
         partsByStep.set(this, parts);
     }
@@ -21,11 +21,13 @@ class Planned {
 /**
  * @param target - the command the step names
  * @param given - the fields the step gives, as a caller writes them
- * @param switches - the options of adx the step gives, such as replace, without dashes
+ * @param options - the options of adx the step gives, such as replace
+ * @param does - what the step does, when it is not what the command does, as a following page
  * @returns the step, which needs, carries and lists nothing yet
  */
-export function commandStep(target, given, switches = []) {
-    return new Planned({ target, given, needed: [], carried: [], listed: undefined, switches });
+export function commandStep(target, given, options = [], does = target.does) {
+    const parts = { does, target, given, needed: [], carried: [], listed: undefined, options };
+    return new Planned(parts);
 }
 /** @returns the parts of a step to a command, or undefined for any other step */
 export const partsOfStep = (step) => partsByStep.get(step);

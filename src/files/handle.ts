@@ -22,6 +22,7 @@ import {
   NOTHING_CHANGED,
   refusedOf,
   refusedWith,
+  shownAs,
   storedInvalid,
 } from '../core/index.ts';
 import type { Dir, File, Issue, Root, Stored } from '../core/index.ts';
@@ -40,6 +41,7 @@ export class Handle implements File {
     this.root = root;
     this.rel = cleaned(rel);
     this.kind = kind;
+    shownAs(this);
   }
 
   /** A file stands there; a folder, or nothing, is no file. */
@@ -79,6 +81,7 @@ export class Tree implements Dir {
   constructor(root: Root, rel: string) {
     this.root = root;
     this.rel = cleaned(rel);
+    shownAs(this);
   }
 
   async *walk(suffix = ''): AsyncIterable<File> {

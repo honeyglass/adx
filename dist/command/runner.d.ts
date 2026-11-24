@@ -1,23 +1,3 @@
-/**
- * What runs one command: its options, its layers of checks, and its handler.
- *
- * Kind, Run, Ready: the three kinds, what a run is asked for, and a call ready for its handler.
- * Place, Through: where a tool lists a command, and how that tool answers a call of it.
- * Runner: read, a call from its tokens; answered, its handler run, or the values of an option
- * given alone; through, for invoke; what a step and the sources read of the command; and what
- * `schema` shows of it.
- *
- * adx checks in layers: the arguments, then the schema, then each path of a file against the
- * disk, then each value against its list, then `check`, then the handler. Each layer collects
- * all its issues, and a later layer runs only when the earlier ones passed. From the schema on, a
- * refusal is thrown, as one the handler throws, so the tool answers them alike, with the commands
- * that help. The sources come from the tool that lists the command, so a command no tool lists
- * checks no value against a list. A SCHEMA issue placed in the input gets its command from the
- * tool, which knows the shapes it may lie in.
- *
- * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
- */
-import type { z } from 'zod';
 import type { Declared, Issue, Sourced, Sources, Stdin, Step, TargetField, Token, Writer } from '../core/index.ts';
 import type { Answered } from './answered.ts';
 import type { AdxOption } from './help.ts';
@@ -25,13 +5,14 @@ import type { Obj, Shared, Spec } from './types.ts';
 export type Kind = 'read' | 'list' | 'effect';
 /**
  * `fields` holds the names --fields gave, if any; `lists` the field whose option came alone;
- * `replace` whether the call said --replace; `folders` the folder each root option gave, by the
- * name of its root.
+ * `page` the cursor --page gave; `replace` whether the call said --replace; `folders` the folder
+ * each root option gave, by the name of its root.
  */
 export type Run = {
     dryRun: boolean;
     fields: readonly string[] | undefined;
     lists: string | undefined;
+    page: string | undefined;
     replace: boolean;
     folders: Readonly<Record<string, string>>;
 };
@@ -100,6 +81,15 @@ export declare class Runner implements Sourced {
      */
     accepts(field: string, value: unknown, beside: Readonly<Record<string, unknown>>): Promise<boolean>;
     /**
+     * A step carries a path as adx shows it, cleaned and relative to its root, so
+     * `./internal/billing/` rides along as `internal/billing`; a field that fails its schema stays
+     * as given.
+     *
+     * @param given - the input of the call as its caller gave it
+     * @returns the same input, each path field, or list of paths, as adx shows it
+     */
+    shown(given: Readonly<Record<string, unknown>>): Record<string, unknown>;
+    /**
      * @param tokens - the tokens of the call after the command words
      * @param before - the issues of the tokens before the command words
      * @param stdin - what the call reads from stdin, read only for `--json -` and never for --help
@@ -134,6 +124,9 @@ export declare class Runner implements Sourced {
      */
     schemaFacts(): {
         replace?: string | undefined;
+        key?: string | undefined;
+        outline?: string[] | undefined;
+        pageSize?: number | undefined;
         lists: string[];
         global: string[];
         example?: {} | null | undefined;
@@ -151,7 +144,13 @@ export declare class Runner implements Sourced {
         options: readonly AdxOption[];
     };
     /** @returns the schema of the answer, which only a read declares, with `output` */
-    output(): z.ZodType<unknown, unknown, z.core.$ZodTypeInternals<unknown, unknown>> | undefined;
+    output(): import("zod").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>> | undefined;
+    /** @returns the schema of one item, which only a list declares */
+    item(): Obj | undefined;
+    /** @returns the fields of an item that the outline of a list leaves out */
+    hidden(): string[];
+    /** The size of every page of a list: its own, or 50 (decision 56). */
+    pageSize(): number;
     /** @returns the step to what the command takes, or undefined while no tool lists it */
     schemaStep(): Step | undefined;
 }

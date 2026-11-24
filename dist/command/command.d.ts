@@ -1,7 +1,7 @@
-import type { Answer, CommandStep } from '../core/index.ts';
+import type { Answer, CommandStep, Listing } from '../core/index.ts';
 import { Runner } from './runner.ts';
 import type { Kind } from './runner.ts';
-import type { All, Empty, Given, In, InvokeOptions, Listing, Obj, Shared, Spec, UseGiven } from './types.ts';
+import type { All, Empty, Given, In, InvokeOptions, Obj, Shared, Spec, UseGiven } from './types.ts';
 declare const builtFor: unique symbol;
 declare const realRun: unique symbol;
 export interface Entry<G extends Obj> {

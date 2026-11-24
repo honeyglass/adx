@@ -40,6 +40,7 @@ export class Command {
             dryRun: options.dryRun ?? false,
             fields: undefined,
             lists: undefined,
+            page: undefined,
             replace: options.replace ?? false,
             folders: {},
         };

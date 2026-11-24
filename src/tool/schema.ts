@@ -6,9 +6,10 @@
  *
  * `schema` alone names every command with its input, the shapes, the roots with their variable
  * and option, what each kind asks the caller and adx's own codes. `schema <command>` shows the
- * input as JSON Schema with what --help shows, and `schema <shape>` the shape. Each prints the
- * JSON Schema of the same Zod schema adx checks with, so the two never differ. `schema` comes
- * before the command table, and takes no option.
+ * input as JSON Schema with what --help shows, and of a list its item, key, outline and page
+ * size; `schema <shape>` shows the shape. Each prints the JSON Schema of the same Zod schema adx
+ * checks with, so the two never differ. `schema` comes before the command table, and takes no
+ * option.
  *
  * @example if (namesSchema(tokens)) return schemaAnswer(shell, tokens);
  */
@@ -89,11 +90,13 @@ function overviewOf(shell: Shell) {
 function commandSchemaOf(runner: Runner) {
   const { command, does, ...facts } = runner.schemaFacts();
   const output = runner.output();
+  const item = runner.item();
   return {
     command,
     does,
     input: jsonSchemaOf(runner.input, 'input'),
     ...facts,
+    ...(item === undefined ? {} : { item: jsonSchemaOf(item, 'output') }),
     ...(output === undefined ? {} : { output: jsonSchemaOf(output, 'output') }),
   };
 }

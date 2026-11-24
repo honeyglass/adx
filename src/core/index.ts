@@ -10,7 +10,9 @@
  * the failures of a parse, and the keys an object would drop.
  * MULTILINE, brokenLinesIn: the mark of multiline(), and each plain string that is no one line.
  * codePointsIn: the length of a text in characters.
- * Step, CommandStep, commandStep, Target, partsOfStep: a next move, and one to a command.
+ * Page, Listing: one page a list asks for, and what its handler answers.
+ * Step, CommandStep, commandStep, Target, StepOption, partsOfStep: a next move, and one to a
+ * command.
  * Code, code, factsOf: a code a tool declares and raises, and its name, kind and hint.
  * unknownCommand, unknownOption, schemaFailed, declaration, ...: codes adx raises itself, and
  * ADX_CODES, all of them.
@@ -23,6 +25,7 @@
  * Token, Piped, Stdin, Disk, Entry, Surroundings, Around, Ran: what one call gets and leaves.
  * File, Dir, Root, RootSource, Stored, Changes, Written, Files, Writer: roots and files, and the
  * writes of one call.
+ * shownAs, pathOf: a file or folder adx made, and its path as adx shows it.
  * pathOutside, fileNotFound, notAFile, notAFolder, alreadyExists, rootNotFound, storedInvalid:
  * the codes of roots and files.
  * STDIN_LIMIT: how many characters of stdin `--json -` takes.
@@ -61,6 +64,7 @@ export {
 export { isDecimal } from './decimal.ts';
 export { escaped, oneLine } from './escape.ts';
 export { codePointsIn } from './length.ts';
+export type { Listing, Page } from './listing.ts';
 export { answerOfError, answerOfRefused, failed, refusedOf } from './failed.ts';
 export type { Path, SchemaPlace } from './issue.ts';
 export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from './issue.ts';
@@ -92,7 +96,7 @@ export type {
 } from './source.ts';
 export { freshBrand, needsBrand, refBrand } from './source.ts';
 export { status } from './status.ts';
-export type { CommandStep, Step, StepParts, Target, TargetField } from './step.ts';
+export type { CommandStep, Step, StepOption, StepParts, Target, TargetField } from './step.ts';
 export { commandStep, partsOfStep } from './step.ts';
 export type {
   Around,
@@ -116,3 +120,4 @@ export type {
   Writer,
   Written,
 } from './files.ts';
+export { pathOf, shownAs } from './files.ts';

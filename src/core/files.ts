@@ -6,6 +6,7 @@
  * Changes, Written, Files: what a write changes, what it answers, and the writes of a plan.
  * Writer: the writes of one call, which the tool hands a command: the check of the paths its
  * input names, the files of its plan, and the commit after it.
+ * shownAs, pathOf: a file or folder adx made, by its path as adx shows it, and that path.
  *
  * The types stand in core/, since command/ types the plan of an effect with Files, and files/
  * makes the values.
@@ -68,6 +69,15 @@ export interface Files {
   write(file: File, data: string | Uint8Array, options?: { mode?: number }): Written;
   update(file: File, limit: number, change: (old: string) => string): Promise<Written>;
 }
+
+const paths = new WeakMap<object, string>();
+
+/** Marks a file or folder adx made, so a step writes its path cleaned, relative to its root. */
+export const shownAs = (handle: File | Dir) => void paths.set(handle, handle.rel);
+
+/** @returns the path of a file or folder adx made, or undefined for any other value */
+export const pathOf = (value: unknown) =>
+  typeof value === 'object' && value !== null ? paths.get(value) : undefined;
 
 export interface Writer {
   /** One issue per path of the input that leaves its root or names the wrong kind of entry. */

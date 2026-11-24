@@ -4,7 +4,8 @@
  * Step: what every step has, what it does and, for a command, the command.
  * CommandStep, commandStep: a step to a command, with the fields it gives, needs, carries and lists.
  * Target, TargetField: what a step reads of the command it names.
- * StepParts, partsOfStep: what a step to a command holds beside what it does.
+ * StepOption, StepParts, partsOfStep: an option of adx a step gives, and what a step to a
+ * command holds.
  *
  * A step is made before its command line can be known: the tool that lists the command, the
  * global fields of the call and the fields a refusal carries come from the call that answers it.
@@ -61,14 +62,18 @@ export interface Target {
   ): Promise<boolean>;
 }
 
-/** `switches` are options of adx the call repeats, such as `replace`, written after the fields. */
+/** An option of adx, without its dashes, such as `replace`, or `page` with its cursor. */
+export type StepOption = { option: string; value?: string };
+
+/** `options` are options of adx the call gives, such as `replace`, written after the fields. */
 export type StepParts = {
+  does: string;
   target: Target;
   given: Readonly<Record<string, unknown>>;
   needed: readonly string[];
   carried: readonly string[];
   listed: string | undefined;
-  switches: readonly string[];
+  options: readonly StepOption[];
 };
 
 const partsByStep = new WeakMap<Step, StepParts>();
@@ -79,7 +84,7 @@ class Planned<I, L extends string, N extends string> implements CommandStep<I, L
   readonly #parts: StepParts;
 
   constructor(parts: StepParts) {
-    this.does = parts.target.does;
+    this.does = parts.does;
     this.#parts = parts;
     partsByStep.set(this, parts);
   }
@@ -100,15 +105,18 @@ class Planned<I, L extends string, N extends string> implements CommandStep<I, L
 /**
  * @param target - the command the step names
  * @param given - the fields the step gives, as a caller writes them
- * @param switches - the options of adx the step gives, such as replace, without dashes
+ * @param options - the options of adx the step gives, such as replace
+ * @param does - what the step does, when it is not what the command does, as a following page
  * @returns the step, which needs, carries and lists nothing yet
  */
 export function commandStep<I, L extends string>(
   target: Target,
   given: Readonly<Record<string, unknown>>,
-  switches: readonly string[] = [],
+  options: readonly StepOption[] = [],
+  does = target.does,
 ): CommandStep<I, L> {
-  return new Planned({ target, given, needed: [], carried: [], listed: undefined, switches });
+  const parts = { does, target, given, needed: [], carried: [], listed: undefined, options };
+  return new Planned(parts);
 }
 
 /** @returns the parts of a step to a command, or undefined for any other step */

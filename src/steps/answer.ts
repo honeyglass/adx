@@ -8,7 +8,7 @@
  * command takes, and each field it carries when the command would take the call's value. The
  * global fields stand first, then the command's own in the order of its schema, then what only
  * --json takes, then each folder the call moved (decision 13); a listed field comes after them,
- * alone, with no value, so the call lists its values, and the switches of adx come last. `needs`
+ * alone, with no value, so the call lists its values, and the options of adx come last. `needs`
  * names each required field the line leaves open, and each the step names, but never a listed one.
  *
  * @example const next = await stepAnswer(greet.step(), { tool: 'hello', input, folders: [] });
@@ -67,13 +67,15 @@ async function commandAnswer(parts: StepParts, context: Context): Promise<NextSt
     ...optionsOf(fields, values),
     ...context.folders.flatMap(({ option, folder }) => optionWords(option, folder)),
     ...(listed?.option === undefined ? [] : [`--${listed.option}`]),
-    ...parts.switches.map(name => `--${name}`),
+    ...parts.options.flatMap(({ option, value }) =>
+      value === undefined ? [`--${option}`] : optionWords(option, value),
+    ),
   ];
   const needs = fields
     .filter(field => field.required || parts.needed.includes(field.field))
     .filter(field => values.has(field.field) === false && field !== listed)
     .map(field => field.field);
-  return { does: target.does, command: lineOf(words), ...(needs.length > 0 ? { needs } : {}) };
+  return { does: parts.does, command: lineOf(words), ...(needs.length > 0 ? { needs } : {}) };
 }
 
 async function valuesOf(parts: StepParts, fields: readonly TargetField[], context: Context) {

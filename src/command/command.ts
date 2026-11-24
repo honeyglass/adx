@@ -13,21 +13,10 @@
  */
 import { $try } from '@honeyglass/utils/ts';
 import { answerOfError, commandStep } from '../core/index.ts';
-import type { Answer, CommandStep } from '../core/index.ts';
+import type { Answer, CommandStep, Listing } from '../core/index.ts';
 import { Runner } from './runner.ts';
 import type { Kind } from './runner.ts';
-import type {
-  All,
-  Empty,
-  Given,
-  In,
-  InvokeOptions,
-  Listing,
-  Obj,
-  Shared,
-  Spec,
-  UseGiven,
-} from './types.ts';
+import type { All, Empty, Given, In, InvokeOptions, Obj, Shared, Spec, UseGiven } from './types.ts';
 
 declare const builtFor: unique symbol;
 declare const realRun: unique symbol;
@@ -81,6 +70,7 @@ export class Command<
       dryRun: options.dryRun ?? false,
       fields: undefined,
       lists: undefined,
+      page: undefined,
       replace: options.replace ?? false,
       folders: {},
     };

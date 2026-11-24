@@ -12,3 +12,4 @@ export { baseOf, brokenLinesIn, failuresOf, layersOf, MULTILINE, schemasAlong, u
 export { freshBrand, needsBrand, refBrand } from "./source.js";
 export { status } from "./status.js";
 export { commandStep, partsOfStep } from "./step.js";
+export { pathOf, shownAs } from "./files.js";

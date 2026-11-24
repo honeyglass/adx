@@ -2,14 +2,15 @@
  * The setup of a tool that the compiler cannot see, checked at the start of every call.
  *
  * setupIssues: one DECLARATION issue per mistake: in the command table, per command an `after`
- * names that the tool does not list, per code that has a second hint, and per shape that is no
- * word or has the word of a command.
+ * names that the tool does not list, per code that has a second hint, per shape that is no
+ * word or has the word of a command, and per list whose pages or one-item command do not fit.
  *
  * @example const [wrong, ...more] = setupIssues(shell);
  */
 import { declarationIssues, followsOf, isWord, runnerOf, runnersIn } from "../command/index.js";
 import { declaration } from "../core/index.js";
 import { codeOf } from "../steps/index.js";
+import { detailsOf } from "./detail.js";
 /** @param shell - what the call reads of the tool */
 export function setupIssues(shell) {
     return [
@@ -17,7 +18,28 @@ export function setupIssues(shell) {
         ...afterIssues(shell),
         ...hintIssues(shell),
         ...shapeIssues(shell),
+        ...listIssues(shell),
     ];
+}
+// A page of no whole number of items never ends. An outline that hides a field needs the one
+// command that shows an item in full, and two such commands leave the step after a page to the
+// order of the table.
+function listIssues(shell) {
+    const lists = [...runnersIn(shell.commands)].filter(runner => runner.kind === 'list');
+    return lists.flatMap(list => {
+        const name = `${shell.name} ${list.name}`;
+        const size = list.pageSize();
+        const sized = Number.isSafeInteger(size) && size > 0;
+        const details = detailsOf(shell, list).map(({ target }) => `${shell.name} ${target.name}`);
+        const hidden = list.hidden().join(', ');
+        return [
+            ...(sized ? [] : [`${name} has the page size ${size}, and a page holds 1 item or more`]),
+            ...(details.length > 1 ? [`${details.join(' and ')} each show one item of ${name}`] : []),
+            ...(details.length === 0 && hidden !== ''
+                ? [`${name} hides ${hidden} in its outline, and no detailOf of it names a command`]
+                : []),
+        ].map(message => declaration.issue(message));
+    });
 }
 // `schema <word>` names a shape or a command; a group may share its word, and the shape wins.
 function shapeIssues(shell) {

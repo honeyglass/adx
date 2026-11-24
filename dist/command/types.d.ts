@@ -6,7 +6,6 @@
  * Merged, Either: the answer of the real run of an effect, and of either run.
  * Always, Free: the options adx gives a command, and an input that names none of them.
  * Values, Shared: the sources a command names for its fields, and the global input with its own.
- * Page, Listing: one page a list asks for, and what its handler answers.
  * Refuse, ReadSpec, ListSpec, EffectSpec: what read(), list() and effect() take.
  * InvokeOptions: what invoke takes beside the input.
  * Commands: the command table of a tool.
@@ -17,7 +16,7 @@
  * @example const greet = read({ does: 'greets', input, example: { name: 'Ada' }, run });
  */
 import type { z } from 'zod';
-import type { Declared, Files, Fresh, Issue, ListRef, Refused, Source, Step } from '../core/index.ts';
+import type { Declared, Files, Fresh, Issue, Listing, ListRef, Page, Refused, Source, Step } from '../core/index.ts';
 import type { Entry } from './command.ts';
 export type Obj = z.ZodObject;
 export type Empty = z.ZodObject<{}>;
@@ -66,15 +65,6 @@ export type Shared = {
     readonly input: Obj;
     readonly values: SourceTable;
 };
-export interface Page {
-    readonly cursor: string;
-    readonly size: number;
-}
-export interface Listing<T> {
-    items: T[];
-    next?: string;
-    total?: number;
-}
 export type Refuse<F extends string> = (...issues: [Issue<F>, ...Issue<F>[]]) => Refused<F>;
 interface Common<I extends Obj, G extends Obj, U, R, Taken extends string, L extends Field<I>> {
     does: string;
@@ -153,6 +143,9 @@ export interface Spec {
     readonly global?: unknown;
     readonly values?: SourceTable;
     readonly output?: z.ZodType;
+    readonly item?: Obj;
+    readonly key?: string;
+    readonly outline?: readonly string[];
     readonly pageSize?: number;
     readonly replace?: false | 'always';
     check?(input: unknown): readonly Issue[];

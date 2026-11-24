@@ -263,6 +263,11 @@ test('a link at the target is replaced by the write, never written through', asy
   assert.deepEqual(await readdir(outside), ['kept']);
 });
 
+test('a step carries a path as adx shows it, relative to its root', async () => {
+  const planned = await answer(['save', '--file', './notes//a.txt', '--dry-run']);
+  assert.equal(planned.next?.[0]?.command, 'hello save --file notes/a.txt');
+});
+
 test('a marker root is the nearest folder up from the working directory that holds it', async t => {
   const project = await folder(t);
   await writeFile(join(project, 'go.mod'), '');

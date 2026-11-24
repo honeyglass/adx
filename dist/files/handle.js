@@ -14,7 +14,7 @@
  * @example const text = await home.file('notes.txt').text(4096);
  */
 import { shown, trySync$ } from '@honeyglass/utils/ts';
-import { fileNotFound, inputTooLarge, notAFile, NOTHING_CHANGED, refusedOf, refusedWith, storedInvalid, } from "../core/index.js";
+import { fileNotFound, inputTooLarge, notAFile, NOTHING_CHANGED, refusedOf, refusedWith, shownAs, storedInvalid, } from "../core/index.js";
 import { cleaned, found, openedOrThrown } from "./paths.js";
 import { located } from "./located.js";
 export class Handle {
@@ -25,6 +25,7 @@ export class Handle {
         this.root = root;
         this.rel = cleaned(rel);
         this.kind = kind;
+        shownAs(this);
     }
     /** A file stands there; a folder, or nothing, is no file. */
     get exists() {
@@ -59,6 +60,7 @@ export class Tree {
     constructor(root, rel) {
         this.root = root;
         this.rel = cleaned(rel);
+        shownAs(this);
     }
     async *walk(suffix = '') {
         const at = openedOrThrown(found(this.root, this.rel));

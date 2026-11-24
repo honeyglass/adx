@@ -14,3 +14,7 @@ export declare function namesOf(value: string, fields: readonly Choice[], call: 
 };
 /** @returns the answer with only the named fields; a value that is no object stays as it is */
 export declare function picked(result: unknown, names: readonly string[]): unknown;
+/** @returns the page with each item cut to the named fields; a value that is no page stays */
+export declare function pickedItems(listing: unknown, names: readonly string[]): unknown;
+/** @returns the items of a page, or none for a value that is no page */
+export declare const itemsOf: (listing: unknown) => unknown[];

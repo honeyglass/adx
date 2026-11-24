@@ -8,6 +8,7 @@
  * Choice, Source, Needs, Fresh, ListRef: where the values of a field come from.
  * File, Dir, Root, RootSource: a file, a folder and a root, as a handler reads them.
  * Files, Written, Changes: the writes of a plan, what each answers, and what a replace changes.
+ * Page, Listing: one page a list asks for, and what its handler answers.
  * Tool: what tool() returns.
  *
  * @example import type { Answer } from '@honeyglass/adx';
@@ -23,8 +24,10 @@ export type {
   Files,
   Fresh,
   Kind,
+  Listing,
   ListRef,
   Needs,
+  Page,
   Root,
   RootSource,
   Source,
