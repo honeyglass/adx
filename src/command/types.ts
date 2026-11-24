@@ -17,7 +17,7 @@
  * @example const greet = read({ does: 'greets', input, example: { name: 'Ada' }, run });
  */
 import type { z } from 'zod';
-import type { Issue, Refused } from '../core/index.ts';
+import type { Issue, Refused, Step } from '../core/index.ts';
 import type { Entry } from './command.ts';
 
 export type Obj = z.ZodObject;
@@ -83,6 +83,7 @@ interface Common<I extends Obj, G extends Obj, U, R, Taken extends string, L ext
   global?: U;
   values?: Values<I, G, L>;
   check?: (input: All<I, G, U>) => Issue<Fields<I, G, U>>[];
+  next?: (out: R, input: All<I, G, U>) => Step[];
 }
 export interface ReadSpec<
   I extends Obj,
@@ -162,6 +163,7 @@ export interface Spec {
   plan?(input: unknown, ctx: LooseRefuse): unknown;
   apply?(input: unknown, ctx: LooseRefuse & { planned: unknown }): unknown;
   text?(out: unknown): string;
+  next?(out: unknown, input: unknown): readonly Step[];
 }
 
 /** The command table: a key is one word of the call, and a nested table is a group. */

@@ -40,6 +40,8 @@ export function issueAnswer(issue) {
  * @returns the issue with a command
  */
 export const withCommand = (issue, step) => partsOf(issue).step === undefined ? issue.command(step) : issue;
+/** @returns the step the issue names, which the answer writes out, or undefined */
+export const stepOf = (issue) => partsOf(issue).step;
 /** The kind of the code that raised the issue. */
 export const kindOfIssue = (issue) => partsOf(issue).kind;
 // An object of the shape of an Issue that no constructor made has no parts.

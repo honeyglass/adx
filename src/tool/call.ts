@@ -1,5 +1,6 @@
 /**
- * One call of a tool: the arguments routed to a command, and the answer in JSON or as text.
+ * One call of a tool: the arguments routed to a command, the start answer or a group, and the
+ * answer in JSON or as text.
  *
  * call: the exit code and what the call writes, for main() and for the test kit's run().
  *
@@ -9,11 +10,14 @@
  * @example const ran = await call(shell, { tokens: tokensOf(['greet', '--name', 'Ada']), tty: false });
  */
 import { $try } from '@honeyglass/utils/ts';
-import { declarationIssues, listed, refused, route } from '../command/index.ts';
-import type { Answered } from '../command/index.ts';
+import { listed, refused, route } from '../command/index.ts';
+import type { Answered, Runner } from '../command/index.ts';
 import { answerOfError, exitOf } from '../core/index.ts';
-import type { Around, Ran, Token } from '../core/index.ts';
+import type { Around, Issue, Ran, Token } from '../core/index.ts';
+import { setupIssues } from './setup.ts';
+import { started } from './start.ts';
 import { textOf } from './text.ts';
+import { through } from './through.ts';
 import type { Shell } from './tool.ts';
 
 /**
@@ -31,17 +35,27 @@ export async function call(shell: Shell, around: Around): Promise<Ran> {
 
 // The setup first, so a mistake in it shows on every call, then the words, then the command.
 async function answered(shell: Shell, tokens: readonly Token[]): Promise<Answered> {
-  const [wrong, ...more] = declarationIssues(shell.commands);
+  const [wrong, ...more] = setupIssues(shell);
   if (wrong !== undefined) return refused([wrong, ...more]);
   const routed = route(shell.commands, tokens, shell.name);
-  if (routed.found === 'command') return routed.runner.answer(routed.rest, routed.before);
+  if (routed.found === 'command') return commandAnswered(shell, routed);
+  if (routed.found === 'group' && routed.words.length === 0) return started(shell);
   if (routed.found === 'group') return listed(routed.table, [shell.name, ...routed.words]);
   const [first, ...rest] = routed.issues;
   return refused([first, ...rest]);
 }
 
+// Help, --fields alone and a mistake in the arguments end the call before its handler.
+function commandAnswered(
+  shell: Shell,
+  routed: { runner: Runner; rest: readonly Token[]; before: readonly Issue[] },
+) {
+  const read = routed.runner.read(routed.rest, routed.before);
+  return 'answer' in read ? read : through(shell, { runner: routed.runner, ...read });
+}
+
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.
-function written({ answer, text }: Answered, tty: boolean): Ran {
+function written({ answer, text, err }: Answered, tty: boolean): Ran {
   const out = tty ? textOf(answer, text) : `${JSON.stringify(answer)}\n`;
-  return { exit: exitOf(answer), out, err: '' };
+  return { exit: exitOf(answer), out, err: err ?? '' };
 }

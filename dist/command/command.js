@@ -2,7 +2,8 @@
  * A command as a value: what read(), list() and effect() return, and a tool lists in its table.
  *
  * Entry: a command as the command table sees it; only the global input it was made for counts.
- * Command, ListCommand: the value, with the words that call it and invoke.
+ * Command, ListCommand: the value, with the words that call it, its steps and invoke.
+ * AnyCommand, RealOf, InputOf, GlobalOf: any command, and what its real run answers and takes.
  * runnerOf: the runner behind a value of the table, for the tool; undefined for a group.
  *
  * A command carries only the members proto/adx/index.d.ts declares; what runs a call stays in a
@@ -11,7 +12,7 @@
  * @example const answer = await greet.invoke({ name: 'Ada' });
  */
 import { $try } from '@honeyglass/utils/ts';
-import { answerOfError } from "../core/index.js";
+import { answerOfError, commandStep } from "../core/index.js";
 import { Runner } from "./runner.js";
 const runners = new WeakMap();
 /** @returns the runner of a command, or undefined for a group or any other value */
@@ -30,9 +31,13 @@ export class Command {
     get name() {
         return this.#runner.name;
     }
+    /** A field the step gives a value is not one it can list, so `.lists` of it does not compile. */
+    step(input) {
+        return commandStep(this.#runner, { ...input });
+    }
     async invoke(input, options = {}) {
         const run = { dryRun: options.dryRun ?? false, fields: undefined };
-        const { data, error } = await $try(() => this.#runner.answered(input, run));
+        const { data, error } = await $try(() => this.#runner.through(input, run));
         return error === null ? data.answer : answerOfError(error).answer;
     }
 }

@@ -4,6 +4,7 @@
  * Routed, route: the command the words name with the tokens after them, a group they end at,
  * or the word the table does not hold.
  * listed: the answer of a group called alone: every command below it.
+ * commandsIn: every command below a table, with its words and what it does.
  *
  * Command words come first, options after. An option before the command words is refused, and
  * reading goes on, so the answer also names the mistakes after it.
@@ -98,7 +99,15 @@ export function listed(table: Table, words: readonly string[]): Answered {
   return { answer: { ok: true, result: { commands } }, text };
 }
 
-function commandsIn(table: Table, words: readonly string[]): { command: string; does: string }[] {
+/**
+ * @param table - the table of a group, or of the tool
+ * @param words - the words before the table's own
+ * @returns each command below it, in the order of the table
+ */
+export function commandsIn(
+  table: Table,
+  words: readonly string[],
+): { command: string; does: string }[] {
   return Object.entries(table).flatMap(([word, entry]) => {
     const runner = runnerOf(entry);
     if (runner !== undefined)

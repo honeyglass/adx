@@ -1,10 +1,10 @@
 /**
  * One issue of a refusal: a code at a field, at a place below it, or at no field.
  *
- * Step, Path: a next move, and the place of an issue, a field first.
+ * Path: the place of an issue, a field first.
  * Issue, Parts: what a code raises, and what it holds beside its code and path.
  * issueAnswer: the issue as the answer writes it.
- * withCommand: the issue with a command, unless it names one of its own.
+ * withCommand, stepOf: the issue with a command, unless it names one of its own, and its step.
  *
  * The parts stay in a table beside the issue, not in private fields: an Issue then has the
  * members proto/adx/index.d.ts declares and no other, so the built type equals the declared one.
@@ -12,11 +12,7 @@
  * @example const issue = new Issue('SCHEMA', ['name'], { kind: 'fix', message, hint });
  */
 import type { Kind } from './kind.ts';
-
-export interface Step {
-  readonly does: string;
-  readonly command?: string;
-}
+import type { Step } from './step.ts';
 
 export type Path<P extends string> = readonly [P, ...(string | number)[]];
 
@@ -72,6 +68,9 @@ export function issueAnswer(issue: Issue) {
  */
 export const withCommand = (issue: Issue, step: Step) =>
   partsOf(issue).step === undefined ? issue.command(step) : issue;
+
+/** @returns the step the issue names, which the answer writes out, or undefined */
+export const stepOf = (issue: Issue) => partsOf(issue).step;
 
 /** The kind of the code that raised the issue. */
 export const kindOfIssue = (issue: Issue) => partsOf(issue).kind;

@@ -5,6 +5,7 @@
  * sharedWithGlobal: the fields of a command the global input would replace.
  * fieldsOf, FieldOf, Takes: each field, the option it becomes and what that option takes.
  * parsedBy: the input checked against the schema, or one SCHEMA issue per problem.
+ * acceptsValue: whether one field of the schema takes a value, for a field a step carries.
  * answerFieldsOf: the fields of an answer that `output` declares, for --fields.
  *
  * This is the one file of command/ that calls Zod, so a change of Zod touches one file. It
@@ -165,6 +166,17 @@ function schemaIssue(path: readonly PropertyKey[], message: string): Issue {
   if (typeof field !== 'string') return schemaFailed.issue(message);
   const parts: Path<string> = [field, ...below.filter(part => typeof part !== 'symbol')];
   return schemaFailed.at(parts, message);
+}
+
+/**
+ * @param schema - the input schema of the command
+ * @param field - the field, which the schema may not name
+ * @param value - the value as a caller writes it
+ * @returns true when the schema names the field and its schema takes the value
+ */
+export function acceptsValue(schema: Obj, field: string, value: unknown) {
+  const shape = Object.hasOwn(schema.shape, field) ? schema.shape[field] : undefined;
+  return shape !== undefined && z.safeParse(shape, value).success;
 }
 
 /**

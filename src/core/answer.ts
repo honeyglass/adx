@@ -5,6 +5,7 @@
  * Exit, exitOf: 0 for a success, 1 for a refusal of kind fix, ask or retry, 2 for kind bug.
  * refusalAnswer: the answer of a refusal, issues only, since next belongs to a success; a
  * refusal without a state, such as failed('', error), states that its changes are not known.
+ * The issues may come apart from the refusal, once their commands are written out.
  *
  * @example const exit = exitOf(refusalAnswer(refusedOf(error)));
  */
@@ -32,11 +33,16 @@ export function exitOf(answer: Answer<unknown>): Exit {
   return answer.kind === 'bug' ? 2 : 1;
 }
 
-export function refusalAnswer(refused: Refused): Answer<never> {
+/**
+ * @param refused - the refusal of a call
+ * @param issues - its issues as the answer names them, the refusal's own by default
+ * @returns the answer of the refusal
+ */
+export function refusalAnswer(refused: Refused, issues = refused.issues): Answer<never> {
   return {
     ok: false,
     kind: kindOf(refused.kind),
     state: readRefusal(refused.message)?.state ?? UNKNOWN_STATE,
-    issues: refused.issues.map(issueAnswer),
+    issues: issues.map(issueAnswer),
   };
 }

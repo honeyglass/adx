@@ -2,8 +2,9 @@
  * The command table of a tool: where each command stands, and the setup the compiler cannot see.
  *
  * Table, isTable: a table of words, each a command or a nested table, a group.
- * placeAll: gives each command the words that call it, when a tool lists it.
+ * placeAll: gives each command the words that call it, and its tool's answer, when a tool lists it.
  * declarationIssues: one DECLARATION issue per mistake in the setup of the table.
+ * runnersIn: every command the table lists, at any depth.
  *
  * tool() places its commands when its file loads and checks nothing; every call checks the
  * table first, so a mistake shows on the first run. A command that two places list, in one tool
@@ -14,7 +15,7 @@
 import { declaration } from '../core/index.ts';
 import type { Issue } from '../core/index.ts';
 import { runnerOf } from './command.ts';
-import type { Runner } from './runner.ts';
+import type { Runner, Through } from './runner.ts';
 
 export type Table = { readonly [word: string]: object };
 
@@ -30,31 +31,42 @@ export const isTable = (value: object): value is Table =>
 
 /**
  * @param table - the command table, or a group of it
- * @param tool - the name of the tool that lists it
+ * @param tool - the name of the tool that lists it, and how it answers a call of a command
  * @param words - the words of the group
  */
-export function placeAll(table: Table, tool: string, words: readonly string[] = []) {
+export function placeAll(
+  table: Table,
+  tool: { name: string; through: Through },
+  words: readonly string[] = [],
+) {
   for (const [word, entry] of Object.entries(table)) {
     const runner = runnerOf(entry);
-    if (runner !== undefined) runner.places.push({ tool, words: [...words, word].join(' ') });
+    const place = { tool: tool.name, words: [...words, word].join(' '), through: tool.through };
+    if (runner !== undefined) runner.places.push(place);
     else if (isTable(entry)) placeAll(entry, tool, [...words, word]);
   }
 }
 
 /** @returns the issues of the keys, of commands listed in more than one place, and of fields */
 export function declarationIssues(table: Table): Issue[] {
-  const runners = new Set<Runner>();
-  const keys = keyIssues(table, [], runners);
-  return [...keys, ...[...runners].flatMap(runnerIssues)];
+  return [...keyIssues(table, []), ...[...runnersIn(table)].flatMap(runnerIssues)];
 }
 
-function keyIssues(table: Table, words: readonly string[], runners: Set<Runner>): Issue[] {
+/** @returns the runner of every command the table lists, at any depth, each once */
+export function runnersIn(table: Table): Set<Runner> {
+  const runners = Object.values(table).flatMap(entry => {
+    const runner = runnerOf(entry);
+    if (runner !== undefined) return [runner];
+    return isTable(entry) ? [...runnersIn(entry)] : [];
+  });
+  return new Set(runners);
+}
+
+function keyIssues(table: Table, words: readonly string[]): Issue[] {
   return Object.entries(table).flatMap(([word, entry]) => {
     const issues: Issue[] = WORD.test(word) ? [] : [badKey(word, words)];
-    const runner = runnerOf(entry);
-    if (runner !== undefined) runners.add(runner);
-    if (runner === undefined && isTable(entry))
-      issues.push(...keyIssues(entry, [...words, word], runners));
+    if (runnerOf(entry) === undefined && isTable(entry))
+      issues.push(...keyIssues(entry, [...words, word]));
     return issues;
   });
 }

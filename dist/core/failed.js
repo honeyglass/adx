@@ -3,7 +3,8 @@
  *
  * refusedOf: the refusal for any error, sorted as the guide's "Errors you did not map" says.
  * failed: the same for an author's effect that is no file and no request.
- * answerOfError: the answer of an error, and what stderr gets for a bug.
+ * answerOfError, answerOfRefused: the answer of an error or a refusal, and what stderr gets for
+ * a bug.
  *
  * A refusal of adx keeps its issues. A RefusalError keeps its kind, and its reason and next
  * become the message and hint of one UNKNOWN_ERROR issue. Any other error gets the issue that
@@ -33,9 +34,16 @@ export function failed(state, cause) {
  * @returns the answer, and for a bug the error chain as text for stderr
  */
 export function answerOfError(error) {
-    const refused = refusedOf(error);
+    return answerOfRefused(refusedOf(error));
+}
+/**
+ * @param refused - a refusal of adx
+ * @param issues - its issues as the answer names them, the refusal's own by default
+ * @returns the answer, and for a bug the error chain as text for stderr
+ */
+export function answerOfRefused(refused, issues = refused.issues) {
     const err = refused.kind === 'bug' ? `${causeText(refused)}\n` : '';
-    return { answer: refusalAnswer(refused), err };
+    return { answer: refusalAnswer(refused, issues), err };
 }
 /**
  * @param error - any thrown value

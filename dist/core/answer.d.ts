@@ -21,4 +21,9 @@ export interface Answer<O> {
 }
 export type Exit = 0 | 1 | 2;
 export declare function exitOf(answer: Answer<unknown>): Exit;
-export declare function refusalAnswer(refused: Refused): Answer<never>;
+/**
+ * @param refused - the refusal of a call
+ * @param issues - its issues as the answer names them, the refusal's own by default
+ * @returns the answer of the refusal
+ */
+export declare function refusalAnswer(refused: Refused, issues?: readonly import("./issue.ts").Issue<string>[]): Answer<never>;

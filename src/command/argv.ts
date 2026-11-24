@@ -14,6 +14,7 @@
  * @example const read = argumentsOf(tokens, options, { command: 'greet', listable: new Set() });
  */
 import {
+  isDecimal,
   missingValue,
   repeatedOption,
   unexpectedArgument,
@@ -144,11 +145,8 @@ const strayWord = (word: string, call: Call): Issue =>
 // An issue at an option stands at its field, or at the option's name as the call wrote it.
 const pathOf = ({ option, token }: Waiting) => option?.field ?? token.name;
 
-/** A plain decimal number: a sign, digits, and a fraction; adx reads no other form, never guesses. */
-const DECIMAL = /^[+-]?\d+(\.\d+)?$/;
-
 // A text that is no plain decimal number stays a text, so the schema refuses it.
-const numberOf = (text: string) => (DECIMAL.test(text) ? Number(text) : text);
+const numberOf = (text: string) => (isDecimal(text) ? Number(text) : text);
 
 /**
  * A run of capitals is one word, so baseURL is base-url and Name is name (decision 51).

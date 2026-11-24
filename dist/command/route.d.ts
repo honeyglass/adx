@@ -29,3 +29,12 @@ export declare function route(root: Table, tokens: readonly Token[], tool: strin
  * @returns every command below the group, each with its words and what it does
  */
 export declare function listed(table: Table, words: readonly string[]): Answered;
+/**
+ * @param table - the table of a group, or of the tool
+ * @param words - the words before the table's own
+ * @returns each command below it, in the order of the table
+ */
+export declare function commandsIn(table: Table, words: readonly string[]): {
+    command: string;
+    does: string;
+}[];

@@ -1,5 +1,7 @@
 /** Two spaces between the longest field name and its value. */
 const GAP = 2;
+/** Three spaces between the longest command and what it does, as the guide's start answer shows. */
+const COLUMN_GAP = 3;
 /** A control character, C0, DEL and C1, by its Unicode category Cc, but the line break and tab. */
 const CONTROL = /(?![\n\t])\p{Cc}/gu;
 /**
@@ -8,9 +10,12 @@ const CONTROL = /(?![\n\t])\p{Cc}/gu;
  * @returns the text for the terminal, every control character escaped
  */
 export function textOf(answer, shown) {
-    const text = answer.ok ? successText(answer, shown) : refusalText(answer);
-    return text.replace(CONTROL, char => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`);
+    const text = answer.ok
+        ? `${successText(answer, shown)}${nextText(answer.next ?? [])}`
+        : refusalText(answer);
+    return text.replace(CONTROL, escaped);
 }
+const escaped = (char) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`;
 // A record with fields prints them, one on a line; an effect says whether it applied, beside
 // those fields, or below any other text.
 function successText(answer, shown) {
@@ -35,6 +40,28 @@ function fieldsText(record) {
     return keys.map(key => `${key.padEnd(width)}${valueText(record[key])}\n`).join('');
 }
 const valueText = (value) => (typeof value === 'string' ? value : JSON.stringify(value));
+// A step for the person has no command, so what it does stands alone. A line break or a tab in a
+// value would break the columns, so both are escaped here, as every other control character is.
+function nextText(next) {
+    if (next.length === 0)
+        return '';
+    const rows = next.map(({ does, command, needs }) => {
+        if (command === undefined)
+            return [oneLine(does), ''];
+        const right = needs === undefined ? does : `${does}; needs ${needs.join(', ')}`;
+        return [oneLine(command), oneLine(right)];
+    });
+    return `\nNext:\n${columns(rows)}`;
+}
+const oneLine = (text) => text.replace(/[\n\t]/g, escaped);
+/**
+ * @param rows - the first column and the second of each row
+ * @returns one indented line per row, the first column padded to the longest
+ */
+export function columns(rows) {
+    const width = Math.max(0, ...rows.map(([left]) => left.length)) + COLUMN_GAP;
+    return rows.map(([left, right]) => `  ${left.padEnd(width)}${right}`.trimEnd() + '\n').join('');
+}
 const isRecord = (value) => typeof value === 'object' && value !== null && Array.isArray(value) === false;
 function refusalText(answer) {
     const head = `refused (${answer.kind}): ${answer.state}`;

@@ -1,5 +1,6 @@
 /**
- * One call of a tool: the arguments routed to a command, and the answer in JSON or as text.
+ * One call of a tool: the arguments routed to a command, the start answer or a group, and the
+ * answer in JSON or as text.
  *
  * call: the exit code and what the call writes, for main() and for the test kit's run().
  *
@@ -9,9 +10,12 @@
  * @example const ran = await call(shell, { tokens: tokensOf(['greet', '--name', 'Ada']), tty: false });
  */
 import { $try } from '@honeyglass/utils/ts';
-import { declarationIssues, listed, refused, route } from "../command/index.js";
+import { listed, refused, route } from "../command/index.js";
 import { answerOfError, exitOf } from "../core/index.js";
+import { setupIssues } from "./setup.js";
+import { started } from "./start.js";
 import { textOf } from "./text.js";
+import { through } from "./through.js";
 /**
  * @param shell - what the call reads of the tool
  * @param around - the tokens of the arguments, and whether stdout is a terminal
@@ -27,19 +31,26 @@ export async function call(shell, around) {
 }
 // The setup first, so a mistake in it shows on every call, then the words, then the command.
 async function answered(shell, tokens) {
-    const [wrong, ...more] = declarationIssues(shell.commands);
+    const [wrong, ...more] = setupIssues(shell);
     if (wrong !== undefined)
         return refused([wrong, ...more]);
     const routed = route(shell.commands, tokens, shell.name);
     if (routed.found === 'command')
-        return routed.runner.answer(routed.rest, routed.before);
+        return commandAnswered(shell, routed);
+    if (routed.found === 'group' && routed.words.length === 0)
+        return started(shell);
     if (routed.found === 'group')
         return listed(routed.table, [shell.name, ...routed.words]);
     const [first, ...rest] = routed.issues;
     return refused([first, ...rest]);
 }
+// Help, --fields alone and a mistake in the arguments end the call before its handler.
+function commandAnswered(shell, routed) {
+    const read = routed.runner.read(routed.rest, routed.before);
+    return 'answer' in read ? read : through(shell, { runner: routed.runner, ...read });
+}
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.
-function written({ answer, text }, tty) {
+function written({ answer, text, err }, tty) {
     const out = tty ? textOf(answer, text) : `${JSON.stringify(answer)}\n`;
-    return { exit: exitOf(answer), out, err: '' };
+    return { exit: exitOf(answer), out, err: err ?? '' };
 }
