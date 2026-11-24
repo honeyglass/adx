@@ -95,10 +95,10 @@ round is done. The e2e line names the tests the package turns green.
 - [x] `check()` with `as` (78), SCHEMA issues with paths (69)
 
 ### P6 files
-- [ ] roots, `envDir`, `marker`, `cwd`, `dir`, `inFile`, `outFile`
-- [ ] `files.write`, `files.update`, `plan`, all or nothing (rule 9)
-- [ ] `--replace`, `replace: 'always'` (70), same bytes write nothing (81)
-- [ ] `id()` and `multiline()`, the field schemas declared beside `dir` and `inFile`
+- [x] roots, `envDir`, `marker`, `cwd`, `dir`, `inFile`, `outFile`
+- [x] `files.write`, `files.update`, `plan`, all or nothing (rule 9)
+- [x] `--replace`, `replace: 'always'` (70), same bytes write nothing (81)
+- [x] `id()` and `multiline()`, the field schemas declared beside `dir` and `inFile`
 - e2e: examples/datafolder
 
 ### P7 list
