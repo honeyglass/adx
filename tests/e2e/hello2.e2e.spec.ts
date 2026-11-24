@@ -1,13 +1,13 @@
 // proto/hello2.ts as a program, with the answers of the guide's "Basics" that its data gives.
 //
 // hello2 keeps 4 languages where the guide speaks of 42, so a list has one page and no step to
-// the next one. The file loads only once every value it imports is built.
+// the next one.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { z } from 'zod';
 import { answerIn } from '../utils/answer.ts';
-import { pending } from '../utils/pending.ts';
 import { PROTO, program, scratch } from '../utils/program.ts';
 
 const HELLO2 = join(PROTO, 'hello2.ts');
@@ -15,7 +15,7 @@ const Items = z.object({ items: z.array(z.unknown()) });
 
 const hello = (home: string, ...argv: string[]) => program(HELLO2, argv, { home });
 
-pending('P7', 'lists the languages in an outline, and names the command for one', async t => {
+test('lists the languages in an outline, and names the command for one', async t => {
   const home = await scratch(t);
   const listed = answerIn((await hello(home, 'languages')).out, Items);
   assert.deepEqual(listed.result?.items[0], { code: 'ar', name: 'Arabic' });
@@ -32,7 +32,7 @@ pending('P7', 'lists the languages in an outline, and names the command for one'
   );
 });
 
-pending('P7', 'the start leads to a first friend, and a new friend to a greeting', async t => {
+test('the start leads to a first friend, and a new friend to a greeting', async t => {
   const home = await scratch(t);
   const start = answerIn((await hello(home)).out, z.unknown());
   assert.deepEqual(start.next?.[0], {
@@ -48,7 +48,7 @@ pending('P7', 'the start leads to a first friend, and a new friend to a greeting
   });
 });
 
-pending('P7', 'a refusal names the language that has no formal greeting', async t => {
+test('a refusal names the language that has no formal greeting', async t => {
   const home = await scratch(t);
   const argv = ['greet', '--name', 'Ada', '--lang', 'eo', '--style', 'formal'];
   const { exit, out } = await hello(home, ...argv);
@@ -56,7 +56,7 @@ pending('P7', 'a refusal names the language that has no formal greeting', async 
   assert.equal(answerIn(out, z.unknown()).issues?.[0]?.command, 'hello language --code eo');
 });
 
-pending('P7', 'a data folder moved by its variable rides along in the next step', async t => {
+test('a data folder moved by its variable rides along in the next step', async t => {
   const home = await scratch(t);
   const moved = join(home, 'h');
   await mkdir(moved);
@@ -68,7 +68,7 @@ pending('P7', 'a data folder moved by its variable rides along in the next step'
   );
 });
 
-pending('P7', 'the schema says what each kind asks, and every code', async t => {
+test('the schema says what each kind asks, and every code', async t => {
   const home = await scratch(t);
   const Schema = z.object({
     kinds: z.object({ ask: z.object({ exit: z.number() }) }),
