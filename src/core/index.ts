@@ -7,7 +7,8 @@
  * and step.
  * SchemaPlace, placed, placeOf: where a SCHEMA issue stands in the schema that failed.
  * layersOf, baseOf, schemasAlong, failuresOf, unknownKeysIn, keysOf: a Zod schema's layers and
- * parts, the failures of a parse, the keys an object would drop, and those it names.
+ * parts, the failures of a parse, the keys an object would drop, and those it names; the kinds
+ * of schema these walks cannot look into.
  * MULTILINE, brokenLinesIn: the mark of multiline(), and each plain string that is no one line.
  * ID, isId: the check of id(), and whether a field is one.
  * codePointsIn: the length of a text in characters.
@@ -27,7 +28,7 @@
  * status: the HTTP status of a failed send.
  * issueOf: the issue of an error nobody mapped, as the guide's table sorts it.
  * Remote, Request, Auth, Act, Fake, Network, Address, Outgoing, Incoming, Unreached: remotes,
- * and the port to the network.
+ * and the port to the network; KIT_TOKEN, the token a request carries under the test kit.
  * entered, valueOf, refusing, isRefusing, isHeld, Held: the values of the call that runs, and the
  * block of every remote while a refusal is answered.
  * listing, unlisted: the stored kinds of the call that runs, and the refusal of one it lacks.
@@ -39,6 +40,10 @@
  * pathOutside, fileNotFound, notAFile, notAFolder, alreadyExists, rootNotFound, storedInvalid,
  * newerVersion: the codes of roots and files.
  * STDIN_LIMIT: how many characters of stdin `--json -` takes.
+ * LONG_LIST, LARGE_ANSWER, largeness: when an answer is a long list or a large document.
+ * nameIssue: the issue of a name a tool gives that has not the form of its kind.
+ * wordsOf, BARE: the words of one plain call of a command line, read as a shell reads them, and
+ * the form of a word that stays bare.
  *
  * @example import { code, Refused } from '../core/index.ts';
  */
@@ -97,6 +102,9 @@ export {
 } from './issue.ts';
 export type { Kind } from './kind.ts';
 export { STDIN_LIMIT } from './limits.ts';
+export { LARGE_ANSWER, largeness, LONG_LIST } from './large.ts';
+export { nameIssue } from './names.ts';
+export { BARE, wordsOf } from './words.ts';
 export {
   aboutFile,
   aboutText,
@@ -119,6 +127,7 @@ export {
   MULTILINE,
   schemasAlong,
   unknownKeysIn,
+  unknownKindsIn,
 } from './shape.ts';
 export type {
   AnyList,
@@ -146,7 +155,7 @@ export type {
   Request,
   Unreached,
 } from './remote.ts';
-export { kitMark, noFakeLead } from './remote.ts';
+export { KIT_TOKEN, kitMark, noFakeLead } from './remote.ts';
 export { status } from './status.ts';
 export { issueOf } from './unmapped.ts';
 export type { CommandStep, Step, StepOption, StepParts, Target, TargetField } from './step.ts';

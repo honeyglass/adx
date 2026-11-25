@@ -5,6 +5,7 @@ import { brokenLinesIn, failuresOf, placed, schemaFailed, unknownKeysIn } from "
  * @param path - where the part stands: a field of the command first, then keys and indexes
  * @param options - `as`, the shape whose schema the issues name in place of the checked one
  * @returns the checked value with `issues: null`, or `data: null` with at least one issue
+ * @throws a bug refusal, DECLARATION, for a shape of a kind the check cannot look into
  */
 export function check(shape, value, path, options) {
     const parsed = shape.safeParse(value);

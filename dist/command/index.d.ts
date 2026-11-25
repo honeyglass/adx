@@ -10,6 +10,7 @@
  * Answered, refused: what a command answers, with its terminal form.
  * Form, formOf: --output, the form of the answer every call can force.
  * Runner, runnerOf, Ready, Run: what runs a command, the call ready for its handler, and its run.
+ * ADX_OPTIONS: every option adx gives some command, which no root may be named like.
  * After, after, followsOf: the steps after a command, given at the tool.
  *
  * @example import { declarationIssues, route } from '../command/index.ts';
@@ -25,6 +26,7 @@ export type { Form } from './output.ts';
 export type { Global } from './global.ts';
 export { effect, list, read } from './kinds.ts';
 export { commandsIn, listed, route } from './route.ts';
+export { ADX_OPTIONS } from './runner.ts';
 export type { Ready, RootOption, Run, Runner, Scene } from './runner.ts';
 export { declarationIssues, isWord, placeAll, runnersIn } from './table.ts';
 export type { Table } from './table.ts';

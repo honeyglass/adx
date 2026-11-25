@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -47,13 +47,16 @@ function failedProbes(t: TestContext) {
 }
 
 test('conformance passes a tool that keeps the rules, and fails each broken rule alone', t => {
+  const escaped = join(tmpdir(), 'adx-escaped');
+  t.after(() => rmSync(escaped, { recursive: true, force: true }));
   assert.deepEqual(failedProbes(t), {
     hello: [],
     'hello as a program': [],
     quoting: [],
     noisy: ['JSON when piped'],
     unlisted: ['hints that run'],
-    unbounded: ['large answers'],
+    // adx refuses the large answer itself, so the call is a bug
+    unbounded: ['raw JSON input', 'exit codes'],
     unwritten: ['--replace'],
     broken: ['raw JSON input', 'exit codes'],
     leaky: ['dry runs'],
@@ -67,13 +70,18 @@ test('conformance passes a tool that keeps the rules, and fails each broken rule
     unprintable: ['schema at run time', 'exit codes'],
     unexampled: ['raw JSON input'],
     misgiven: ['hints that run'],
-    unquoted: ['hints that run'],
+    // adx refuses the step that is no plain call, so every call that reaches it is a bug
+    unquoted: ['raw JSON input', 'exit codes'],
     skilled: [],
     'skilled without a skill file': ['agent skill'],
     'skilled with a bare file': ['agent skill'],
     'skilled with no file': ['agent skill'],
+    // a root that climbs out of the scratch is refused before the kit copies the seed there
+    'escaped as a program': ['escaped as a program'],
+    'hello as a program beside files named like its words': [],
     // a fake no program can reach is refused before a server starts, and none stays open
     'fixed as a program': ['fixed as a program'],
     'hello as a program beside a local server': [],
   });
+  assert.equal(existsSync(escaped), false);
 });

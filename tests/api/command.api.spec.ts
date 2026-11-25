@@ -51,3 +51,31 @@ test('invoke answers a refusal and a bug, and never rejects', async () => {
     [false, 'bug', 'UNKNOWN_ERROR'],
   );
 });
+
+test('a read without output that answers a long list or a large document is a DECLARATION bug at that call', async () => {
+  const sized = read({
+    does: 'answers as much as asked',
+    input: z.object({ items: z.number(), bytes: z.number() }),
+    example: { items: 1, bytes: 1 },
+    run: ({ items, bytes }) => ({
+      items: Array.from({ length: items }, (_, i) => i),
+      text: 'x'.repeat(bytes),
+    }),
+  });
+  const typed = read({
+    does: 'answers a long list it declares',
+    output: z.object({ items: z.array(z.number()) }),
+    run: () => ({ items: Array.from({ length: 60 }, (_, i) => i) }),
+  });
+  // invoke runs a command of the tool that lists it
+  tool({ name: 'sized', version: '0.1.0', does: 'x', commands: { sized, typed } });
+  const ask = async (items: number, bytes: number) => {
+    const invoked = await sized.invoke({ items, bytes });
+    return [invoked.ok, invoked.kind, invoked.issues?.map(i => i.code)];
+  };
+  // fifty items and 8192 bytes are no long list and no large document yet (decision 56)
+  assert.deepEqual(await ask(50, 7_000), [true, undefined, undefined]);
+  assert.deepEqual(await ask(51, 1), [false, 'bug', ['DECLARATION']]);
+  assert.deepEqual(await ask(1, 9_000), [false, 'bug', ['DECLARATION']]);
+  assert.equal((await typed.invoke({})).ok, true);
+});

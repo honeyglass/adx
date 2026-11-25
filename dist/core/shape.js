@@ -5,6 +5,7 @@
  * schemasAlong: every schema a path passes inside a schema, for the shape a SCHEMA issue lies in.
  * Failure, failuresOf: one issue of a parse as the places and messages of SCHEMA issues.
  * unknownKeysIn: each key of a value that an object of the schema does not name.
+ * unknownKindsIn: each place of a schema whose kind the walks cannot look into.
  * keysOf: the keys an object of the schema names, such as those of a stored format.
  * MULTILINE, brokenLinesIn: the mark of a string that may hold line breaks, and each plain string
  * of a value that holds a line break or another control character.
@@ -13,8 +14,11 @@
  * The input check of a command and check() of a handler both answer SCHEMA, so both say it alike.
  * Zod drops a key an object does not name; adx refuses it, at any depth (rule 15). An object that
  * declares its other keys, loose or with a catchall, and a record keep them. A union takes the
- * first option that passes the value, a discriminated union the one its key names, and a
- * preprocess the schema after it, with the value it makes. A plain `z.string()` takes one
+ * first option that passes the value, a discriminated union the one its key names, a lazy schema
+ * the one it makes, an intersection both sides, and a preprocess the schema after it, with the
+ * value it makes. A kind of schema the walk cannot look into, such as a map or a custom check,
+ * is a DECLARATION error, never let through: at startup for the schemas a tool declares, by
+ * unknownKindsIn, and where a value reaches it, as the last line. A plain `z.string()` takes one
  * visible line, so adx refuses a line break or another control character in it, at any depth;
  * `multiline()` carries the mark that lets line breaks and tabs through. This is the one file of
  * core/ that calls Zod.
@@ -22,6 +26,8 @@
  * @example const failures = [...unknownKeysIn(shape, value), ...parsed.error.issues.flatMap(failuresOf)];
  */
 import { z } from 'zod';
+import { declaration } from "./codes.js";
+import { refusedWith, UNKNOWN_STATE } from "./refused.js";
 /** @returns the schema and every schema it wraps, the outermost first */
 export function layersOf(schema) {
     const inner = innerOf(schema);
@@ -88,9 +94,13 @@ export function failuresOf(issue) {
  * @param value - the value as the caller gave it
  * @param below - the place of the value inside the one the walk began at
  * @returns one failure per key an object drops, at its place below the value
+ * @throws a bug refusal, DECLARATION, for a kind of schema the walk does not know
  */
 export function unknownKeysIn(schema, value, below = []) {
-    const base = layersAt(schema, value).at(-1) ?? { schema, value };
+    const base = baseAt(schema, value, below);
+    if (base.schema instanceof z.ZodIntersection) {
+        return droppedByBoth(base.schema, base.value, below);
+    }
     const entries = entriesOf(base.schema, base.value);
     return entries.flatMap(([part, item]) => {
         const child = childOf(base.schema, part);
@@ -150,9 +160,15 @@ export function isId(schema, seen = new Set()) {
  * @param value - the value as the caller gave it
  * @param below - the place of the value inside the one the walk began at
  * @returns one failure per string of a plain z.string() that does not keep to one line
+ * @throws a bug refusal, DECLARATION, for a kind of schema the walk does not know
  */
 export function brokenLinesIn(schema, value, below = []) {
-    const base = layersAt(schema, value).at(-1) ?? { schema, value };
+    const base = baseAt(schema, value, below);
+    if (base.schema instanceof z.ZodIntersection) {
+        const { left, right } = base.schema._zod.def;
+        const failures = [left, right].flatMap(side => brokenLinesIn(side, base.value, below));
+        return failures.filter((failure, i) => failures.findIndex(f => samePlace(f, failure)) === i);
+    }
     if (typeof base.value === 'string') {
         const broken = isOneLine(base.schema) && NOT_ONE_LINE.test(base.value);
         return broken
@@ -169,6 +185,107 @@ export function brokenLinesIn(schema, value, below = []) {
         return child === undefined ? [] : brokenLinesIn(child, item, [...below, part]);
     });
 }
+/**
+ * The kinds of schema the walks know: each one they look into, and each that holds no key Zod
+ * would drop and no plain string. An allow-list, so a kind they cannot look into, such as a map,
+ * a set or a custom check, is refused, never let through unchecked.
+ */
+const KNOWN = new Set([
+    'object',
+    'array',
+    'tuple',
+    'record',
+    'union',
+    'intersection',
+    'string',
+    'number',
+    'bigint',
+    'boolean',
+    'date',
+    'enum',
+    'literal',
+    'template_literal',
+    'null',
+    'undefined',
+    'void',
+    'never',
+    'nan',
+    'symbol',
+    'file',
+    'any',
+    'unknown',
+]);
+/**
+ * @returns the innermost layer the value passes
+ * @throws a bug refusal, DECLARATION, for a kind of schema the walks do not know
+ */
+function baseAt(schema, value, below) {
+    const base = layersAt(schema, value).at(-1) ?? { schema, value };
+    const kind = base.schema._zod.def.type;
+    if (KNOWN.has(kind))
+        return base;
+    const at = below.length === 0 ? 'the value' : below.join('.');
+    const message = `the schema at ${at} is a ${kind}, which adx cannot check for unknown keys and line breaks`;
+    // the last line behind the start check, such as in check() of a handler that may have sent
+    throw refusedWith([declaration.issue(message)], UNKNOWN_STATE);
+}
+/**
+ * The start check of the walks: the schema itself, so a kind they do not know shows before any
+ * value reaches it. A schema that names itself is walked once.
+ *
+ * @returns each place of the schema whose kind the walks do not know, with the kind
+ */
+export function unknownKindsIn(schema, below = [], seen = new Set()) {
+    if (seen.has(schema))
+        return [];
+    seen.add(schema);
+    const inner = schema instanceof z.ZodLazy ? schema.unwrap() : innerOf(schema);
+    if (inner !== undefined)
+        return unknownKindsIn(inner, below, seen);
+    const kind = schema._zod.def.type;
+    if (KNOWN.has(kind) === false)
+        return [{ below, kind }];
+    return partsOf(schema).flatMap(([part, child]) => unknownKindsIn(child, part === undefined ? below : [...below, part], seen));
+}
+// Each schema a schema holds, by the key or index it stands at; `*` for any key or item, and no
+// part for an option of a union or a side of an intersection, which stand at the same place.
+function partsOf(schema) {
+    if (schema instanceof z.ZodObject) {
+        const { catchall } = schema._zod.def;
+        const own = Object.entries(schema.shape);
+        return catchall === undefined ? own : [...own, ['*', catchall]];
+    }
+    if (schema instanceof z.ZodArray)
+        return [['*', schema.element]];
+    if (schema instanceof z.ZodTuple) {
+        const { items, rest } = schema._zod.def;
+        const placed = items.map((item, i) => [i, item]);
+        return rest === null || rest === undefined ? placed : [...placed, ['*', rest]];
+    }
+    if (schema instanceof z.ZodRecord)
+        return [['*', schema.valueType]];
+    if (schema instanceof z.ZodUnion)
+        return schema.options.map(option => [undefined, option]);
+    if (schema instanceof z.ZodIntersection) {
+        return [
+            [undefined, schema._zod.def.left],
+            [undefined, schema._zod.def.right],
+        ];
+    }
+    return [];
+}
+// Zod merges what both sides keep, so a key is dropped only when both drop it, or a key above it.
+function droppedByBoth(both, value, below) {
+    const byLeft = unknownKeysIn(both._zod.def.left, value, below);
+    const byRight = unknownKeysIn(both._zod.def.right, value, below);
+    const covered = (by, failure) => by.some(({ below: place }) => place.every((part, i) => part === failure.below[i]));
+    const onlyRight = byRight.filter(failure => byLeft.some(f => samePlace(f, failure)) === false);
+    return [
+        ...byLeft.filter(failure => covered(byRight, failure)),
+        ...onlyRight.filter(failure => covered(byLeft, failure)),
+    ];
+}
+const samePlace = (one, other) => one.below.length === other.below.length && one.below.every((part, i) => part === other.below[i]);
 const isOneLine = (schema) => schema instanceof z.ZodString && (schema._zod.def.checks ?? []).includes(MULTILINE) === false;
 const unknownKey = (below) => ({
     below,
@@ -183,6 +300,8 @@ function layersAt(schema, value) {
         : [{ schema, value }, ...layersAt(inner.schema, inner.value)];
 }
 function innerAt(schema, value) {
+    if (schema instanceof z.ZodLazy)
+        return { schema: schema.unwrap(), value };
     if (schema instanceof z.ZodPipe && schema.in instanceof z.ZodTransform) {
         const made = z.safeParse(schema.in, value);
         return { schema: schema.out, value: made.success ? made.data : value };

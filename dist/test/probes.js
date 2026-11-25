@@ -14,9 +14,10 @@
  *
  * @example for (const probe of PROBES) findings.push(...(await probe.findings(probing, known)));
  */
+import { largeness } from "../core/index.js";
 import { byteLength } from "../node/index.js";
 import { answerIn } from "./answer.schema.js";
-import { LARGE_ANSWER, LONG_LIST, PROBE } from "./limits.js";
+import { PROBE } from "./limits.js";
 import { firstOf } from "./probing.js";
 export const PROBES = [
     {
@@ -289,20 +290,9 @@ async function large(probing, known) {
         const { answer } = answerIn(called.out);
         if (answer?.ok !== true)
             return [];
-        const bytes = byteLength(called.out);
-        const long = longestList(answer.result);
-        const many = long > LONG_LIST ? ` a list of ${long} entries` : '';
-        const big = bytes > LARGE_ANSWER ? ` ${bytes} bytes` : '';
-        return many === '' && big === '' ? [] : [`${probing.line(called)} answers${many}${big}`];
+        const said = largeness(answer.result, called.out);
+        return said.length === 0 ? [] : [`${probing.line(called)} answers ${said.join(' ')}`];
     });
-}
-/** @returns the most entries one array of the value holds, at any depth */
-function longestList(value) {
-    if (Array.isArray(value))
-        return Math.max(value.length, ...value.map(longestList));
-    if (typeof value !== 'object' || value === null)
-        return 0;
-    return Math.max(0, ...Object.values(value).map(longestList));
 }
 const unbounded = (known) => known.commands.filter(isRead).filter(command => command.facts.output === undefined);
 /** @returns the calls a probe made of one of the commands */

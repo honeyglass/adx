@@ -113,7 +113,7 @@ export const unlisted = small('lost', () => ({}), {
   next: () => [{ does: 'goes nowhere', command: 'hello nowhere' }],
 });
 
-// A long list from a read without output.
+// A long list from a read without output, which adx refuses as a DECLARATION error.
 export const unbounded = small('all', () => ({ items: Array.from({ length: 60 }, (_, i) => i) }));
 
 // An effect that takes --replace and writes no file.
@@ -290,10 +290,11 @@ export const quoting = exactly([
   'hello exact --value C:\\\\path\\\\x',
   "hello exact --value 'C:\\path\\x'",
   "hello ex\\\nact --value 'a#b~c'",
-  'hello exact --value a#b~c',
+  'hello exact --value "a#b~c"',
 ]);
 
-// A value exact takes, left unquoted, so the shell reads its | as a pipe: no plain call.
+// A value exact takes, left unquoted, so the shell reads its | as a pipe: no plain call, which
+// adx refuses as a DECLARATION error where it writes the step.
 export const unquoted = exactly(['hello exact --value a|b']);
 
 export const fixed = remote('fixed', { url: 'https://fixed.example.com' });

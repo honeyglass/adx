@@ -6,6 +6,7 @@
  * ANSWER_BYTES: the largest answer adx reads.
  * FAKES_ONLY, FAKE_ORIGINS: the variables the test kit sets in a program it runs: the token that
  * closes its network, and the origins of the fakes the kit serves, the only ones it may reach.
+ * KIT_ORIGIN: the form of the origin the kit serves a fake at.
  *
  * @example repeat({ count: RETRIES + 1, delay: count => line.pause(remote, PAUSE_MS * 2 ** (count - 1)) });
  */
@@ -24,3 +25,8 @@ export const ANSWER_BYTES = 16_777_216;
 export const FAKES_ONLY = 'ADX_FAKES_ONLY';
 /** The origins of the fakes the kit serves, joined by commas; a closed program reaches only them. */
 export const FAKE_ORIGINS = 'ADX_FAKE_ORIGINS';
+/**
+ * Plain http to 127.0.0.1 at a port, as node/serve.ts serves each fake: an allow-list by form, so
+ * an origin a program names in ADX_FAKE_ORIGINS off the machine is none.
+ */
+export const KIT_ORIGIN = /^http:\/\/127\.0\.0\.1:\d{1,5}$/;

@@ -2,6 +2,7 @@
 // working directory and reads which probes fail. Each path is absolute for that reason.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -39,6 +40,17 @@ test('skilled with a bare file', t =>
   conformance(t, tools.skilled, { skillFile: join(here, 'skill', 'bare.md') }));
 test('skilled with no file', t =>
   conformance(t, tools.skilled, { skillFile: join(here, 'skill', 'none.md') }));
+test('escaped as a program', t => conformance(t, program('escaped'), samples));
+// a file named like a word of the command line is no path, as a word without a slash: the first
+// word comes from PATH, and the value of an option stays as it is
+test('hello as a program beside files named like its words', async t => {
+  writeFileSync('node', '#!/bin/sh\nexit 3\n', { mode: 0o755 });
+  mkdirSync('strict');
+  t.after(() => rmSync('node'));
+  t.after(() => rmSync('strict', { recursive: true }));
+  const [node = '', ...rest] = program('hello');
+  await conformance(t, [node, '--unhandled-rejections', 'strict', ...rest], samples);
+});
 test('fixed as a program', t =>
   conformance(t, program('hello'), { fakes: [fake(tools.api, {}), fake(tools.fixed, {})] }));
 // a server on the machine itself is no fake the kit started, so no probe reaches it

@@ -14,9 +14,8 @@
  *
  * @example const known = await probing.known();
  */
-import { ADX_CODES, factsOf, kitMark, noFakeLead, NOTHING_CHANGED, refusedWith, schemaFailed, } from "../core/index.js";
+import { ADX_CODES, factsOf, kitMark, noFakeLead, NOTHING_CHANGED, refusedWith, schemaFailed, wordsOf, } from "../core/index.js";
 import { answerIn, Facts, keysIn, Overview, resultOf, Started } from "./answer.schema.js";
-import { wordsOf } from "./words.js";
 /** adx's own codes, so the codes `schema` lists beside them are the tool's. */
 const ADX_NAMES = new Set(ADX_CODES.map(made => factsOf(made).code));
 /**

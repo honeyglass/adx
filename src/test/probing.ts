@@ -22,11 +22,11 @@ import {
   NOTHING_CHANGED,
   refusedWith,
   schemaFailed,
+  wordsOf,
 } from '../core/index.ts';
 import { answerIn, Facts, keysIn, Overview, resultOf, Started } from './answer.schema.ts';
 import type { Answer } from './answer.schema.ts';
 import type { Asked, Called, Caller, Session } from './caller.ts';
-import { wordsOf } from './words.ts';
 
 export type Command = {
   words: string[];

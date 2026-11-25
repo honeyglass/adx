@@ -11,19 +11,21 @@
  * alone, with no value, so the call lists its values, and the options of adx come last. `needs`
  * names each required field the line leaves open, and each the step names, but never a listed one.
  * A step to `schema` names a shape or a command the tool's `schema` knows (decision 77); a step
- * made in a function, such as in `next`, is checked here, where the answer writes it out.
+ * made in a function, such as in `next`, is checked here, where the answer writes it out. A
+ * command written by hand goes out only when the test kit's reader reads it as one plain call of
+ * the tool, so a value pasted into it never runs as a second command.
  *
  * @example const next = await stepAnswer(greet.step(), { tool: 'hello', input, folders: [] });
  */
-import { declaration, isDecimal, partsOfStep, refusedWith, UNKNOWN_STATE } from "../core/index.js";
+import { declaration, isDecimal, partsOfStep, refusedWith, UNKNOWN_STATE, wordsOf as plainCallOf, } from "../core/index.js";
 import { lineOf, optionWords } from "./line.js";
 import { schemaNameOf } from "./schema.js";
 /**
  * @param step - a step a command, a hint or the tool named
  * @param context - the call that answers it
  * @returns the step as the answer writes it; a step from tell has no command
- * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists, or to a name
- * `schema` does not know
+ * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists, to a name
+ * `schema` does not know, or with a command by hand that is no plain call of the tool
  */
 export async function stepAnswer(step, context) {
     const parts = partsOfStep(step);
@@ -38,9 +40,13 @@ export async function stepAnswer(step, context) {
         const words = name === '' ? [] : name.split(' ');
         return { does: step.does, command: lineOf([context.tool, 'schema', ...words]) };
     }
-    return step.command === undefined
-        ? { does: step.does }
-        : { does: step.does, command: step.command };
+    if (step.command === undefined)
+        return { does: step.does };
+    if (plainCallOf(step.command)?.[0] !== context.tool) {
+        const message = `a step names the command ${JSON.stringify(step.command)}, which is no plain call of ${context.tool}`;
+        throw refusedWith([declaration.issue(message)], UNKNOWN_STATE);
+    }
+    return { does: step.does, command: step.command };
 }
 async function commandAnswer(parts, context) {
     const { target } = parts;

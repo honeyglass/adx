@@ -227,7 +227,12 @@ export interface Remote {
 }
 export interface Auth {}
 export function bearer(variable: string): Auth;
-export function envUrl(variable: string, fallback: string): string;
+/**
+ * The address from the variable, else the fallback. The variable may name only the host of the
+ * fallback or a host of the list, written as an address writes it, such as
+ * `staging.tracker.example.com` or `127.0.0.1:8080`; any other is `URL_NOT_ALLOWED`.
+ */
+export function envUrl(variable: string, fallback: string, hosts?: readonly string[]): string;
 export function remote(name: string, at: { url: string; auth?: Auth }): Remote;
 
 // lists

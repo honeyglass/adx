@@ -122,3 +122,70 @@ test('with as, the issues name that shape, and the value is still checked agains
   const unlisted = await issuesOf('friends', 'relate', '--as', 'none', '--json', '{"about":{}}');
   assert.deepEqual(unlisted.issues, [['SCHEMA', 'about.relation', 'hello schema friends relate']]);
 });
+
+test('check refuses an unknown key and a line break through a lazy and an intersection schema', () => {
+  const Lazy = z.lazy(() => z.object({ name: z.string() }));
+  const Both = z.intersection(z.object({ name: z.string() }), z.object({ lead: Relative }));
+  const cases: [z.ZodType, unknown, (string | number)[][]][] = [
+    [Lazy, { name: 'ada', extra: 1 }, [['about', 'extra']]],
+    [Lazy, { name: 'a\nb' }, [['about', 'name']]],
+    [Both, { name: 'ada', lead: { relation: 'x' }, extra: 1 }, [['about', 'extra']]],
+    [
+      Both,
+      { name: 'ada', lead: { relation: 'x', relatoin: 'y' } },
+      [['about', 'lead', 'relatoin']],
+    ],
+    [Both, { name: 'a\nb', lead: { relation: 'x' } }, [['about', 'name']]],
+    [Both, { name: 'ada', lead: { relation: 'x\ny' } }, [['about', 'lead', 'relation']]],
+  ];
+  for (const [shape, value, paths] of cases) {
+    const said = check(shape, value, ['about']);
+    assert.deepEqual(
+      [said.data, said.issues?.map(issue => issue.path)],
+      [null, paths],
+      JSON.stringify(value),
+    );
+  }
+  assert.deepEqual(check(Both, { name: 'ada', lead: { relation: 'x' } }, ['about']).issues, null);
+  // after a preprocess, both sides read the value the preprocess made
+  const Renamed = z.preprocess(
+    value => (isRecord(value) ? { name: value.N, lead: value.L } : value),
+    Both,
+  );
+  const renamed = check(Renamed, { N: 'ada', L: { relation: 'x' } }, ['about']);
+  assert.deepEqual(renamed, { data: { name: 'ada', lead: { relation: 'x' } }, issues: null });
+});
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+test('a schema kind the check cannot look into is a DECLARATION error, never let through', async () => {
+  // in the input of a command, at startup, whatever the call gives
+  const kept = effect({
+    does: 'keeps a value',
+    input: z.object({ value: z.custom<object>(() => true).optional() }),
+    plan: ({ value }) => ({ value }),
+  });
+  const keeping = tool({ name: 'keeping', version: '0.1.0', does: 'x', commands: { kept } });
+  const started = answerIn((await run(keeping, [])).out, z.unknown());
+  assert.deepEqual(
+    started.issues?.map(i => i.code),
+    ['DECLARATION'],
+  );
+  // in a check of the handler, where the call runs, whose state adx then cannot know
+  const peek = effect({
+    does: 'peeks into a value',
+    input: z.object({ value: z.unknown() }),
+    plan: ({ value }, { refuse }) => {
+      const said = check(z.set(z.string()), value, ['value']);
+      return said.issues === null ? {} : refuse(...said.issues);
+    },
+  });
+  const odd = tool({ name: 'odd', version: '0.1.0', does: 'x', commands: { peek } });
+  const ran = await run(odd, ['peek', '--json', '{"value":{"a":"x\\ny"}}', '--dry-run']);
+  const answer = answerIn(ran.out, z.unknown());
+  assert.deepEqual(
+    [ran.exit, answer.issues?.map(i => i.code), answer.state],
+    [2, ['DECLARATION'], 'The call stopped at an error; what it changed before is not known.'],
+  );
+});

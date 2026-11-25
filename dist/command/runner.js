@@ -21,7 +21,7 @@
  * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
 import { $try, RefusalError, trySync$ } from '@honeyglass/utils/ts';
-import { declaration, issueAnswer, NOTHING_CHANGED, notInList, oneLine, pathOf, placeOf, Refused, refusedWith, UNKNOWN_STATE, unknownOption, withCommand, withLook, } from "../core/index.js";
+import { declaration, issueAnswer, largeness, NOTHING_CHANGED, notInList, oneLine, pathOf, placeOf, Refused, refusedWith, UNKNOWN_STATE, unknownOption, withCommand, withLook, } from "../core/index.js";
 import { refused } from "./answered.js";
 import { argumentsOf, optionName } from "./argv.js";
 import { itemsOf, namesOf, picked, pickedItems } from "./fields.js";
@@ -67,6 +67,8 @@ const FIELDS_OPTION = {
 };
 /** The options adx gives every command: a field takes none. */
 const ALWAYS_TAKEN = ['json', 'output', 'help', 'dry-run', 'replace'];
+/** Every option adx gives some command, so no root option may take its name. */
+export const ADX_OPTIONS = [...ALWAYS_TAKEN, 'page', 'fields'];
 /** The code a value outside its list is refused with, by its name. */
 const NOT_IN_LIST = notInList.issue().code;
 /** The one refuse of every handler; what was refused stopped before adx changed anything. */
@@ -230,10 +232,22 @@ export class Runner {
         const ran = { result, input };
         if (this.kind === 'list')
             return this.#page(result, run, ran);
+        this.#bounded(result);
         if (run.fields === undefined)
             return { answer: { ok: true, result }, ...this.#text(), ran };
         // The author's text reads the whole answer; a cut one prints in adx's own form.
         return { answer: { ok: true, result: picked(result, run.fields) }, ran };
+    }
+    // Without output nobody can cut the answer with --fields, so a long list or a large document
+    // is the read's bug (decision 91); a startup check cannot see the size of an answer.
+    #bounded(result) {
+        if (this.spec.output !== undefined)
+            return;
+        const said = largeness(result, `${JSON.stringify({ ok: true, result })}\n`);
+        if (said.length === 0)
+            return;
+        const message = `${this.#call()} answers ${said.join(' ')} and has no output, by which a caller cuts it with --fields`;
+        throw refusedWith([declaration.issue(message)], NOTHING_CHANGED);
     }
     /**
      * @returns one DECLARATION issue per field named like an option adx gives the command, per

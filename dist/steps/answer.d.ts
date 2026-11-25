@@ -22,7 +22,7 @@ export type Context = {
  * @param step - a step a command, a hint or the tool named
  * @param context - the call that answers it
  * @returns the step as the answer writes it; a step from tell has no command
- * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists, or to a name
- * `schema` does not know
+ * @throws a bug refusal, DECLARATION, for a step to a command that no tool lists, to a name
+ * `schema` does not know, or with a command by hand that is no plain call of the tool
  */
 export declare function stepAnswer(step: Step, context: Context): Promise<NextStep>;

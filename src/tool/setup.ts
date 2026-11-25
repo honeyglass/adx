@@ -9,7 +9,10 @@
  * a source, per place where an example fails the input of its command, per remote whose own
  * address or token cannot work, per stored kind whose format numbers do not run from the newest
  * down or whose format has a field `version`, for a skill whose name has not the form of one,
- * and per code made in two ways or under a name of adx.
+ * per code made in two ways, under a name of adx or without the form of a code, and per name of
+ * the tool, a root, a stored kind or a variable without its form, or a root named like an option
+ * of adx (decision 90), and per place of an input or a shape whose kind of schema the walks for
+ * unknown keys and line breaks cannot look into.
  *
  * The function of a hint gets nothing, so its step is checked here, before any call (decision
  * 73). Every other step is made in a function that a call runs, such as `next`, so the answer
@@ -20,10 +23,27 @@
  *
  * @example const [wrong, ...more] = setupIssues(shell, around.network);
  */
-import { declarationIssues, followsOf, isWord, runnerOf, runnersIn } from '../command/index.ts';
-import { ADX_CODES, codesMade, declaration, factsOf, isId, partsOfStep } from '../core/index.ts';
+import {
+  ADX_OPTIONS,
+  declarationIssues,
+  followsOf,
+  isWord,
+  runnerOf,
+  runnersIn,
+} from '../command/index.ts';
+import {
+  ADX_CODES,
+  codesMade,
+  declaration,
+  factsOf,
+  isId,
+  nameIssue,
+  partsOfStep,
+  unknownKindsIn,
+} from '../core/index.ts';
 import type { Issue, Network } from '../core/index.ts';
-import { setupIssuesOf } from '../remote/index.ts';
+import { rootOptions } from '../files/index.ts';
+import { setupIssuesOf, variablesOf } from '../remote/index.ts';
 import { codeOf, schemaNameOf, stepOfHint } from '../steps/index.ts';
 import type { Hint } from '../steps/index.ts';
 import { kindIssues } from '../stored/index.ts';
@@ -31,6 +51,7 @@ import { detailsOf } from './detail.ts';
 import { SKILL_NAME } from './limits.ts';
 import { knows, SCHEMA } from './schema.ts';
 import type { Shell } from './tool.ts';
+import { VERSION } from './version.ts';
 
 /**
  * @param shell - what the call reads of the tool
@@ -51,7 +72,52 @@ export function setupIssues(shell: Shell, network: Network): Issue[] {
     ...shell.stored.flatMap(kindIssues),
     ...skillIssues(shell),
     ...codeIssues(),
+    ...nameIssues(shell),
+    ...schemaKindIssues(shell),
   ];
+}
+
+// The input of each command and each shape is walked for unknown keys and line breaks, so a kind
+// the walk cannot look into is refused here, before any value reaches it.
+function schemaKindIssues(shell: Shell) {
+  const schemas = [
+    ...[...runnersIn(shell.commands)].map(runner => ({
+      about: `${shell.name} ${runner.name}`,
+      schema: runner.input,
+    })),
+    ...Object.entries(shell.shapes).map(([name, schema]) => ({
+      about: `the shape ${name}`,
+      schema,
+    })),
+  ];
+  return schemas.flatMap(({ about, schema }) =>
+    unknownKindsIn(schema).map(({ below, kind }) =>
+      declaration.issue(
+        `${about} takes a ${kind} at ${below.join('.') || 'its top'}, which adx cannot check for unknown keys and line breaks`,
+      ),
+    ),
+  );
+}
+
+/** The options a root option would hide: those adx gives a command, and the tool's own. */
+const TAKEN = new Set([...ADX_OPTIONS, VERSION]);
+
+// The names end up in paths, command lines and answers, so each keeps to its form (decision 90).
+function nameIssues(shell: Shell) {
+  const variables = [
+    ...rootOptions(shell.roots).flatMap(({ variable }) => variable ?? []),
+    ...shell.remotes.flatMap(remote => variablesOf(remote).map(({ variable }) => variable)),
+  ];
+  const taken = shell.roots
+    .filter(root => TAKEN.has(root.name))
+    .map(root => declaration.issue(`the root ${root.name} has the name of an option of adx`));
+  return [
+    nameIssue('tool', shell.name),
+    ...shell.roots.map(root => nameIssue('root', root.name)),
+    ...shell.stored.map(kind => nameIssue('kind', kind.name)),
+    ...variables.map(variable => nameIssue('variable', variable)),
+    ...taken,
+  ].filter(issue => issue !== undefined);
 }
 
 // `schema` lists each code once by its name, so a name must say one kind and one hint, and not
@@ -63,6 +129,8 @@ function codeIssues() {
     .map(factsOf);
   const names = [...new Set(own.map(({ code }) => code))];
   return names.flatMap(name => {
+    const unnamed = nameIssue('code', name);
+    if (unnamed !== undefined) return [unnamed];
     if (adx.has(name)) {
       return [
         declaration.issue(`the tool makes the code ${name}, which is one of adx's own: rename it`),

@@ -8,6 +8,7 @@
  * a request that got no whole answer.
  * noFakeLead, kitMark: how the refusal of a request the test kit's closed network stops begins,
  * and how it ends, with the kit's token, so the kit tells it from a refusal a program prints.
+ * KIT_TOKEN: the token a request carries under the kit, whatever the variable holds.
  *
  * The types stand in core/, since command/ types `apply` with Act and invoke with Fake, and
  * remote/ makes the values. An Incoming has a status and headers, so status() and the guide's
@@ -54,6 +55,8 @@ export type Address = {
   readonly href: string;
   readonly protocol: string;
   readonly origin: string;
+  /** The host name with the port, when it is not the default one of the scheme. */
+  readonly host: string;
   readonly hostname: string;
   readonly username: string;
   readonly password: string;
@@ -95,3 +98,9 @@ export const noFakeLead = (name: string) => `the remote ${name} has no fake in t
 
 /** @returns the end of that message, with the token the kit closed the network with */
 export const kitMark = (token: string) => ` [kit ${token}]`;
+
+/**
+ * The token every request carries under ADX_FAKES_ONLY, in place of the one of its variable: a
+ * program cannot tell the kit from a caller posing as it, so no secret leaves (decision 89).
+ */
+export const KIT_TOKEN = 'adx-kit-token';

@@ -14,16 +14,18 @@
  * real server with a token of its samples; the machine itself is no exception, since a tunnel to
  * production lies there too (decision 86). The kit is a call with fakes, as run(), invoke() and
  * conformance make it, where a fake answers in the process, or a program whose ADX_FAKES_ONLY
- * holds the kit's token, which reaches only the origins ADX_FAKE_ORIGINS names.
+ * holds the kit's token, which reaches only the origins ADX_FAKE_ORIGINS names. Under the kit
+ * this check stands in for the hosts an address from a variable may name. Any caller can set
+ * ADX_FAKES_ONLY, so under it a request carries KIT_TOKEN, never the token of the variable.
  *
  * @example return new Line(shell, around).run(() => answeredIn(shell, call));
  */
 import { UNSAFE_RUN } from '@honeyglass/utils/ts';
 import { defer, of, timer } from 'rxjs';
-import { declaration, entered, kitMark, noFakeLead, refusedWith, UNKNOWN_STATE, valueOf, } from "../core/index.js";
+import { declaration, entered, KIT_TOKEN, kitMark, noFakeLead, refusedWith, UNKNOWN_STATE, valueOf, } from "../core/index.js";
 import { addressOf, ready, serverOf, tokenOf } from "./address.js";
 import { fakeAnswer } from "./fake.js";
-import { ANSWER_BYTES, FAKE_ORIGINS, FAKES_ONLY, TIMEOUT_MS } from "./limits.js";
+import { ANSWER_BYTES, FAKE_ORIGINS, FAKES_ONLY, KIT_ORIGIN, TIMEOUT_MS } from "./limits.js";
 /** Each outcome with the words a state names it by, in the order the state lists them. */
 const OUTCOMES = [
     ['answered', 'Answered'],
@@ -57,14 +59,16 @@ export class Line {
             throw bug(`a request goes to the remote ${name}, and ${this.#tool.name} does not list it`);
         }
         const { env, network } = this.#around;
-        const { url, rel } = addressOf(server, env, network, path, more.query ?? {});
+        const { url, rel } = addressOf(server, env, network, path, more.query ?? {}, this.#underKit());
         const origin = network.parse(url)?.origin ?? url;
         if (this.#leaves(remote, origin)) {
             const token = env[FAKES_ONLY] ?? '';
             const mark = token === '' ? '' : kitMark(token);
             throw bug(`${noFakeLead(server.name)}, and the test kit sends only to its fakes, not to ${origin}: add a fake of ${server.name} to the samples${mark}`);
         }
-        const token = tokenOf(server, env);
+        // the variable must hold a token, as in a real call, and under the kit none of it leaves
+        const given = tokenOf(server, env);
+        const token = given === undefined || (env[FAKES_ONLY] ?? '') === '' ? given : KIT_TOKEN;
         const headers = {
             accept: 'application/json',
             ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
@@ -101,8 +105,9 @@ export class Line {
     ready() {
         for (const remote of this.#tool.remotes) {
             const server = serverOf(remote);
-            if (server !== undefined)
-                ready(server, this.#around.env, this.#around.network);
+            if (server !== undefined) {
+                ready(server, this.#around.env, this.#around.network, this.#underKit());
+            }
         }
     }
     /** @returns whether the call sent a request, which may have taken effect */
@@ -118,13 +123,19 @@ export class Line {
     }
     // The one check of the kit's network: in the process only a fake answers, and a program the
     // kit runs reaches only the origins of the fakes the kit serves; outside the kit, anything.
+    // Any program can name the kit's variables, so an origin counts only in the form the kit
+    // serves its fakes at, on the machine itself.
     #leaves(remote, origin) {
         const { fakes, env } = this.#around;
         if (fakes !== undefined)
             return this.#fakeOf(remote) === undefined;
-        if ((env[FAKES_ONLY] ?? '') === '')
+        if (this.#underKit() === false)
             return false;
-        return (env[FAKE_ORIGINS] ?? '').split(',').includes(origin) === false;
+        const origins = (env[FAKE_ORIGINS] ?? '').split(',').filter(served => KIT_ORIGIN.test(served));
+        return origins.includes(origin) === false;
+    }
+    #underKit() {
+        return this.#around.fakes !== undefined || (this.#around.env[FAKES_ONLY] ?? '') !== '';
     }
     #fakeOf(remote) {
         return this.#around.fakes?.find(fake => fake.remote === remote);

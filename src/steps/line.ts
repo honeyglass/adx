@@ -12,8 +12,7 @@
  * @example lineOf(['hello', 'greet', '--name', "Ada O'Hara"]); // hello greet --name 'Ada O'\''Hara'
  */
 
-/** The characters a shell takes as text outside quotes: an allow-list, so a new sign is quoted. */
-const BARE = /^[A-Za-z0-9_@%+:,./-][A-Za-z0-9_@%+=:,./-]*$/;
+import { BARE } from '../core/index.ts';
 
 /** @returns the words as one line, each bare or in single quotes */
 export const lineOf = (words: readonly string[]) => words.map(quoted).join(' ');

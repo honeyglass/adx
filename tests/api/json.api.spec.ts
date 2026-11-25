@@ -9,6 +9,8 @@ const greet = read({
   does: 'greets one person',
   input: z.object({ name: z.string(), lang: z.enum(['en', 'de']).default('en') }),
   example: { name: 'Ada' },
+  // a greeting of a megabyte is a large document, which a read declares
+  output: z.object({ greeting: z.string() }),
   run: ({ name, lang }) => ({ greeting: `${lang === 'de' ? 'Hallo' : 'Hello'}, ${name}!` }),
 });
 

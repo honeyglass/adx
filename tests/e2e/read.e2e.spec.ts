@@ -32,7 +32,9 @@ test('refuses an empty pipe and bytes that are no UTF-8', async t => {
 test('takes stdin up to 1048576 characters, and refuses one more', async t => {
   const home = await scratch(t);
   const of = (length: number) => `{"name":"${'😀'.repeat(length - 11)}"}`;
-  assert.equal((await piped(home, of(1_048_576))).exit, 0);
+  // the input at the limit passes; the greeting it makes is a large document, which greet, a
+  // read without output, may not answer
+  assert.deepEqual(codeOf((await piped(home, of(1_048_576))).out), ['DECLARATION']);
   assert.deepEqual(codeOf((await piped(home, of(1_048_577))).out), ['INPUT_TOO_LARGE']);
 });
 

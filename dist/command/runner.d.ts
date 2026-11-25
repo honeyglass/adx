@@ -52,6 +52,8 @@ export type Place = {
     roots: readonly RootOption[];
     act: Act;
 };
+/** Every option adx gives some command, so no root option may take its name. */
+export declare const ADX_OPTIONS: string[];
 export declare class Runner implements Sourced {
     #private;
     readonly kind: Kind;

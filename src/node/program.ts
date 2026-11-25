@@ -6,9 +6,10 @@
  *
  * The program sees no variable of the person: only PATH, so `node` is found, its home and temp
  * folders in the scratch, which no variable of the test replaces, and the variables the test
- * names. A word of the command line that
- * names a file of the folder the test runs in, such as bin/tracker.ts, is made absolute, since
- * the program runs in the working directory of the scratch. stdin holds the given text, else it
+ * names. A word is a path only with a slash in it: the program, which is else looked up in PATH,
+ * so a file named `node` is never run for `node`, and a file of the folder the test runs in,
+ * such as bin/tracker.ts, made absolute, since the program runs in the working directory of the
+ * scratch. Any other word, such as the value of an option, stays as it is. stdin holds the given text, else it
  * ends at once. The program leads a process group of its own: when it ends, or when it does not
  * end in time, the whole group is killed, so a child it left cannot hold the pipes open, and a
  * killed call answers no exit code.
@@ -42,7 +43,9 @@ export type ProgramCall = {
  * @throws a refusal FILE_NOT_FOUND at `command` when the command line starts no program
  */
 export async function program(words: readonly string[], call: ProgramCall) {
-  const [file = '', ...args] = words.map(word => (existsSync(word) ? resolve(word) : word));
+  const [first = '', ...rest] = words;
+  const file = first.includes('/') ? resolve(first) : first;
+  const args = rest.map(word => (word.includes('/') && existsSync(word) ? resolve(word) : word));
   // The kit's own folders win over a variable of the call.
   const env = { ...call.env, PATH: process.env.PATH ?? '', HOME: call.home, TMPDIR: call.tmp };
   const child = spawn(file, [...args, ...call.argv], { cwd: call.cwd, env, detached: true });

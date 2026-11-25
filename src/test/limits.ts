@@ -1,21 +1,14 @@
 /**
  * The constants of test/.
  *
- * LONG_LIST, LARGE_ANSWER: when an answer is a long list or a large document (decision 56).
  * PROBE: the word the probes give where a call must not know it.
  * STORED_FILE, STORED_FILE_BYTES: the file of the fingerprints of stored kinds (decision 55),
  * and how much of it the kit reads.
  * FRONTMATTER_BYTES: how much of a skill the kit reads to find its frontmatter.
  * REPORT_NAME, REPORT_GAP, REPORT_STATUS: the columns of adxcheck report, as the guide shows it.
  *
- * @example if (bytes > LARGE_ANSWER) findings.push(`${line} answers ${bytes} bytes`);
+ * @example const other = await probing.alone({ argv: ['schema', '--output', PROBE] });
  */
-
-/** More entries than fifty in one array of an answer make a long list. */
-export const LONG_LIST = 50;
-
-/** More bytes than 8 KiB make a large answer. */
-export const LARGE_ANSWER = 8192;
 
 /** A command, option, word and field no tool has, since a tool names none with this prefix. */
 export const PROBE = 'adx-probe';

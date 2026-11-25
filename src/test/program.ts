@@ -6,7 +6,8 @@
  *
  * Each session is a fresh scratch folder with a home, a temp folder and a working directory.
  * Each root the tool names with a variable lies in the scratch folder too, with the seed copied
- * in, so the program never reaches the person's data. Each fake answers on a local port, and the
+ * in, so the program never reaches the person's data; a root whose name or variable has not its
+ * form is refused before a folder is made (decision 90). Each fake answers on a local port, and the
  * variable of its remote's address points the program there. ADX_FAKES_ONLY, a fresh token, closes
  * the program's network to the origins ADX_FAKE_ORIGINS names, those of the fakes, so a remote
  * without a fake reaches no server, not even one on the machine itself (decision 86). The roots
@@ -18,7 +19,13 @@
  * @example const caller = await programCaller(t, ['node', 'bin/tracker.ts'], samples);
  */
 import { $try } from '@honeyglass/utils/ts';
-import { NOTHING_CHANGED, refusedWith, schemaFailed, urlNotAllowed } from '../core/index.ts';
+import {
+  nameIssue,
+  NOTHING_CHANGED,
+  refusedWith,
+  schemaFailed,
+  urlNotAllowed,
+} from '../core/index.ts';
 import type { Fake, Issue } from '../core/index.ts';
 import { nonce, program, scratch, seeded, serve, snapshot } from '../node/index.ts';
 import { FAKE_ORIGINS, FAKES_ONLY, fakeAnswer, heard, urlVariableOf } from '../remote/index.ts';
@@ -110,12 +117,18 @@ async function rootsOf(bare: Program, sent: string[]) {
   );
 }
 
+// A root's name and variable come from the program, which may be no tool of adx, and the name
+// builds a folder of the scratch, so each keeps to its form before the scratch is made.
 async function inSession<T>(
   run: Program,
   roots: readonly { root: string; variable: string }[],
   sent: string[],
   work: (session: Session) => Promise<T>,
 ) {
+  const [unnamed, ...more] = roots.flatMap(({ root, variable }) =>
+    [nameIssue('root', root), nameIssue('variable', variable)].filter(issue => issue !== undefined),
+  );
+  if (unnamed !== undefined) throw refusedWith([unnamed, ...more], NOTHING_CHANGED);
   const made = scratch(undefined);
   const placed = roots.map(({ root, variable }) => ({
     variable,

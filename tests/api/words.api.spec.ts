@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { lineOf, optionWords } from '../../dist/steps/line.js';
-import { wordsOf } from '../../dist/test/words.js';
+import { wordsOf } from '../../dist/core/words.js';
 
 test('a line that runs more or other than one call of a program is no plain call', () => {
   const lines = [
@@ -22,6 +22,22 @@ test('a line that runs more or other than one call of a program is no plain call
     "hello $'a'",
     'hello {a,b}',
     'hello ~/x',
+    // bash expands a ~ after = and :, so no word holds one outside quotes
+    'hello a=~',
+    'hello --x=~',
+    'hello x:~',
+    'hello a=b:~',
+    'hello a#b~c',
+    // only the signs adx writes bare stand outside quotes, anywhere in a word: zsh with
+    // extendedglob expands x#y
+    'hello greet x#y',
+    'hello a^b',
+    'hello a!b',
+    'hello a]b',
+    // zsh expands a leading = to the path of a program, and ^ under extendedglob negates a glob
+    'hello =ls',
+    '=hello x',
+    'hello ^x',
     'X=1 hello',
     '! hello',
     'time hello',
@@ -58,12 +74,14 @@ test('a plain call is split as sh splits it', () => {
     '--name',
     "Ada O'Hara",
   ]);
-  assert.deepEqual(wordsOf('hello "C:\\path\\x" C:\\\\p a#b~c x\\\\'), [
+  assert.deepEqual(wordsOf("hello \"C:\\path\\x\" C:\\\\p 'a#b' --name='~c' x\\\\ \\~d"), [
     'hello',
     'C:\\path\\x',
     'C:\\p',
-    'a#b~c',
+    'a#b',
+    '--name=~c',
     'x\\',
+    '~d',
   ]);
   assert.deepEqual(wordsOf('hello ex\\\nact\t"a\rb"'), ['hello', 'exact', 'a\rb']);
 });

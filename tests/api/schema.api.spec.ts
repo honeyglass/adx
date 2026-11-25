@@ -151,12 +151,12 @@ test("schema lists the tool's own codes after adx's, and one made the same way t
 });
 
 // One registry per process, so the program runs alone: its codes would break every tool here.
-test('a code made twice with another kind or hint, or named like one of adx, is a DECLARATION error', async t => {
+test('a code made twice with another kind or hint, named like one of adx, or without the form of a code, is a DECLARATION error', async t => {
   const home = await scratch(t);
   const { exit, out } = await program(CODES, ['schema'], { home });
   assert.deepEqual(
     [exit, answerIn(out, z.unknown()).issues?.map(i => i.code)],
-    [2, ['DECLARATION', 'DECLARATION']],
+    [2, ['DECLARATION', 'DECLARATION', 'DECLARATION', 'DECLARATION']],
   );
 });
 

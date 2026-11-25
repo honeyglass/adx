@@ -92,7 +92,8 @@ export type Surroundings = {
   readonly fakes?: readonly Fake[];
   /**
    * The scratch folder of a test, which no root leaves: a root at an absolute place of its own
-   * lies in it, and a marker is looked for no higher.
+   * lies in it, and a marker is looked for no higher, nor above a working directory the test
+   * names.
    */
   readonly confined?: string;
 };

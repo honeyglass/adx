@@ -15,7 +15,11 @@ import { trySync$ } from '@honeyglass/utils/ts';
 import { codePointsIn, inputTooLarge, invalidJson, missingInput, repeatedOption, schemaFailed, STDIN_LIMIT, } from "../core/index.js";
 /** The value of --json that reads the object from stdin. */
 const FROM_STDIN = '-';
-/** The one key JSON.parse keeps that an object cannot hold as a plain field. */
+/**
+ * The one key JSON.parse keeps that an object cannot hold as a plain field. A definition, from
+ * ECMAScript (the `__proto__` accessor of Object.prototype, Annex B): no property of the input
+ * closes it, since Zod builds its output as plain objects, where the key sets the prototype.
+ */
 const PROTO = '__proto__';
 /**
  * @param given - the fields the options of the call gave

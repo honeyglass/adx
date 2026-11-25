@@ -35,11 +35,14 @@ const ROUTES: Routes = {
 };
 
 // A call against a server of the routes, its data folder holding the draft spring of shop-web.
+// ship lists no host of its own beside its fallback, so the call runs as the test kit runs a
+// program, with the server as the one fake it serves.
 async function callWith(t: TestContext, routes: Routes): Promise<Call> {
   const home = await scratch(t);
   await cp(join(PROTO, 'ship', 'tests', 'seed'), join(home, '.ship'), { recursive: true });
   const url = await serve(t, routes);
-  return { home, env: { SHIP_URL: url, SHIP_TOKEN: 'test-token' } };
+  const kit = { ADX_FAKES_ONLY: 'e2e', ADX_FAKE_ORIGINS: url };
+  return { home, env: { SHIP_URL: url, SHIP_TOKEN: 'test-token', ...kit } };
 }
 
 const ship = (call: Call, ...argv: string[]) => program(SHIP, argv, call);

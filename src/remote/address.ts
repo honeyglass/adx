@@ -1,7 +1,8 @@
 /**
  * Where a request of a remote goes, and the token it carries: the one place a request is let out.
  *
- * envUrl, bearer: the address from a variable with a fallback, and the token from a variable.
+ * envUrl, bearer: the address from a variable with a fallback and the hosts it may name, and the
+ * token from a variable.
  * Server, made, serverOf: what a remote is, as adx reads it.
  * addressOf, tokenOf, ready: the address of one request, the token of its server, and both
  * checked before a call writes a file.
@@ -18,7 +19,11 @@
  * leaves the address of the server. A value that is no well-formed text, such as a lone
  * surrogate, has no encoding, so it is refused there too. A token is a header, so it holds
  * visible ASCII only, and it goes over https, or over plain http only to the machine itself
- * (decision 22): anyone on the way reads plain http.
+ * (decision 22): anyone on the way reads plain http. An agent can set a variable per call, and the
+ * token goes with every request, so the address from a variable names the host of the fallback
+ * or one the tool lists, an allow-list by the host as the parser writes it, port and all
+ * (decision 89). Under the test kit, its own check stands in its place: a request reaches only a
+ * fake the kit started (decision 86).
  *
  * @example const { url, rel } = addressOf(server, env, network, ['tickets', id], {});
  */
@@ -48,13 +53,13 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 /** Visible ASCII, what a header value may hold (RFC 9110, field-vchar without obs-text). */
 const TOKEN = /^[\x21-\x7e]+$/;
 
-const envUrls = new Map<string, { variable: string; fallback: string }>();
+const envUrls = new Map<string, { variable: string; fallback: string; hosts: readonly string[] }>();
 const tokens = new WeakMap<Auth, string>();
 const servers = new WeakMap<Remote, Server>();
 
-export function envUrl(variable: string, fallback: string): string {
-  const text = `$${variable}, else ${fallback}`;
-  envUrls.set(text, { variable, fallback });
+export function envUrl(variable: string, fallback: string, hosts: readonly string[] = []): string {
+  const text = `$${variable}, else ${[fallback, ...hosts].join(', ')}`;
+  envUrls.set(text, { variable, fallback, hosts });
   return text;
 }
 
@@ -98,6 +103,7 @@ export function urlVariableOf(remote: Remote) {
  * @param network - the parser of the call, the one its requests go through
  * @param path - the parts of the path below the address of the server
  * @param query - the query; an undefined value is left out
+ * @param kit - whether the call runs under the test kit, whose own check decides where it sends
  * @returns the address, and the path below the server, as a fake matches it
  * @throws a refusal URL_NOT_ALLOWED for an address adx does not send to, DECLARATION for a
  * fallback or a fixed address of the tool that is none
@@ -108,8 +114,9 @@ export function addressOf(
   network: Network,
   path: readonly (string | number)[],
   query: Query,
+  kit: boolean,
 ) {
-  const base = baseOf(server, env, network);
+  const base = baseOf(server, env, network, kit);
   const parts = path.map(part => `${part}`);
   const values = Object.entries(query).flatMap(([key, value]) =>
     value === undefined ? [] : [key, `${value}`],
@@ -153,7 +160,7 @@ export function tokenOf(server: Server, env: Env) {
  * @param network - the parser of the call
  * @returns one DECLARATION issue for a remote no remote() made, a fallback or a fixed address
  * that adx does not send to or that would carry the token over plain http beyond the machine,
- * and an auth no bearer() made
+ * a listed host that is no host as the parser writes it, and an auth no bearer() made
  */
 export function setupIssuesOf(remote: Remote, network: Network): Issue[] {
   const server = servers.get(remote);
@@ -164,6 +171,9 @@ export function setupIssuesOf(remote: Remote, network: Network): Issue[] {
   return [
     ...(base === undefined ? [declaration.issue(notAddress(server))] : []),
     ...(base !== undefined && exposes(server, base) ? [declaration.issue(exposed(server))] : []),
+    ...(envUrls.get(server.url)?.hosts ?? [])
+      .filter(host => network.parse(`https://${host}`)?.href !== `https://${host}/`)
+      .map(host => declaration.issue(notHost(server, host))),
     ...(auth === undefined || tokens.has(auth)
       ? []
       : [declaration.issue(`the auth of ${server.name} was not made by bearer()`)]),
@@ -175,22 +185,37 @@ export function setupIssuesOf(remote: Remote, network: Network): Issue[] {
  *
  * @throws as addressOf and tokenOf do for the address and the token of the server
  */
-export function ready(server: Server, env: Env, network: Network) {
-  baseOf(server, env, network);
+export function ready(server: Server, env: Env, network: Network, kit: boolean) {
+  baseOf(server, env, network, kit);
   tokenOf(server, env);
 }
 
 // A variable is the caller's, so its address is refused as a fix; the tool's own is a bug.
-function baseOf(server: Server, env: Env, network: Network): Address {
+function baseOf(server: Server, env: Env, network: Network, kit: boolean): Address {
   const declared = envUrls.get(server.url);
   const given = declared === undefined ? undefined : env[declared.variable];
   if (declared !== undefined && given !== undefined) {
-    return givenBase(server, declared.variable, network.parse(given));
+    const base = givenBase(server, declared.variable, network.parse(given));
+    return kit ? base : listedBase(server, declared, base, network);
   }
   const base = declaredBase(server, network);
   if (base === undefined) throw bug(notAddress(server));
   if (exposes(server, base)) throw bug(exposed(server));
   return base;
+}
+
+// The host of the fallback and each the tool lists, port and all, and no other (decision 89).
+function listedBase(
+  server: Server,
+  declared: { variable: string; hosts: readonly string[] },
+  base: Address,
+  network: Network,
+) {
+  const fallback = declaredBase(server, network);
+  const hosts = fallback === undefined ? declared.hosts : [fallback.host, ...declared.hosts];
+  if (hosts.includes(base.host)) return base;
+  const message = `${declared.variable} names the host ${base.host}, and ${server.name} sends only to ${hosts.join(', ')}`;
+  throw refused(urlNotAllowed.issue(message));
 }
 
 function givenBase(server: Server, variable: string, parsed: Address | undefined) {
@@ -221,6 +246,9 @@ const exposed = (server: Server) =>
 
 const declaredBase = (server: Server, network: Network) =>
   allowed(network.parse(envUrls.get(server.url)?.fallback ?? server.url));
+
+const notHost = (server: Server, host: string) =>
+  `${server.name} lists ${JSON.stringify(host)}, which is no host as an address writes it, such as staging.example.com`;
 
 const notAddress = (server: Server) =>
   `the address of ${server.name} is no http or https address without user, query or fragment`;

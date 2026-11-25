@@ -14,7 +14,9 @@
  * real server with a token of its samples; the machine itself is no exception, since a tunnel to
  * production lies there too (decision 86). The kit is a call with fakes, as run(), invoke() and
  * conformance make it, where a fake answers in the process, or a program whose ADX_FAKES_ONLY
- * holds the kit's token, which reaches only the origins ADX_FAKE_ORIGINS names.
+ * holds the kit's token, which reaches only the origins ADX_FAKE_ORIGINS names. Under the kit
+ * this check stands in for the hosts an address from a variable may name. Any caller can set
+ * ADX_FAKES_ONLY, so under it a request carries KIT_TOKEN, never the token of the variable.
  *
  * @example return new Line(shell, around).run(() => answeredIn(shell, call));
  */
@@ -24,6 +26,7 @@ import type { Observable } from 'rxjs';
 import {
   declaration,
   entered,
+  KIT_TOKEN,
   kitMark,
   noFakeLead,
   refusedWith,
@@ -33,7 +36,7 @@ import {
 import type { Incoming, Outgoing, Remote, Surroundings, Unreached } from '../core/index.ts';
 import { addressOf, ready, serverOf, tokenOf } from './address.ts';
 import { fakeAnswer } from './fake.ts';
-import { ANSWER_BYTES, FAKE_ORIGINS, FAKES_ONLY, TIMEOUT_MS } from './limits.ts';
+import { ANSWER_BYTES, FAKE_ORIGINS, FAKES_ONLY, KIT_ORIGIN, TIMEOUT_MS } from './limits.ts';
 
 type Query = Readonly<Record<string, string | number | undefined>>;
 
@@ -84,7 +87,7 @@ export class Line {
       throw bug(`a request goes to the remote ${name}, and ${this.#tool.name} does not list it`);
     }
     const { env, network } = this.#around;
-    const { url, rel } = addressOf(server, env, network, path, more.query ?? {});
+    const { url, rel } = addressOf(server, env, network, path, more.query ?? {}, this.#underKit());
     const origin = network.parse(url)?.origin ?? url;
     if (this.#leaves(remote, origin)) {
       const token = env[FAKES_ONLY] ?? '';
@@ -93,7 +96,9 @@ export class Line {
         `${noFakeLead(server.name)}, and the test kit sends only to its fakes, not to ${origin}: add a fake of ${server.name} to the samples${mark}`,
       );
     }
-    const token = tokenOf(server, env);
+    // the variable must hold a token, as in a real call, and under the kit none of it leaves
+    const given = tokenOf(server, env);
+    const token = given === undefined || (env[FAKES_ONLY] ?? '') === '' ? given : KIT_TOKEN;
     const headers = {
       accept: 'application/json',
       ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
@@ -133,7 +138,9 @@ export class Line {
   ready() {
     for (const remote of this.#tool.remotes) {
       const server = serverOf(remote);
-      if (server !== undefined) ready(server, this.#around.env, this.#around.network);
+      if (server !== undefined) {
+        ready(server, this.#around.env, this.#around.network, this.#underKit());
+      }
     }
   }
 
@@ -152,11 +159,18 @@ export class Line {
 
   // The one check of the kit's network: in the process only a fake answers, and a program the
   // kit runs reaches only the origins of the fakes the kit serves; outside the kit, anything.
+  // Any program can name the kit's variables, so an origin counts only in the form the kit
+  // serves its fakes at, on the machine itself.
   #leaves(remote: Remote, origin: string) {
     const { fakes, env } = this.#around;
     if (fakes !== undefined) return this.#fakeOf(remote) === undefined;
-    if ((env[FAKES_ONLY] ?? '') === '') return false;
-    return (env[FAKE_ORIGINS] ?? '').split(',').includes(origin) === false;
+    if (this.#underKit() === false) return false;
+    const origins = (env[FAKE_ORIGINS] ?? '').split(',').filter(served => KIT_ORIGIN.test(served));
+    return origins.includes(origin) === false;
+  }
+
+  #underKit() {
+    return this.#around.fakes !== undefined || (this.#around.env[FAKES_ONLY] ?? '') !== '';
   }
 
   #fakeOf(remote: Remote) {

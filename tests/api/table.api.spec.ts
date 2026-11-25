@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { z } from 'zod';
-import { effect, global, list, read, tool } from '@honeyglass/adx';
+import {
+  bearer,
+  cwd,
+  effect,
+  envDir,
+  envUrl,
+  global,
+  list,
+  read,
+  remote,
+  root,
+  stored,
+  tool,
+} from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
 
@@ -88,6 +101,46 @@ test('a key of more than one word, or with other signs, is a DECLARATION error',
     issues?.map(i => i.code),
     ['DECLARATION', 'DECLARATION'],
   );
+});
+
+test('a tool name, root, stored kind or variable without its form, or a root named like an option of adx, is a DECLARATION error', async () => {
+  type Parts = Partial<Parameters<typeof tool>[0]>;
+  // a command stands in one tool, so each tool gets its own
+  const made = (parts: Parts) =>
+    tool({
+      name: 'hello',
+      version: '0.1.0',
+      does: 'x',
+      commands: { greet: read({ does: 'greets', run: () => ({}) }) },
+      ...parts,
+    });
+  const at = (url: string, variable = 'HELLO_TOKEN') =>
+    remote('hello', { url, auth: bearer(variable) });
+  const broken: [string, Parts][] = [
+    ...['my tool;id', '../x', 'Hello', '-x', '', 'a'.repeat(65)].map((name): [string, Parts] => [
+      name,
+      { name },
+    ]),
+    ...['../../up', 'a b', 'json', 'dry-run', 'fields', 'page', 'version', 'help'].map(
+      (name): [string, Parts] => [name, { roots: [root(name, envDir('UP_HOME'))] }],
+    ),
+    ['cwd json', { roots: [root('json', cwd)] }],
+    ['MY VAR', { roots: [root('home', envDir('MY VAR'))] }],
+    ['a/b', { stored: [stored('a/b', 1, z.object({ n: z.number() }))] }],
+    ['A;B', { remotes: [at('https://hello.example.com', 'A;B')] }],
+    ['X-Y', { remotes: [remote('hello', { url: envUrl('X-Y', 'https://hello.example.com') })] }],
+  ];
+  for (const [name, parts] of broken) {
+    const { exit, issues } = await answerOf(made(parts), 'greet');
+    assert.deepEqual([exit, issues?.map(i => i.code)], [2, ['DECLARATION']], name);
+  }
+  const fine: Parts[] = [
+    { name: '9-lives' },
+    { roots: [root('home', envDir('HELLO_HOME')), root('work-2', cwd)] },
+    { stored: [stored('friend', 1, z.object({ n: z.number() }))] },
+    { remotes: [at(envUrl('HELLO_URL', 'https://hello.example.com'), 'hello_token')] },
+  ];
+  for (const parts of fine) assert.equal((await answerOf(made(parts), 'greet')).exit, 0);
 });
 
 test('a command listed in two places is a DECLARATION error', async () => {

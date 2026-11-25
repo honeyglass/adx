@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   cwd,
@@ -25,6 +26,10 @@ import {
 } from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
+import { program } from '../utils/program.ts';
+
+const SEED = fileURLToPath(new URL('../fixtures/seed', import.meta.url));
+const MARKED = fileURLToPath(new URL('../fixtures/marked.program.ts', import.meta.url));
 
 const home = root('home', envDir('HELLO_HOME'));
 const work = root('work', cwd);
@@ -181,6 +186,31 @@ test('in the test kit a root at an absolute place of its own lies in the scratch
   const kit = tool({ name: 'kit', version: '0', does: 'x', roots: [placed], commands: { keep } });
   assert.equal((await run(kit, ['keep'])).exit, 0);
   assert.equal(existsSync(place), false);
+  // invoke runs no start check, so a root or tool of no name's form is refused where the folder is
+  // made: in the scratch, `roots/<root>` and `~/.<tool>` would climb out of it
+  const away = join(tmpdir(), 'adx-climbed');
+  t.after(() => rm(away, { recursive: true, force: true }));
+  const climbing = root('../../adx-climbed', envDir('CLIMBING_HOME', place));
+  const dotted = root('home', envDir('DOTTED_HOME'));
+  for (const [name, made] of [
+    ['kit', climbing],
+    ['./../../adx-climbed', dotted],
+  ] as const) {
+    const climb = effect({
+      does: 'climbs',
+      plan: (_, { files }) => files.write(made.file('note.txt'), 'x'),
+    });
+    tool({ name, version: '0', does: 'x', roots: [made], commands: { climb } });
+    for (const seed of [undefined, SEED]) {
+      const invoked = await climb.invoke({}, seed === undefined ? {} : { seed });
+      assert.deepEqual(
+        invoked.issues?.map(i => i.code),
+        ['DECLARATION'],
+        name,
+      );
+    }
+  }
+  assert.equal(existsSync(away), false);
 });
 
 test('a plain string takes one line; multiline() takes line breaks and tabs', async () => {
@@ -268,17 +298,23 @@ test('a step carries a path as adx shows it, relative to its root', async () => 
   assert.equal(planned.next?.[0]?.command, 'hello save --file notes/a.txt');
 });
 
-test('a marker root is the nearest folder up from the working directory that holds it', async t => {
+test('a marker root is the nearest folder up from the working directory, and under the test kit none above a working directory the test names', async t => {
   const project = await folder(t);
   await writeFile(join(project, 'go.mod'), '');
   await mkdir(join(project, 'pkg', 'sub'), { recursive: true });
   await writeFile(join(project, 'pkg', 'b.go'), '');
   await writeFile(join(project, 'pkg', 'sub', 'a.go'), '');
   await writeFile(join(project, 'pkg', 'readme.md'), '');
-  const cwd = join(project, 'pkg', 'sub');
-  const walked = await answer(['walk', '--dir', './pkg/'], { cwd });
-  assert.deepEqual(walked.result, { dir: 'pkg', found: ['pkg/b.go', 'pkg/sub/a.go'] });
-  assert.equal(codeOf(await answer(['walk', '--dir', 'go.mod'], { cwd })), 'NOT_A_FOLDER');
+  const sub = join(project, 'pkg', 'sub');
+  const found = { dir: 'pkg', found: ['pkg/b.go', 'pkg/sub/a.go'] };
+  // as a program, outside the kit, the walk goes up from the working directory
+  const ran = await program(MARKED, ['walk', '--dir', './pkg/'], { home: sub });
+  assert.deepEqual(answerIn(ran.out, z.unknown()).result, found);
+  const walked = await answer(['walk', '--dir', './pkg/'], { cwd: project });
+  assert.deepEqual(walked.result, found);
+  assert.equal(codeOf(await answer(['walk', '--dir', 'go.mod'], { cwd: project })), 'NOT_A_FOLDER');
+  // the kit reads no folder above the one the test named
+  assert.equal(codeOf(await answer(['walk', '--dir', '.'], { cwd: sub })), 'ROOT_NOT_FOUND');
   const bare = await folder(t);
   assert.equal(codeOf(await answer(['walk', '--dir', '.'], { cwd: bare })), 'ROOT_NOT_FOUND');
 });

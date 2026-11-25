@@ -447,3 +447,46 @@ test('a step to schema with a name schema does not know is a DECLARATION error',
     [2, ['a step names hello schema persn, and schema knows no persn']],
   );
 });
+
+test('a step written by hand must be one plain call of the tool, else it is a DECLARATION error', async () => {
+  const handed = read({
+    does: 'names a step by hand',
+    input: z.object({ line: z.string() }),
+    run: () => ({}),
+    next: (_, { line }) => [{ does: 'greets', command: line }],
+  });
+  const own = code('OWN_STEP', 'fix', 'Greet first');
+  const refused = read({
+    does: 'refuses with a step by hand',
+    input: z.object({ line: z.string() }),
+    run: ({ line }, { refuse }) =>
+      refuse(own.issue('x').command({ does: 'greets', command: line })),
+  });
+  const made = tool({
+    name: 'hello',
+    version: '0.1.0',
+    does: 'x',
+    commands: { handed, refused, greet: greetOne() },
+  });
+  const plain = ['hello greet --name ada', "hello greet --name 'bob b' --lang de", 'hello "greet"'];
+  for (const line of plain) {
+    const next = await answerOf(made, 'handed', '--line', line);
+    const issued = await answerOf(made, 'refused', '--line', line);
+    assert.deepEqual([commandsOf(next), issued.issues?.[0]?.command], [[line], line], line);
+  }
+  const lines = [
+    'hello greet --name x; rm -rf ~',
+    'hello greet --name $(id)',
+    'hello greet --name ~ada',
+    'hello greet --name =ls',
+    'rm -rf ~',
+    'hellox greet',
+    '',
+  ];
+  for (const line of lines) {
+    for (const command of ['handed', 'refused']) {
+      const answer = await answerOf(made, command, `--line=${line}`);
+      assert.deepEqual([answer.exit, answer.issues?.map(i => i.code)], [2, ['DECLARATION']], line);
+    }
+  }
+});

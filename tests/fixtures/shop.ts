@@ -1,5 +1,6 @@
 // The tool \`shop\` of remote.api.spec.ts: a remote with a token, and commands that read and send.
-// Its tests run it as a program, outside the test kit, so it reaches a local server.
+// Its tests run it as a program, outside the test kit, so it reaches a local server. The hosts
+// its address may name come from SHOP_HOSTS, so a test lists its server; a real tool writes them.
 import { $try } from '@honeyglass/utils/ts';
 import { z } from 'zod';
 import {
@@ -19,7 +20,11 @@ import {
 } from '@honeyglass/adx';
 
 export const api = remote('shop', {
-  url: envUrl('SHOP_URL', 'https://shop.example.com/api'),
+  url: envUrl(
+    'SHOP_URL',
+    'https://shop.example.com/api',
+    (process.env.SHOP_HOSTS ?? '').split(',').filter(host => host !== ''),
+  ),
   auth: bearer('SHOP_TOKEN'),
 });
 

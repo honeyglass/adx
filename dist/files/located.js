@@ -11,7 +11,7 @@
  * @example const issues = new Located(spec, surroundings, { home: '/tmp/h' }).issues();
  */
 import { shown } from '@honeyglass/utils/ts';
-import { declaration, entered, NOTHING_CHANGED, refusedWith, rootNotFound, UNKNOWN_STATE, valueOf, } from "../core/index.js";
+import { declaration, entered, nameIssue, NOTHING_CHANGED, refusedWith, rootNotFound, UNKNOWN_STATE, valueOf, } from "../core/index.js";
 import { placeOf } from "./roots.js";
 /**
  * @param call - the roots of the call
@@ -114,8 +114,13 @@ export class Located {
         const variable = this.#around.env[place.variable];
         return variable === undefined ? undefined : { folder: variable, by: place.variable };
     }
-    // A test keeps a root at an absolute place of its own inside its scratch folder.
+    // A test keeps a root at an absolute place of its own inside its scratch folder. A name builds
+    // the folder only in its form, so it climbs out of none: invoke runs no start check, and the
+    // test kit seeds a folder before the call checks the tool (decision 90).
     #defaultOf(root, place) {
+        const unnamed = place.location === undefined ? nameIssue('tool', this.#tool.name) : undefined;
+        if (unnamed !== undefined)
+            return unnamed;
         const location = place.location ?? `~/.${this.#tool.name}`;
         const folder = absoluteOf(location, this.#around);
         if (folder === undefined) {
@@ -125,19 +130,30 @@ export class Located {
         const { confined } = this.#around;
         if (confined === undefined || location.startsWith('~'))
             return { folder, moved: false };
-        return { folder: this.disk.join(confined, `roots/${root.name}`), moved: false };
+        const placed = { folder: this.disk.join(confined, `roots/${root.name}`), moved: false };
+        return nameIssue('root', root.name) ?? placed;
     }
     #marked(root, file) {
+        const top = this.#topOfWalk();
         let folder = this.#around.cwd;
         while (this.disk.entry(this.disk.join(folder, file)) === undefined) {
             const parent = this.disk.parent(folder);
-            if (parent === folder || folder === this.#around.confined) {
+            const above = top !== undefined && this.disk.within(parent, top) === false;
+            if (parent === folder || above) {
                 const message = `no folder from ${shown(this.#around.cwd)} up holds ${shown(file)}`;
                 return rootNotFound.issue(message);
             }
             folder = parent;
         }
         return { folder, moved: false };
+    }
+    // Under the test kit the walk stays in the scratch folder, or in the working directory the
+    // test names, which lies outside it: above either lie the person's folders.
+    #topOfWalk() {
+        const { confined, cwd } = this.#around;
+        if (confined === undefined)
+            return undefined;
+        return this.disk.within(cwd, confined) ? confined : cwd;
     }
 }
 /**

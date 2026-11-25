@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { text } from 'node:stream/consumers';
@@ -54,7 +56,10 @@ async function server(t: TestContext, answer: (seen: Seen, count: number) => Rep
     const json = answered.body === undefined ? '' : JSON.stringify(answered.body);
     response.end(answered.raw ?? json);
   });
-  return { env: { SHOP_URL: `${url}/api`, SHOP_TOKEN: 'tok' }, seen };
+  return {
+    env: { SHOP_URL: `${url}/api`, SHOP_TOKEN: 'tok', SHOP_HOSTS: new URL(url).host },
+    seen,
+  };
 }
 
 /**
@@ -186,10 +191,59 @@ test('a path part that would leave its place, or an address that is no http or h
   assert.deepEqual(seen, []);
 });
 
+test('a variable moves the address only to the host of the fallback or one the tool lists, token or not', async t => {
+  const { env, seen } = await server(t, () => ({ status: 200, body: item }));
+  const port = env.SHOP_URL.split(':')[2] ?? '';
+  const away = [
+    'https://attacker.example/x',
+    'https://shop.example.com.attacker.example/api',
+    'https://shop.example.com:8443/api',
+    `http://localhost:${port}`,
+    'http://127.0.0.1:1/api',
+  ];
+  for (const SHOP_URL of away) {
+    for (const given of [
+      { ...env, SHOP_URL },
+      { SHOP_URL, SHOP_HOSTS: env.SHOP_HOSTS },
+    ]) {
+      const answer = await answerOf(['show', '--id', 'a1'], { env: given });
+      assert.deepEqual([answer.kind, codesOf(answer)], ['fix', ['URL_NOT_ALLOWED']], SHOP_URL);
+    }
+  }
+  assert.deepEqual(seen, []);
+});
+
+test('a request ignores every proxy the environment names', async t => {
+  let proxied = 0;
+  const proxy = createServer((_, response) => {
+    proxied += 1;
+    response.end();
+  });
+  proxy.on('connect', (_, socket) => {
+    proxied += 1;
+    socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
+  });
+  proxy.listen(0, '127.0.0.1');
+  await once(proxy, 'listening');
+  t.after(() => {
+    proxy.close();
+    proxy.closeAllConnections();
+  });
+  const address = proxy.address();
+  const via = `http://127.0.0.1:${typeof address === 'object' && address !== null ? address.port : 0}`;
+  const { env, seen } = await server(t, () => ({ status: 200, body: item }));
+  const proxies = { NODE_USE_ENV_PROXY: '1', HTTP_PROXY: via, HTTPS_PROXY: via, NO_PROXY: '' };
+  const answer = await answerOf(['show', '--id', 'a1'], { env: { ...env, ...proxies } });
+  assert.deepEqual([answer.result, proxied, seen.length], [item, 0, 1]);
+});
+
 test('a token that is missing or no token is refused with ENV_MISSING, and nothing is sent', async t => {
   const { env, seen } = await server(t, () => ({ status: 200, body: item }));
   for (const SHOP_TOKEN of [undefined, '', 'tok\r\nX-Admin: 1']) {
-    const given = SHOP_TOKEN === undefined ? { SHOP_URL: env.SHOP_URL } : { ...env, SHOP_TOKEN };
+    const given =
+      SHOP_TOKEN === undefined
+        ? { SHOP_URL: env.SHOP_URL, SHOP_HOSTS: env.SHOP_HOSTS }
+        : { ...env, SHOP_TOKEN };
     const answer = await answerOf(['show', '--id', 'a1'], { env: given });
     assert.deepEqual([answer.kind, codesOf(answer)], ['ask', ['ENV_MISSING']]);
   }
@@ -271,7 +325,9 @@ test('a send is never tried again, and its refusal says what was sent and names 
 
 test('a refusal in apply names the look only after a send, else the hint of its code', async t => {
   const { env, seen } = await server(t, () => ({ status: 200, body: item }));
-  const unsent = await answerOf(['create', '--name', 'pen'], { env: { SHOP_URL: env.SHOP_URL } });
+  const unsent = await answerOf(['create', '--name', 'pen'], {
+    env: { SHOP_URL: env.SHOP_URL, SHOP_HOSTS: env.SHOP_HOSTS },
+  });
   assert.deepEqual(codesOf(unsent), ['ENV_MISSING']);
   assert.equal(unsent.issues?.[0]?.command, undefined);
   assert.equal(unsent.state, 'Nothing was changed.');
@@ -286,7 +342,7 @@ test('the state after apply names the files written and each send, after the sta
   const { env } = await server(t, ({ method }) => (method === 'POST' ? 'drop' : { status: 200 }));
   const unready = await answerOf(['stock', '--name', 'ink'], {
     cwd: folder,
-    env: { SHOP_URL: env.SHOP_URL },
+    env: { SHOP_URL: env.SHOP_URL, SHOP_HOSTS: env.SHOP_HOSTS },
   });
   assert.deepEqual([codesOf(unready), unready.state], [['ENV_MISSING'], 'Nothing was changed.']);
   assert.equal(existsSync(join(folder, 'ink.json')), false);
@@ -363,7 +419,7 @@ test('schema names each remote and its variables, never their values', async () 
   assert.equal(out.includes('secret-token'), false);
 });
 
-test('a remote the tool does not list, a fallback that is no address or sends a token over http, and apply without look are DECLARATION errors', async () => {
+test('a remote the tool does not list, a fallback that is no address or sends a token over http, a listed host that is no host, and apply without look are DECLARATION errors', async () => {
   const unlisted = tool({ name: 'shop', version: '1.0.0', does: 'sells', commands: { show } });
   const odd = remote('odd', { url: envUrl('ODD_URL', 'ftp://odd.example.com') });
   const oddShow = read({ does: 'reads', run: () => odd.get(['x'], z.unknown()) });
@@ -383,6 +439,17 @@ test('a remote the tool does not list, a fallback that is no address or sends a 
     remotes: [plain],
     commands: { show: plainShow },
   });
+  const listing = remote('list', {
+    url: envUrl('LIST_URL', 'https://list.example.com', ['https://staging.list.example.com']),
+  });
+  const listShow = read({ does: 'reads', run: () => listing.get(['x'], z.unknown()) });
+  const listed = tool({
+    name: 'list',
+    version: '1.0.0',
+    does: 'reads',
+    remotes: [listing],
+    commands: { show: listShow },
+  });
   const blind = effect({ does: 'sends', plan: () => ({}), apply: () => ({}) });
   const unlooked = tool({ name: 'shop', version: '1.0.0', does: 'sells', commands: { blind } });
   const env = { SHOP_TOKEN: 'tok' };
@@ -391,6 +458,7 @@ test('a remote the tool does not list, a fallback that is no address or sends a 
     [unlisted, ['show', '--id', 'a1']],
     [fallback, []],
     [exposed, []],
+    [listed, []],
     [unlooked, ['blind', '--dry-run']],
   ] as const) {
     const { exit, out } = await run(made, argv, { env });
@@ -448,7 +516,19 @@ test('a program the kit runs sends only to the origins of the fakes the kit star
       0,
     ],
   );
-  const started = { ...kit, ADX_FAKE_ORIGINS: new URL(env.SHOP_URL).origin };
+  // anyone can name the kit's variables and an origin on 127.0.0.1, so no token of the
+  // environment leaves under them: the request carries the kit's own
+  const served = new URL(env.SHOP_URL).origin;
+  const started = { ...kit, ADX_FAKE_ORIGINS: served, SHOP_TOKEN: 'real-secret' };
   const opened = await program(SHOP, ['show', '--id', 'a1'], { home, env: started });
-  assert.deepEqual([answerIn(opened.out, z.unknown()).result, seen.length], [item, 1]);
+  assert.deepEqual(
+    [answerIn(opened.out, z.unknown()).result, seen.map(one => one.auth)],
+    [item, ['Bearer adx-kit-token']],
+  );
+  // the kit serves its fakes on 127.0.0.1 only, so an origin elsewhere is none, whoever names it
+  for (const origin of ['https://attacker.example', 'http://localhost:1']) {
+    const forged = { ...kit, SHOP_URL: `${origin}/x`, ADX_FAKE_ORIGINS: origin };
+    const sent = await program(SHOP, ['show', '--id', 'a1'], { home, env: forged });
+    assert.deepEqual(codesOf(answerIn(sent.out, z.unknown())), ['DECLARATION'], origin);
+  }
 });
