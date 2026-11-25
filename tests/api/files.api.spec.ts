@@ -219,16 +219,18 @@ test('a command without --replace refuses a taken name with "pick another name"'
   assert.equal(answerIn(option.out, z.unknown()).issues?.[0]?.code, 'UNKNOWN_OPTION');
 });
 
-test("replace: 'always' replaces without the option, keeps its mode and shows in schema", async t => {
+test("replace: 'always' replaces without the option, sets its given mode again and shows in schema", async t => {
   const data = await folder(t);
   const argv = ['export', '--file', 'public/names.txt', '--names', 'ada'];
   const first = answerIn((await call(data, ...argv)).out, Result);
   assert.equal(first.result?.replaces, false);
   const file = join(data, 'public', 'names.txt');
   assert.equal(await modeOf(file), 0o644);
+  await chmod(file, 0o600);
   const second = answerIn((await call(data, ...argv, '--names', 'bob')).out, Result);
   assert.deepEqual(second.result?.changes, { added: ['bob'], changed: [], removed: [], more: 0 });
   assert.equal(await readFile(file, 'utf8'), 'ada\nbob');
+  assert.equal(await modeOf(file), 0o644);
   const option = await call(data, ...argv, '--replace');
   assert.equal(answerIn(option.out, z.unknown()).issues?.[0]?.code, 'UNKNOWN_OPTION');
   const schema = answerIn(
@@ -236,6 +238,17 @@ test("replace: 'always' replaces without the option, keeps its mode and shows in
     z.object({ replace: z.string() }),
   );
   assert.equal(schema.result?.replace, 'always');
+});
+
+test('the same bytes with a mode write nothing and set no mode', async t => {
+  const data = await folder(t);
+  const argv = ['export', '--file', 'public/names.txt', '--names', 'ada'];
+  await call(data, ...argv);
+  const file = join(data, 'public', 'names.txt');
+  await chmod(file, 0o755);
+  const again = answerIn((await call(data, ...argv)).out, Result);
+  assert.equal(again.result?.unchanged, true);
+  assert.equal(await modeOf(file), 0o755);
 });
 
 test('--replace is refused when the plan stages no files.write', async t => {
