@@ -461,8 +461,9 @@ for each). Where one changes an earlier decision, both say so.
     - The tool's `pnpm-workspace.yaml` sets `autoInstallPeers: false` and
       `strictPeerDependencies: true`. A tool that names only adx then stops at the install with
       `ERR_PNPM_PEER_DEP_ISSUES`, "missing peer @honeyglass/utils".
-    - adx also checks at its start that `@honeyglass/utils` is there, and answers a refusal of kind
-      `ask` that names the line to add, instead of Node's error for a missing module.
+    - adx makes no check of its own at run time that `@honeyglass/utils` is there: `dist/` imports
+      it statically, so Node would fail before any code of adx runs, and the install already stops
+      first (the person, 2026-11-25).
     - Reason: `blockExoticSubdeps` lets a git dependency stand only directly in a `package.json`. A
       `dependency` of adx on utils fails the install with `ERR_PNPM_EXOTIC_SUBDEP`, even when the
       tool names utils itself. A `peerDependency` is resolved from the tool's own direct one.

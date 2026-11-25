@@ -114,18 +114,28 @@ round is done. The e2e line names the tests the package turns green.
 - [x] `stored()`, format numbers, older formats converted, newer refused
 
 ### P10 finish
-- [ ] the start checks: utils present (75), hint and schema names known (73, 77)
+- [x] the start checks: hint and schema names known (73, 77); utils present (75) dropped, the
+      install stops first (the person, 2026-11-25)
 - [x] `test/conformance`
 - [ ] `dist/` built and checked in, README install line points at a real sha
 - [x] `tests/e2e/oriko.e2e.spec.ts` removed: proto/oriko stays type-only and never runs, since
       it imports functions it only declares (the person, 2026-11-23). The real oriko, migrated
       onto adx after this build, is the acceptance test, with its behavior golden.
 
+### P11 the rest of the guide
+Added after the build's open points (the person, 2026-11-25).
+- [x] the start check that every `example` passes its command's schema, as a `DECLARATION` error
+      (guide: "an example that fails a `.regex()`")
+- [ ] the `adxcheck` command, `report` and `run`, on the conformance engine (guide ~1715-1736,
+      cheatsheet 409), as a `bin` of the package
+- [ ] the code `PANIC`, kind `bug`, as the guide's list of codes names it
+
 ## Order
 
 P0 and P1 run alone, in this order; P1 creates `tool/`, `api.ts` and `types.ts`. Each of P2 to P9
 writes its feature folder and also wires the feature into `tool/`, `api.ts` and `types.ts`, so two
-of them would own the same files. They therefore run one after another, in the order above. P10 runs last.
+of them would own the same files. They therefore run one after another, in the order above. P10 runs last,
+and P11 after it.
 
 ## Checks per package
 
