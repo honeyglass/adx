@@ -1,7 +1,7 @@
 # TODO
 
 Open work on adx, the toolkit for command-line tools that AI agents drive.
-<!-- last item number: 13 -->
+<!-- last item number: 14 -->
 
 ## Next
 
@@ -37,6 +37,9 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
 - [ ] #13 Add an e2e test that installs a tool naming only adx and asserts the install stops with ERR_PNPM_PEER_DEP_ISSUES (decision 75) (added 2026-11-25)
       after:#1
       'tests/e2e/'
+- [ ] #14 Set the two peer settings of decision 75 in adx's pnpm-workspace.yaml (and oriko's, which lacks them too); today honeyglass/actions supply-check refuses them, since its template and its lockfile schema do not know them, so first change supply-check's template and lockfile schema in honeyglass/actions, then lean-code's template, then re-pin the supply-check action in adx's CI (added 2026-11-25)
+      after:#1
+      'pnpm-workspace.yaml', '.github/workflows/ci.yml'
 
 ## Proof of concept
 
