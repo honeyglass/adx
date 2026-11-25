@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
-  "description": "A TypeScript toolkit for command-line tools that AI agents drive, with the Agent DX rules built in. Designed, not built yet.",
+  "description": "A TypeScript toolkit for command-line tools that AI agents drive, with the Agent DX rules built in. In development: installed from GitHub until it is on npm.",
   "type": "module",
   "bin": {
     "adxcheck": "./dist/test/bin.js"
