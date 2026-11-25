@@ -203,9 +203,9 @@ confirmed each recommendation).
     `skill: 'SKILL.md'`. The start answer shows the absolute path, or `null` without a skill.
 37. **Stored kinds register in the tool.** `tool({ stored: [Friend] })`. The test kit writes the
     fingerprint of each stored schema (21) into a file next to `package.json` on its first run; after
-    that it only compares. At startup adx cannot see which kinds a handler reads, so a kind left out
-    of `stored` is refused at the call, as a `DECLARATION` bug, when `File.json` or `parse` meets it
-    (the person, 2026-11-25).
+    that it only compares. At startup adx cannot see which kinds a handler reads or writes, so a kind left out
+    of `stored` is refused at the call, as a `DECLARATION` bug, when `File.json`, `parse` or
+    `stringify` meets it (the person, 2026-11-25).
 38. **`files.update` on a missing file** is refused with `FILE_NOT_FOUND`, kind fix.
 39. **`--replace` when nothing is replaced.** A write to a new name with `--replace` passes. An effect
     whose plan writes no file at all refuses `--replace`.
