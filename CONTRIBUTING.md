@@ -37,9 +37,13 @@ then both guides and the cheat sheet, so they never disagree.
 Make sure these pass:
 
 ```sh
+pnpm run build
 pnpm run typecheck
+pnpm test
 pnpm run format:check
 ```
+
+Commit [dist/](dist/) as the build leaves it: CI fails when it differs from the build of src/.
 
 Write each commit message as a [Conventional Commit](https://www.conventionalcommits.org), such as
 `docs(guide): show a refusal at the terminal`. The description of a pull request is its commit
