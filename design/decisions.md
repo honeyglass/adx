@@ -11,7 +11,8 @@ changes an earlier one, both say so.
    tokens itself: an option followed by another option counts as given without a value, an unknown
    option is collected and reading goes on, all mistakes of a call come back in one answer.
    Routing and help come from adx's own command table.
-3. **`unbash` in the test kit** (a dependency of adx, 84) splits every command a tool names in `next` or in a hint into shell
+3. **`unbash` in the test kit** (a dependency of adx, 84; since 84 also at run time, for every
+   step a tool answers) splits every command a tool names in `next` or in a hint into shell
    words, and the kit checks that adx knows each call. That holds for the command of a `hint` (73)
    too. One whole call in the process of the test: 74.
 4. **The agent skill is not part of the toolkit.** adx never reads, embeds or prints a skill.
@@ -153,6 +154,9 @@ it where needed.
     - A token goes only over `https`, or over `http` to a loopback host (`localhost`, `127.0.0.1`,
       `::1`). A remote with a token at any other `http` address is refused before any request is
       sent (the person, 2026-11-25).
+    - adx's requests never go through a proxy named in the environment (`HTTP_PROXY`,
+      `NODE_USE_ENV_PROXY` and the like), so the token reaches only the host the address names
+      (the person, 2026-11-25, after the audit).
 
 The next twelve answer the questions of `review-final.md` (2026-11-21).
 
@@ -685,6 +689,9 @@ The next three settle points the build of adx left open (the person, 2026-11-24)
       brief was wrong; 6 stands.
 84. **`unbash` is a dependency of adx** (confirms 3):
     - The test kit splits every named command with `unbash`. It replaces adx's own splitter.
+    - adx checks every step's command with the same reader when the answer is written: one plain
+      call of this tool, read by an allow-list of word parts, never a list of bad signs (the
+      person, 2026-11-25, after the audit).
     - Reason: as for 83, the brief of the first build was wrong; 3 stands.
 
 The next four settle package P11 (the person, 2026-11-25).
@@ -728,6 +735,36 @@ The next four settle package P11 (the person, 2026-11-25).
     - While stdout holds no answer yet, adx writes the normal error answer. When an answer stands
       there already, the bug goes to stderr only, so stdout stays one JSON.
     - Tested with a handler that leaves a `Promise.reject()` unawaited.
+
+The next two close gaps the final audit found (the person, 2026-11-25).
+
+89. **The host of an address from a variable is on a list** (with 22):
+    - `envUrl(variable, fallback)` takes an address from the variable only when its host is the
+      host of the fallback, or one of the hosts the tool lists in a third argument:
+      `envUrl('TRACKER_URL', 'https://tracker.example.com/api', ['staging.tracker.example.com'])`.
+    - Under the test kit the origins of its own fakes count as listed too.
+    - Any other host is refused with `URL_NOT_ALLOWED` before any request is sent, token or not.
+    - Reason: an agent can set the variable per call, and the token goes with every request.
+    - A program cannot tell whether the kit started it, since the caller sets every variable. So
+      under `ADX_FAKES_ONLY` no token read from the environment ever leaves the program: adx sends
+      a fixed placeholder in its place, and a real secret never reaches a fake or anything posing
+      as one.
+90. **Every name a tool gives has a form, checked at startup**:
+    - The tool's name, each root, each code, each stored kind and each variable it declares is
+      checked against an allow-list of its form, as keys are (63) and skill names are (82). Any
+      other name is a `DECLARATION` error at startup.
+    - A root may not be named like one of adx's options (such as `json`), which it would hide.
+    - Reason: these names end up in paths, command lines and answers; a name like `../../up` or
+      `my tool;id` must never get there.
+91. **Two checks of the kit run in every tool too** (the person, 2026-11-25, after the audit):
+    - stdout always holds one JSON answer: while a call runs, `console.log` and every other write
+      to stdout that is not adx's answer go to stderr.
+    - A `read` without `output` that answers a long list or a large document, by the limits of the
+      kit's probe "large answers", is a `DECLARATION` bug at that call. A startup check cannot see
+      the size of an answer, and the guide's first reads stay valid.
+    - The `--replace` probe stays in the kit.
+    - Windows is out of scope for now: adx refuses no backslash in a path of its own; Windows comes
+      with TODO #12.
 
 ## Clarifications
 
