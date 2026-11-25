@@ -59,6 +59,7 @@ adx braucht Node 24.2 oder neuer.
 ### Das Tool
 
 - `tool({ name, version, does, commands })`: legt das Tool an.
+- Jeder Name, den das Tool vergibt, hat eine Form, sonst beim Start ein `DECLARATION`-Fehler: Der Name des Tools hat die Form eines Skill-Namens, ein Root und eine Datenart sind Buchstaben, Ziffern und `-`, ein Code ist Großbuchstaben, Ziffern und `_`, und eine Variable Buchstaben, Ziffern und `_`, keine Ziffer zuerst. Kein Root heißt wie eine Option von adx, etwa `json` oder `version`.
 - `commands`: die Tabelle der Befehle. Ein Schlüssel ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `friends: { add }` ist `hello friends add`. Kein Befehl und keine Gruppe oben in der Befehlstabelle darf `schema` heißen, sonst ein `DECLARATION`-Fehler beim Start.
 - `skill`: optional, der Name des Agent-Skills, der in `~/.claude/skills/<name>/SKILL.md` liegt: Kleinbuchstaben, Ziffern und Bindestriche, höchstens 64 Zeichen, sonst beim Start ein `DECLARATION`-Fehler. Das Tool öffnet die Datei nie. Nur das Testkit liest ihr Frontmatter.
 - `roots`, `remotes`: die Ordner und Server, die das Tool nutzen darf.
@@ -111,7 +112,7 @@ Jede gibt den Befehl zurück, einen Wert. Schreib ihn in die Tabelle, oder halte
 
 ### Eigenschaften einer Art
 
-- `read`: `output` (das Schema der Antwort). Damit nimmt der Befehl `--fields`, und `schema` zeigt die Antwort. Ein `read`, das mit einer langen Liste oder einem großen Dokument antwortet, braucht es.
+- `read`: `output` (das Schema der Antwort). Damit nimmt der Befehl `--fields`, und `schema` zeigt die Antwort. Ein `read`, das mit einer langen Liste (mehr als 50 Einträge) oder einem großen Dokument (mehr als 8 KiB) antwortet, braucht es, sonst bei diesem Aufruf ein `DECLARATION`-Bug.
 - `list`: `item` (Schema eines Eintrags), `key` (das Feld, das einen Eintrag benennt), `outline` (weitere Felder der Kurzform), `pageSize`.
 - `effect`: `plan` (prüft und plant), `apply` (sendet), `look` (der Aufruf, der zeigt, ob ein Senden gewirkt hat), `replace: false` (der Befehl nimmt kein `--replace`), `replace: 'always'` (der Befehl nimmt keines, und jedes seiner `files.write` ersetzt ohne es).
 
@@ -265,6 +266,7 @@ Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 - `needs` leitet adx ab: Pflichtfelder, die der Schritt offen lässt.
 - `.needs('style')`: nur für ein optionales Feld, das der Schritt noch braucht.
 - `tell('upload the file')`: ein Schritt für die Person, ohne Befehl.
+- `{ does, command }`: ein Schritt von Hand; sein Befehl muss ein schlichter Aufruf des Tools sein, sonst ein `DECLARATION`-Fehler.
 - `schema.step('person')`: ein Schritt zu adx' eigenem Befehl `schema`, für ein Shape oder einen Befehl. adx prüft den Namen beim Start.
 - Folgt nichts, gibt `next` keinen Schritt zurück.
 - `after(command, fn)` in `next` des Tools: Schritte nach einem Befehl, die zu einem Befehl eines anderen Ordners führen. `fn` bekommt, was `next` bekommt. Eine Liste von Befehlen statt eines Befehls gibt jedem dieselben Schritte, und `fn` muss zu jedem von ihnen passen.
@@ -347,6 +349,7 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
 ### Server
 
 - `remote('tracker', { url: envUrl(...), auth: bearer('TRACKER_TOKEN') })`.
+- `envUrl('TRACKER_URL', fallback, ['staging.tracker.example.com'])`: die Variable darf nur den Host des Fallbacks oder einen aufgezählten nennen, sonst `URL_NOT_ALLOWED`. Kein Proxy der Umgebung wird benutzt. Unter dem Testkit bekommt ein Fake das Token `adx-kit-token`, nie das der Variable.
 - `api.get(path, schema, { query, on })`: liest. Jede Antwort läuft durch ihr Schema.
 - `on: { 404: undefined }`: Bei diesem Status antwortet `get` mit dem Wert, hier `undefined`. Jeder andere Status geht auch, etwa ein 409.
 - `api.post(path, body)`: baut eine Anfrage (auch `put`, `patch`, `delete`). Erst `act.send` sendet sie.

@@ -59,6 +59,7 @@ adx needs Node 24.2 or later.
 ### The tool
 
 - `tool({ name, version, does, commands })`: declares the tool.
+- Every name the tool gives has a form, else a `DECLARATION` error at startup: the tool's name has the form of a skill name, a root and a stored kind are letters, digits and `-`, a code is capital letters, digits and `_`, and a variable letters, digits and `_`, no digit first. No root is named like an option of adx, such as `json` or `version`.
 - `commands`: the table of commands. A key is a word of the call, and a table inside the table is a group: `friends: { add }` is `hello friends add`. No command and no group at the top of the command table may be named `schema`, else a `DECLARATION` error at startup.
 - `skill`: optional, the name of the agent skill, which lies in `~/.claude/skills/<name>/SKILL.md`: lowercase letters, digits and hyphens, at most 64 characters, else a `DECLARATION` error at startup. The tool never opens the file. Only the test kit reads its frontmatter.
 - `roots`, `remotes`: the folders and servers the tool may use.
@@ -111,7 +112,7 @@ Each returns the command, a value. Write it into the table, or keep it in a `con
 
 ### Properties of one kind
 
-- `read`: `output` (the schema of the answer). With it the command takes `--fields`, and `schema` shows the answer. A `read` that answers a long list or a large document needs it.
+- `read`: `output` (the schema of the answer). With it the command takes `--fields`, and `schema` shows the answer. A `read` that answers a long list (more than 50 entries) or a large document (more than 8 KiB) needs it, else a `DECLARATION` bug at that call.
 - `list`: `item` (the schema of an item), `key` (the field that names an item), `outline` (the further fields of the outline), `pageSize`.
 - `effect`: `plan` (checks and plans), `apply` (sends), `look` (the call that shows whether a send took effect), `replace: false` (the command takes no `--replace`), `replace: 'always'` (the command takes none, and each of its `files.write` replaces without it).
 
@@ -265,6 +266,7 @@ Layers: the arguments, the schema, each value against its list, `check`, the han
 - adx derives `needs`: the required fields the step leaves open.
 - `.needs('style')`: only for an optional field the step still needs.
 - `tell('upload the file')`: a step for the person, without a command.
+- `{ does, command }`: a step by hand; its command must be one plain call of the tool, else a `DECLARATION` error.
 - `schema.step('person')`: a step to adx's own command `schema`, for a shape or a command. adx checks the name at startup.
 - When nothing follows, `next` returns no step.
 - `after(command, fn)` in the `next` of the tool: steps after a command that lead to a command of another folder. `fn` gets what `next` gets. A list of commands in place of one gives each the same steps, and `fn` must fit every one of them.
@@ -347,6 +349,7 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
 ### Servers
 
 - `remote('tracker', { url: envUrl(...), auth: bearer('TRACKER_TOKEN') })`.
+- `envUrl('TRACKER_URL', fallback, ['staging.tracker.example.com'])`: the variable may name only the host of the fallback or a listed one, else `URL_NOT_ALLOWED`. No proxy of the environment is used. Under the test kit a fake receives the token `adx-kit-token`, never the one of the variable.
 - `api.get(path, schema, { query, on })`: reads. Every answer passes its schema.
 - `on: { 404: undefined }`: on this status `get` answers the value, here `undefined`. Any other status works too, such as a 409.
 - `api.post(path, body)`: builds a request (also `put`, `patch`, `delete`). Only `act.send` sends it.

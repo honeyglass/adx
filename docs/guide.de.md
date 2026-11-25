@@ -528,7 +528,7 @@ $ hello friends add --name bob --lang de | jq -c '.next[0]'
 
 - adx leitet `needs` ab: die Pflichtfelder von `greet`, die der Schritt offen lässt.
 - `.needs('style')` schreibst du nur für ein optionales Feld, das der Schritt noch braucht. Es nimmt Felder des Zielbefehls: `.needs('nmae')` kompiliert nicht.
-- adx setzt jeden Wert für die Shell in Anführungszeichen.
+- adx setzt jeden Wert für die Shell in Anführungszeichen. Ein Schritt, den du von Hand schreibst, `{ does, command }`, muss ein schlichter Aufruf des Tools sein, wie das Testkit einen liest: keine Pipe, kein `;`, keine Expansion und kein `~`, sonst ein `DECLARATION`-Fehler, wenn die Antwort ihn schreibt.
 - `next` läuft nur nach einem echten Lauf. Ein Probelauf antwortet mit dem Schritt, der denselben Aufruf echt ausführt.
 
 Lass die Schritte den Tatsachen der Antwort folgen, und gib keinen zurück, wenn nichts folgt. Ein Schritt für die Person, etwa ein Upload von Hand, ist `tell('upload the file in the web console')`: Er hat ein `does` und kein `command`.
@@ -581,7 +581,7 @@ $ hello schema | jq -c '.result.kinds.ask, .result.codes[0]'
 
 Was kein Schritt ist, gehört in einen Agent-Skill: wann man das Tool nutzt, der Ablauf einer typischen Aufgabe, wann man anhält und die Person fragt. Ein Skill ist ein Markdown-Handbuch für Agenten. Er ist die eine Agent-DX-Regel, die adx nicht einbaut: Der Skill gehört dir, und das Tool öffnet ihn nie, bettet ihn nie ein und gibt ihn nie aus.
 
-Ein Tool kann seinen Skill mit `skill` nennen, mit dem Namen des Skills: Kleinbuchstaben, Ziffern und Bindestriche, ab einem Buchstaben oder einer Ziffer, höchstens 64 Zeichen, wie Claude Code Skills benennt. Jede andere Form ist beim Start ein `DECLARATION`-Fehler. Der Skill liegt, wo Claude Code ihn sucht, in `~/.claude/skills/<name>/SKILL.md`, und die eigene Installation des Tools legt ihn dorthin. Das ist das Tool dieses Kapitels im Ganzen. `count` ist ein weiterer Befehl der Gruppe `friends`: Er zählt die Freunde.
+Ein Tool kann seinen Skill mit `skill` nennen, mit dem Namen des Skills: Kleinbuchstaben, Ziffern und Bindestriche, ab einem Buchstaben oder einer Ziffer, höchstens 64 Zeichen, wie Claude Code Skills benennt. Jede andere Form ist beim Start ein `DECLARATION`-Fehler. Ebenso jeder andere Name des Tools ohne seine Form, denn die Namen landen in Pfaden und Befehlszeilen: Der Name des Tools hat die Form eines Skill-Namens, ein Root und eine Datenart sind Buchstaben, Ziffern und `-`, ein Code ist Großbuchstaben, Ziffern und `_`, und eine Variable Buchstaben, Ziffern und `_`, keine Ziffer zuerst. Kein Root heißt wie eine Option von adx, etwa `json`, die er verdecken würde. Der Skill liegt, wo Claude Code ihn sucht, in `~/.claude/skills/<name>/SKILL.md`, und die eigene Installation des Tools legt ihn dorthin. Das ist das Tool dieses Kapitels im Ganzen. `count` ist ein weiterer Befehl der Gruppe `friends`: Er zählt die Freunde.
 
 ```ts
 export const hello = tool({
@@ -751,7 +751,7 @@ Ein Pfad bleibt in seinem Root und folgt keinem Link hinaus.
 
 ### Keine Geheimnisse
 
-adx speichert keine Geheimnisse. Ein Tool liest ein Token aus einer Umgebungsvariable, die es deklariert, etwa `bearer('TRACKER_TOKEN')`. `schema` nennt die Variable, nie ihren Wert. Eine fehlende Variable ist eine Ablehnung der Art `ask`: Nur die Person kann ein Token liefern. Ein Token geht nur über `https`, oder über `http` an die Maschine selbst (`localhost`, `127.0.0.1`, `[::1]`). Jede andere `http`-Adresse einer Remote mit Token wird mit `URL_NOT_ALLOWED` abgelehnt, bevor eine Anfrage hinausgeht; eine, die im Tool fest steht, ist beim Start ein `DECLARATION`-Fehler. adx hat keinen Schlüsselbund und keinen `login`-Befehl.
+adx speichert keine Geheimnisse. Ein Tool liest ein Token aus einer Umgebungsvariable, die es deklariert, etwa `bearer('TRACKER_TOKEN')`. `schema` nennt die Variable, nie ihren Wert. Eine fehlende Variable ist eine Ablehnung der Art `ask`: Nur die Person kann ein Token liefern. Ein Token geht nur über `https`, oder über `http` an die Maschine selbst (`localhost`, `127.0.0.1`, `[::1]`). Jede andere `http`-Adresse einer Remote mit Token wird mit `URL_NOT_ALLOWED` abgelehnt, bevor eine Anfrage hinausgeht; eine, die im Tool fest steht, ist beim Start ein `DECLARATION`-Fehler. Die Adresse, die eine Variable nennt, etwa `TRACKER_URL`, muss auf dem Host des Fallbacks liegen oder auf einem Host, den das Tool als drittes Argument von `envUrl` aufzählt, etwa `envUrl('TRACKER_URL', 'https://tracker.example.com/api', ['staging.tracker.example.com'])`, mit seinem Port, wenn es nicht der übliche ist. Jeder andere Host wird mit `URL_NOT_ALLOWED` abgelehnt, bevor eine Anfrage hinausgeht, mit Token oder ohne, denn ein Agent kann die Variable bei jedem Aufruf setzen. Unter dem Testkit (`ADX_FAKES_ONLY`) geht eine Anfrage nur an einen Fake auf `127.0.0.1` und trägt das Token `adx-kit-token`, nie das der Variable: Ein Programm kann das Testkit nicht von einem Aufrufer unterscheiden, der dieselben Variablen setzt, also erreicht ein Geheimnis nie einen Fake oder etwas, das sich als einer ausgibt. Die Anfragen von adx gehen nie über einen Proxy, den die Umgebung nennt, etwa `HTTP_PROXY` mit `NODE_USE_ENV_PROXY`, also erreicht das Token nur den Host der Adresse. adx hat keinen Schlüsselbund und keinen `login`-Befehl.
 
 ### Was noch nicht abgedeckt ist
 
@@ -892,7 +892,7 @@ export const show = read({
 
 - Ein Pfad ist ein Array aus Teilen, und adx kodiert jeden. Ein Wert kann der Adresse nie ein `/` oder ein `?` hinzufügen.
 - `on` ordnet einem Status den Wert zu, mit dem `get` dafür antwortet. Mit `{ 404: undefined }` ist die Antwort ein Ticket oder `undefined`. Jeder andere Status kann dort auch stehen, etwa ein 409. Ohne `on` ist ein 404 ein Fehler wie jeder andere.
-- `output` ist das Schema der Antwort. Ein Ticket kann lang sein, darum deklariert der Befehl es: Der Aufrufer kann die Antwort dann mit `--fields` kürzen, und `schema` zeigt die Form. `run` muss antworten, was `output` deklariert.
+- `output` ist das Schema der Antwort. Ein Ticket kann lang sein, darum deklariert der Befehl es: Der Aufrufer kann die Antwort dann mit `--fields` kürzen, und `schema` zeigt die Form. `run` muss antworten, was `output` deklariert. Ein `read` ohne `output` antwortet kurz: eine Liste mit mehr als 50 Einträgen, oder mehr als 8 KiB, ist bei diesem Aufruf ein `DECLARATION`-Bug.
 
 **Der Befehl, der ein Ticket erstellt**, in `tickets/create.ts`. Er sendet, also hat er `apply` neben `plan`:
 
@@ -1662,7 +1662,7 @@ $ node --test
   labels [ { name: 'bug', description: '' }, ... ]
 ```
 
-**`conformance` mit einer Kommandozeile** führt dieselben Prüfungen gegen das echte Programm aus, gestartet als Prozess in einem frischen Testordner für Home, Temp und Arbeitsverzeichnis. Es liest `tracker schema` und leitet jeden Aufruf daraus ab. So fängt es auch, was nur der Prozess tut, etwa ein Schreiben direkt auf `process.stdout`. Es stellt die Fakes auf einem lokalen Port bereit und richtet `TRACKER_URL` darauf. Ein Build-Schritt ist vorher nicht nötig: Node führt `bin/tracker.ts` aus, wie es ist.
+**`conformance` mit einer Kommandozeile** führt dieselben Prüfungen gegen das echte Programm aus, gestartet als Prozess in einem frischen Testordner für Home, Temp und Arbeitsverzeichnis. Es liest `tracker schema` und leitet jeden Aufruf daraus ab. So fängt es auch, was nur der Prozess tut, etwa ein Schreiben auf den Dateideskriptor von stdout, das adx nicht sieht. Es stellt die Fakes auf einem lokalen Port bereit und richtet `TRACKER_URL` darauf. Ein Build-Schritt ist vorher nicht nötig: Node führt `bin/tracker.ts` aus, wie es ist.
 
 **Genannte Befehle.** Das Testkit zerlegt jeden Befehl, den das Tool nennt, in einem `next`-Schritt oder in einem Problem, mit `unbash` in Shell-Wörter. Dann prüft es, dass adx jeden Aufruf kennt: den Befehl, jede Option und jeden Wert. Ein Schritt ohne `needs` muss so laufen, wie er dasteht.
 
@@ -1713,7 +1713,7 @@ Vier weitere Prüfungen laufen, wenn das Tool ihren Gegenstand hat:
 - **Der Skill.** Nennt das Tool einen `skill`, muss die `SKILL.md` existieren, die `samples.skillFile` nennt, und mit einem Frontmatter beginnen, das `name` und `description` hat.
 - **Gespeicherte Daten.** Jedes Schema einer `stored`-Datenart muss zum Fingerabdruck passen, der für seine Formatnummer eingecheckt ist.
 - **`--replace`.** Ein Effekt, der `--replace` listet und in keiner Prüfung ein `files.write` vormerkt, schlägt fehl, mit der Lösung: `replace: false` ergänzen.
-- **Große Antworten.** Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.
+- **Große Antworten.** Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl. adx lehnt eine solche Antwort selbst als `DECLARATION`-Bug ab, nach denselben Grenzen.
 
 Dieselbe Prüfung läuft als Befehl, für CI oder für ein Tool, das jemand anderes auf adx gebaut hat:
 
@@ -1905,7 +1905,7 @@ throw sent.error;
 Die Typen jedes Befehls kommen aus seinem Zod-Schema. `run`, `plan` und `check` bekommen `z.output` des Schemas: Standardwerte eingesetzt, Pfade in `Dir` oder `File` umgewandelt. `example`, `step()` und `invoke()` nehmen `z.input`: was ein Aufrufer schreibt. Ein Feld mit Standardwert darf also fehlen, und ein Pfad ist ein String. Jede Stelle, die ein Feld nennt, nimmt `keyof` dieses Typs. Ein Tippfehler ist also ein Compilerfehler. Werte kann der Compiler nicht sehen: ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, oder eine Route in einem Fake-Server. Die ersten beiden prüft adx beim Start. Die dritte findet das Testkit.
 
 **Darf ich auf stdout schreiben?**
-Nein. Gib einen Wert zurück und lass adx ihn schreiben. Ergänze `text` für die Form am Terminal. Fortschritt und Logs gehen auf stderr, zum Beispiel mit `console.error`. Das Testkit lässt ein vergessenes `console.log` fehlschlagen, weil eine zusätzliche Zeile jedes Programm bricht, das die Antwort liest.
+Nein. Gib einen Wert zurück und lass adx ihn schreiben. Ergänze `text` für die Form am Terminal. Fortschritt und Logs gehen auf stderr, zum Beispiel mit `console.error`. Während ein Aufruf läuft, schickt adx jedes andere Schreiben auf stdout nach stderr, auch ein vergessenes `console.log`, also hält stdout eine Antwort. `conformance` mit dem Tool selbst lässt es trotzdem fehlschlagen, weil es im Prozess eines Tests in der Antwort landet.
 
 **Was, wenn mein Effekt weder eine Datei noch eine HTTP-Anfrage ist?**
 Führe ihn in `apply` aus, damit ein Probelauf ihn überspringt, und gib dem Befehl einen `look`-Schritt. Scheitert er, wirf `failed(state, error)` mit einem Satz, der sagt, was der Aufruf hinterlassen hat, etwa `failed('The migration ran up to step 3.', error)`. adx ordnet den Fehler einer Art zu, wie bei jedem Fehler, den du nicht zugeordnet hast. Für Dateien und Anfragen schreibt adx diesen Satz für dich.

@@ -528,7 +528,7 @@ $ hello friends add --name bob --lang de | jq -c '.next[0]'
 
 - adx derives `needs`: the required fields of `greet` that the step leaves open.
 - You write `.needs('style')` only for an optional field the step still needs. It takes fields of the target command: `.needs('nmae')` does not compile.
-- adx quotes every value for the shell.
+- adx quotes every value for the shell. A step you write by hand, `{ does, command }`, must be one plain call of the tool, as the test kit reads one: no pipe, `;`, expansion or `~`, else a `DECLARATION` error when the answer writes it.
 - `next` runs only after a real run. A dry run answers the step that runs the same call for real.
 
 Let the steps follow the facts of the answer, and return none when nothing follows. A step for the person, such as an upload by hand, is `tell('upload the file in the web console')`: it has a `does` and no `command`.
@@ -581,7 +581,7 @@ $ hello schema | jq -c '.result.kinds.ask, .result.codes[0]'
 
 What is no step belongs in an agent skill: when to use the tool, the flow of a typical task, when to stop and ask the person. A skill is a Markdown manual for agents. It is the one Agent DX rule adx does not build in: the skill is yours, and the tool never opens, embeds or prints it.
 
-A tool can name its skill with `skill`, the name of the skill: lowercase letters, digits and hyphens, from a letter or digit on, at most 64 characters, as Claude Code names skills. Any other form is a `DECLARATION` error at startup. The skill lies where Claude Code looks for it, `~/.claude/skills/<name>/SKILL.md`, and the tool's own install puts it there. This is the tool of this chapter in full. `count` is one more command of the group `friends`: it counts the friends.
+A tool can name its skill with `skill`, the name of the skill: lowercase letters, digits and hyphens, from a letter or digit on, at most 64 characters, as Claude Code names skills. Any other form is a `DECLARATION` error at startup. So is every other name of the tool without its form, since the names end up in paths and command lines: the tool's name has the form of a skill name, a root and a stored kind are letters, digits and `-`, a code is capital letters, digits and `_`, and a variable letters, digits and `_`, no digit first. No root is named like an option of adx, such as `json`, which it would hide. The skill lies where Claude Code looks for it, `~/.claude/skills/<name>/SKILL.md`, and the tool's own install puts it there. This is the tool of this chapter in full. `count` is one more command of the group `friends`: it counts the friends.
 
 ```ts
 export const hello = tool({
@@ -751,7 +751,7 @@ A path stays inside its root and follows no link out of it.
 
 ### No secrets
 
-adx stores no secrets. A tool reads a token from an environment variable it declares, such as `bearer('TRACKER_TOKEN')`. `schema` names the variable, never its value. A missing variable is a refusal of kind `ask`: only the person can supply a token. A token goes only over `https`, or over `http` to the machine itself (`localhost`, `127.0.0.1`, `[::1]`). Any other `http` address of a remote with a token is refused with `URL_NOT_ALLOWED` before a request leaves; one fixed in the tool is a `DECLARATION` error at startup. adx has no keychain and no `login` command.
+adx stores no secrets. A tool reads a token from an environment variable it declares, such as `bearer('TRACKER_TOKEN')`. `schema` names the variable, never its value. A missing variable is a refusal of kind `ask`: only the person can supply a token. A token goes only over `https`, or over `http` to the machine itself (`localhost`, `127.0.0.1`, `[::1]`). Any other `http` address of a remote with a token is refused with `URL_NOT_ALLOWED` before a request leaves; one fixed in the tool is a `DECLARATION` error at startup. The address a variable names, such as `TRACKER_URL`, must lie on the host of the fallback or on a host the tool lists as the third argument of `envUrl`, such as `envUrl('TRACKER_URL', 'https://tracker.example.com/api', ['staging.tracker.example.com'])`, with its port when it is not the default one. Any other host is refused with `URL_NOT_ALLOWED` before a request leaves, with a token or without, since an agent can set the variable per call. Under the test kit (`ADX_FAKES_ONLY`) a request goes only to a fake on `127.0.0.1`, and carries the token `adx-kit-token`, never the one of the variable: a program cannot tell the kit from a caller who sets the same variables, so a secret never reaches a fake or anything posing as one. adx's requests never go through a proxy the environment names, such as `HTTP_PROXY` with `NODE_USE_ENV_PROXY`, so the token reaches only the host of the address. adx has no keychain and no `login` command.
 
 ### What is not covered yet
 
@@ -892,7 +892,7 @@ export const show = read({
 
 - A path is an array of segments, and adx encodes each one. A value can never add a `/` or a `?` to the address.
 - `on` maps a status to the value `get` answers for it. With `{ 404: undefined }` the answer is a ticket or `undefined`. Any other status can stand there too, such as a 409. Without `on`, a 404 is a failure like any other.
-- `output` is the schema of the answer. A ticket can be long, so the command declares it: the caller can then cut the answer with `--fields`, and `schema` shows the shape. `run` must answer what `output` declares.
+- `output` is the schema of the answer. A ticket can be long, so the command declares it: the caller can then cut the answer with `--fields`, and `schema` shows the shape. `run` must answer what `output` declares. A `read` without `output` answers short: a list of more than 50 entries, or more than 8 KiB, is a `DECLARATION` bug at that call.
 
 **The command that files a ticket**, in `tickets/create.ts`. It sends, so it has `apply` beside `plan`:
 
@@ -1662,7 +1662,7 @@ $ node --test
   labels [ { name: 'bug', description: '' }, ... ]
 ```
 
-**`conformance` with a command line** runs the same probes against the real program, started as a process in a fresh scratch folder for home, temp and working directory. It reads `tracker schema` and derives every call from it. So it also catches what only the process does, such as a write straight to `process.stdout`. It serves the fakes on a local port and points `TRACKER_URL` there. No build step comes first: Node runs `bin/tracker.ts` as it is.
+**`conformance` with a command line** runs the same probes against the real program, started as a process in a fresh scratch folder for home, temp and working directory. It reads `tracker schema` and derives every call from it. So it also catches what only the process does, such as a write to the file descriptor of stdout, which adx does not see. It serves the fakes on a local port and points `TRACKER_URL` there. No build step comes first: Node runs `bin/tracker.ts` as it is.
 
 **Named commands.** The kit splits every command the tool names, in a `next` step or in an issue, into shell words with `unbash`. It then checks that adx knows each call: the command, every option and every value. A step without `needs` must run as it stands.
 
@@ -1713,7 +1713,7 @@ Four more checks run when the tool has their subject:
 - **The skill.** If the tool names a `skill`, the `SKILL.md` that `samples.skillFile` names must exist and start with a frontmatter that has `name` and `description`.
 - **Stored data.** Each schema of a `stored` kind must match the fingerprint checked in for its format number.
 - **`--replace`.** An effect that lists `--replace` and stages no `files.write` in any probe fails, with the fix: add `replace: false`.
-- **Large answers.** A `read` that answers a long list or a large document without `output` fails.
+- **Large answers.** A `read` that answers a long list or a large document without `output` fails. adx refuses such an answer itself as a `DECLARATION` bug, by the same limits.
 
 The same engine runs as a command, for CI or for a tool built by someone else on adx:
 
@@ -1905,7 +1905,7 @@ throw sent.error;
 Each command's types come from its Zod schema. `run`, `plan` and `check` get `z.output` of the schema: defaults filled in, paths turned into `Dir` or `File`. `example`, `step()` and `invoke()` take `z.input`: what a caller writes, so a field with a default may be left out and a path is a string. Every place that names a field takes `keyof` of that type, so a typo is a compile error. The compiler cannot see values: an `id()` field without a source, an example that fails a `.regex()`, or a route in a fake server. adx checks the first two at startup. The test kit finds the third.
 
 **Can I print to stdout?**
-No. Return a value and let adx write it. Add `text` for the terminal form. Progress and logs go to stderr, for example with `console.error`. The test kit fails a forgotten `console.log`, because one extra line breaks every program that parses the answer.
+No. Return a value and let adx write it. Add `text` for the terminal form. Progress and logs go to stderr, for example with `console.error`. While a call runs, adx sends every other write to stdout to stderr, a forgotten `console.log` too, so stdout holds one answer. `conformance` with the tool itself still fails it, since in the process of a test it lands in the answer.
 
 **What if my effect is not a file or an HTTP request?**
 Do it in `apply`, so a dry run skips it, and give the command a `look` step. If it fails, throw `failed(state, error)` with a sentence that says what the call left, such as `failed('The migration ran up to step 3.', error)`. adx sorts the error into a kind as it does for every error you did not map. For files and requests adx writes that sentence for you.
