@@ -279,8 +279,12 @@ changes how an earlier decision is written, both say so.
     - A command and a group cannot share a word, since both are one key. The guide's `notes add` and
       `notes add indexed` become `add` and `add-indexed`.
     - Three facts adx checks at startup, each a `DECLARATION` error: a key is one word of letters,
-      digits and `-`; a command stands in one tool, at one place; and a command that a step, `keyOf`
-      or `detailOf` names stands in the table.
+      digits and `-`; a command stands in one tool, at one place; and a command that the step of a
+      `hint`, `keyOf` or `detailOf` names stands in the table.
+    - A step from `start`, `next`, `after` or `.command(step)` at an issue is made by a function
+      while a call runs, so adx cannot see it at startup. adx checks it when the call writes the
+      step: a command the table does not list is a `DECLARATION` bug of that call (narrowed after
+      the final audit; running every such function at startup would need its input).
     - Type-checked in `proto/hello.ts` (the commands written inside the table) and in every other
       file of `proto/` (the commands as constants above it).
 64. **`global({...})` declares the global input, and hands out the three kinds typed with it**
@@ -292,6 +296,11 @@ changes how an earlier decision is written, both say so.
       input without importing the tool.
     - A tool without global input takes `read`, `list` and `effect` from adx itself.
     - `global: false` and `global: { project: 'optional' }` at a command stay as 11 says.
+    - `keyOf` and `detailOf` do not compile in `global({ values })` (added after the final audit).
+      The list must exist before `global()`, so it is made without the global input, and such a
+      command does not compile in the table of a tool that has one; a list the tool does not list
+      is a `DECLARATION` error at startup (63). So the type refuses what could never run. A global
+      field keeps every other source, such as a function.
     - Type-checked in `proto/global.ts`: a command made without the global input does not compile in
       the table of a tool that has one, and a command made for a global input does not compile in a
       tool without it.
@@ -521,9 +530,10 @@ decision, both say so.
       name means the shape, as in 72.
     - The step is a `Step`. So it stands wherever a step stands, such as in `next`, in `after`, in
       `start` and in `.command(step)` at an issue.
-    - adx checks at startup that `schema` knows the name. A name it does not know is a
-      `DECLARATION` error, as a step to a command the tool does not list is (63). So a typo is an
-      error at startup, not a text in an answer that no call fits.
+    - adx checks that `schema` knows the name. A name it does not know is a `DECLARATION` error,
+      as a step to a command the tool does not list is (63). In a `hint` adx checks it at startup;
+      in `start`, `next`, `after` or at an issue, when the call writes the step (narrowed after the
+      final audit, see 63). So a typo is an error, not a text in an answer that no call fits.
     - Reason: a step came from a command value only, and `schema` is adx's own command, so no tool
       has a value for it. A tool could not name the call that shows what the agent writes next.
     - Use case, oriko: after a posting was read, the agent writes a profile. So `read` answers
