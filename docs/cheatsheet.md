@@ -329,7 +329,7 @@ const edit = effect({
 
 - `stored('friend', 2, FriendV2)`: a kind of data with its format number.
 - `.from(1, FriendV1, old => ...)`: an older format and the step to the next one. Name several from the newest down.
-- `stored: [Friend]` in the tool: required for every kind of data. A kind left out is refused only where `file.json` or `Friend.parse` meets it during a call, as a `DECLARATION` bug; `stringify` does not check it.
+- `stored: [Friend]` in the tool: required for every kind of data. A kind left out is refused where `file.json`, `Friend.parse` or `Friend.stringify` meets it during a call, as a `DECLARATION` bug. In `plan` nothing is written yet; in `apply` the plan's files are already written, and the state names them.
 - `Friend.stringify(value)` writes `"version": 2` into the text. `Friend.parse(text)` and `file.json(limit, Friend)` read it. A file without the field is format 1.
 - A read converts an older file in memory only. The next real write stores the new format.
 - A newer format: `NEWER_VERSION`. A schema not met: `STORED_INVALID`. Both have kind `ask`.

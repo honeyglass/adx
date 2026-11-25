@@ -329,7 +329,7 @@ const edit = effect({
 
 - `stored('friend', 2, FriendV2)`: eine Datenart mit ihrer Formatnummer.
 - `.from(1, FriendV1, old => ...)`: ein älteres Format und der Schritt zum nächsten. Mehrere nennst du vom neuesten abwärts.
-- `stored: [Friend]` im Tool: Pflicht für jede Datenart. Eine fehlende wird nur dort abgelehnt, wo `file.json` oder `Friend.parse` während eines Aufrufs auf sie trifft, als `DECLARATION`-Fehler; `stringify` prüft sie nicht.
+- `stored: [Friend]` im Tool: Pflicht für jede Datenart. Eine fehlende wird abgelehnt, wo `file.json`, `Friend.parse` oder `Friend.stringify` während eines Aufrufs auf sie trifft, als `DECLARATION`-Fehler. In `plan` ist noch nichts geschrieben; in `apply` sind die Dateien des Plans schon geschrieben, und der Zustand nennt sie.
 - `Friend.stringify(value)` schreibt `"version": 2` in den Text. `Friend.parse(text)` und `file.json(limit, Friend)` lesen ihn. Eine Datei ohne das Feld ist Format 1.
 - Ein Lesen wandelt eine ältere Datei nur im Speicher um. Der nächste echte Schreibvorgang legt das neue Format ab.
 - Neueres Format: `NEWER_VERSION`. Schema nicht erfüllt: `STORED_INVALID`. Beide haben die Art `ask`.
