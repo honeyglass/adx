@@ -1,7 +1,7 @@
 # TODO
 
 Open work on adx, the toolkit for command-line tools that AI agents drive.
-<!-- last item number: 8 -->
+<!-- last item number: 9 -->
 
 ## Next
 
@@ -23,6 +23,8 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
       after:#1
       Plan: '~/src/github.com/honeyglass/lean-code/plannings/plans/security-managers/plan.md'
       '~/.claude/rules/security.md'
+- [ ] #9 Decide where the fingerprint file adx.stored.json lies (decision 37); it covers the fingerprint of a tool's stored formats and the case that adx itself changes its own format; until then the conformance probe "stored data" stays a todo and packageFolder() in src/test/package.ts answers undefined (added 2026-11-24)
+      'src/test/package.ts', 'src/test/conformance.ts'
 
 ## Proof of concept
 
