@@ -24,6 +24,8 @@ export type Probe = {
   next: string;
   /** Whether it calls a command only with its example, so it leaves out one without. */
   example?: true;
+  /** Why the tool gives it nothing to call, such as no effect for the dry runs; else undefined. */
+  idle?: (known: Known) => string | undefined;
   findings: (probing: Probing, known: Known) => Promise<string[]>;
 };
 
@@ -47,6 +49,7 @@ export const PROBES: readonly Probe[] = [
     name: 'dry runs',
     next: 'stage files in plan and send in apply only, through adx, never straight to the disk or the network',
     example: true,
+    idle: known => (withExample(known).some(isEffect) ? undefined : 'no effect to dry-run'),
     findings: dryRuns,
   },
   {
@@ -58,24 +61,40 @@ export const PROBES: readonly Probe[] = [
   {
     name: 'options that list',
     next: 'give each field whose option lists values a source that answers them',
+    idle: known =>
+      known.commands.some(command => command.facts.lists.length > 0)
+        ? undefined
+        : 'no option that lists values',
     findings: listing,
   },
   {
     name: 'values outside a list',
     next: 'give each issue at a field with a list the command that lists its values',
     example: true,
+    idle: known =>
+      withExample(known).some(command => command.facts.lists.length > 0)
+        ? undefined
+        : 'no field with a list',
     findings: outside,
   },
   {
     name: 'input hardening',
     next: 'keep every text field a string adx checks, such as z.string(), id() or a path',
     example: true,
+    idle: known =>
+      withExample(known).some(command => command.facts.fields.some(f => f.takes === 'text'))
+        ? undefined
+        : 'no text field to probe',
     findings: hardening,
   },
   {
     name: '--replace',
     next: 'add replace: false to an effect that writes no file with files.write',
     example: true,
+    idle: known =>
+      withExample(known).filter(isEffect).some(takesReplace)
+        ? undefined
+        : 'no effect that takes --replace',
     findings: replacing,
   },
   {
@@ -96,6 +115,10 @@ export const PROBES: readonly Probe[] = [
   {
     name: 'large answers',
     next: 'give a read that answers a long list or a large document an output schema',
+    idle: known =>
+      known.commands.filter(isRead).some(command => command.facts.output === undefined)
+        ? undefined
+        : 'no read without an output schema',
     findings: large,
   },
 ];
@@ -221,8 +244,7 @@ async function hardening(probing: Probing, known: Known) {
 
 async function replacing(probing: Probing, known: Known) {
   const findings: string[] = [];
-  const takes = (command: Command) => command.facts.options.some(o => o.option === '--replace');
-  for (const command of withExample(known).filter(isEffect).filter(takes)) {
+  for (const command of withExample(known).filter(isEffect).filter(takesReplace)) {
     const called = await probing.ask(exampleCall(command, ['--dry-run', '--replace']));
     const issues = answerIn(called.out).answer?.issues ?? [];
     if (issues.some(issue => issue.code === 'UNKNOWN_OPTION' && issue.path === 'replace'))
@@ -297,6 +319,9 @@ const withExample = (known: Known) =>
   known.commands.filter(command => command.example !== undefined);
 
 const isEffect = (command: Command) => command.facts.options.some(o => o.option === '--dry-run');
+
+const takesReplace = (command: Command) =>
+  command.facts.options.some(o => o.option === '--replace');
 
 const isList = (command: Command) => command.facts.options.some(o => o.option === '--page');
 
