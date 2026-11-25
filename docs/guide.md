@@ -608,7 +608,7 @@ $ hello | jq -c '.result | {name, skill}'
 {"name":"hello","skill":"hello"}
 ```
 
-Without `skill`, the start answer shows `"skill": null`, and nothing is checked. With it, the test kit reads the start of the skill's `SKILL.md` and checks two facts: the file exists, and it is a skill, which means it starts with a frontmatter that has `name` and `description`:
+Without `skill`, the start answer shows `"skill": null`, and nothing is checked. With it, the test names the repository's `SKILL.md` in `samples.skillFile`, relative to the test's working folder; a test that names none fails the check. The test kit copies the file into a scratch home at `.claude/skills/<name>/SKILL.md`, finds it there by its name, reads its start and checks two facts: the file exists, and it is a skill, which means it starts with a frontmatter that has `name` and `description`:
 
 ```markdown
 ---
@@ -1668,10 +1668,10 @@ $ node --test
 
 **`invoke`** runs one command without argv or stdout, and answers the same object the tool prints. It is a method of the command handle, so its input is typed: `tickets.invoke({ projekt: 'checkout-web' })` does not compile. A command runs as part of its tool, so the test file imports the tool as well. Use it for the cases that only you know, such as a busy server. Its options take the samples, and `dryRun` and `replace` for the two options of an effect.
 
-**A tool with a data folder** names a `seed`: a folder with the files the tool should find. The kit copies it into the scratch folder of every probe:
+**A tool with a data folder** names a `seed`: a folder with the files the tool should find. The kit copies it into the scratch folder of every probe. This tool also names a `skill`, so the samples name its `SKILL.md` as `skillFile`:
 
 ```ts
-const samples = { seed: 'test/seed' }; // holds the friend ada
+const samples = { seed: 'test/seed', skillFile: 'SKILL.md' }; // the seed holds the friend ada
 
 test('hello keeps the agent rules', t => conformance(t, hello, samples));
 
@@ -1710,7 +1710,7 @@ test('the input can come through stdin', async () => {
 
 Four more checks run when the tool has their subject:
 
-- **The skill.** If the tool names a `skill`, its `SKILL.md` must exist and start with a frontmatter that has `name` and `description`.
+- **The skill.** If the tool names a `skill`, the `SKILL.md` that `samples.skillFile` names must exist and start with a frontmatter that has `name` and `description`.
 - **Stored data.** Each schema of a `stored` kind must match the fingerprint checked in for its format number.
 - **`--replace`.** An effect that lists `--replace` and stages no `files.write` in any probe fails, with the fix: add `replace: false`.
 - **Large answers.** A `read` that answers a long list or a large document without `output` fails.

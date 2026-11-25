@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { conformance, run } from '@honeyglass/adx/test';
 import { add, hello } from '../hello2.ts';
 
-const samples = { seed: 'test/seed' }; // holds the friend ada
+const samples = { seed: 'test/seed', skillFile: 'SKILL.md' }; // the seed holds the friend ada
 
 test('hello keeps the agent rules', t => conformance(t, hello, samples));
 

@@ -28,6 +28,11 @@ export interface Samples {
   env?: Record<string, string>;
   /** A folder of files copied into the data folder of the call. */
   seed?: string;
+  /**
+   * The repository's SKILL.md, relative to the test's working folder. Only the check "agent skill"
+   * reads it, for a tool that names a `skill`.
+   */
+  skillFile?: string;
 }
 
 /** What run() reads of the surroundings of a call. */

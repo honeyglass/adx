@@ -30,5 +30,11 @@ test('unprintable', t => conformance(t, tools.unprintable));
 test('unexampled', t => conformance(t, tools.unexampled));
 test('misgiven', t => conformance(t, tools.misgiven));
 test('unquoted', t => conformance(t, tools.unquoted));
+test('skilled', t => conformance(t, tools.skilled, { skillFile: join(here, 'skill', 'SKILL.md') }));
+test('skilled without a skill file', t => conformance(t, tools.skilled));
+test('skilled with a bare file', t =>
+  conformance(t, tools.skilled, { skillFile: join(here, 'skill', 'bare.md') }));
+test('skilled with no file', t =>
+  conformance(t, tools.skilled, { skillFile: join(here, 'skill', 'none.md') }));
 test('fixed as a program', t =>
   conformance(t, program('hello'), { fakes: [fake(tools.api, {}), fake(tools.fixed, {})] }));

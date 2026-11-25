@@ -399,11 +399,11 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 
 - `conformance`: prüft jeden Befehl gegen die 15 eingebauten Regeln, im Prozess oder als echtes Programm.
 - `fake(api, routes)`, `reply(503)`: ein Server für den Test, als Tabelle von Routen.
-- `samples`: `env`, `fakes`, `seed`. Das, was nur du weißt.
+- `samples`: `env`, `fakes`, `seed`, `skillFile`. Das, was nur du weißt.
 - `tickets.invoke(input, options)`: ein Befehl ohne argv, mit typisierter Eingabe. Optionen: die Samples, `dryRun`, `replace`.
 - `run(tool, argv, options)`: ein ganzer Aufruf im Prozess des Tests. Antwortet mit `{ exit, out, err }`. Optionen: die Samples, `cwd`, `stdin` (ein Text oder `null`), `tty` (Text mit `true`, JSON mit `false`).
 - Das Testkit zerlegt jeden genannten Befehl (in `next` oder in einem Problem) mit `unbash` und prüft, dass adx ihn kennt.
-- Nennt das Tool einen `skill`, prüft das Testkit: Seine `SKILL.md` existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht.
+- Nennt das Tool einen `skill`, nennt der Test die `SKILL.md` des Repositorys in `samples.skillFile`. Das Testkit kopiert sie in ein Scratch-Home nach `.claude/skills/<name>/SKILL.md`, findet sie dort über ihren Namen und prüft: Sie existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht. Ohne `skillFile` fällt die Prüfung durch.
 - Ein Effekt, der `--replace` listet und nie ein `files.write` vormerkt, schlägt fehl: `replace: false` ergänzen.
 - Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.
 - `adxcheck report` und `adxcheck run`: dieselbe Prüfung als Befehl. Ohne Skill meldet der Bericht "none named", nicht "met".

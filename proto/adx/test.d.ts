@@ -11,6 +11,11 @@ export interface Samples {
   fakes?: Fake[];
   env?: Record<string, string>;
   seed?: string;
+  /**
+   * The repository's SKILL.md, relative to the test's working folder. Only the check "agent skill"
+   * reads it, for a tool that names a `skill`.
+   */
+  skillFile?: string;
 }
 export interface Checked {
   readonly main: () => Promise<void>;

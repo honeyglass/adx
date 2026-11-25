@@ -68,6 +68,10 @@ test('conformance passes a tool that keeps the rules, and fails each broken rule
     unexampled: ['raw JSON input'],
     misgiven: ['hints that run'],
     unquoted: ['hints that run'],
+    skilled: [],
+    'skilled without a skill file': ['agent skill'],
+    'skilled with a bare file': ['agent skill'],
+    'skilled with no file': ['agent skill'],
     // a fake no program can reach is refused before a server starts, and none stays open
     'fixed as a program': ['fixed as a program'],
   });

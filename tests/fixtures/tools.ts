@@ -8,6 +8,7 @@
  * templated, unstarted, unprintable, unexampled, misgiven, unquoted: a tool that breaks one rule
  * each.
  * fixed: a remote with a fixed address, whose fake no program can reach.
+ * skilled: a tool that names its skill, which keeps the rules when its test names a skill file.
  */
 import { writeFileSync } from 'node:fs';
 import process from 'node:process';
@@ -92,6 +93,14 @@ const small = (name: string, run: () => unknown, more: object = {}) =>
     does: 'x',
     commands: { [name]: read({ does: 'answers', run, ...more }) },
   });
+
+export const skilled = tool({
+  name: 'hello',
+  version: '0.1.0',
+  does: 'x',
+  skill: 'hello',
+  commands: { greet: read({ does: 'answers', run: () => ({}) }) },
+});
 
 // A forgotten debug line on stdout.
 export const noisy = small('chatty', () => {

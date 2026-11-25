@@ -608,7 +608,7 @@ $ hello | jq -c '.result | {name, skill}'
 {"name":"hello","skill":"hello"}
 ```
 
-Ohne `skill` zeigt die Startantwort `"skill": null`, und nichts wird geprüft. Mit `skill` liest das Testkit den Anfang der `SKILL.md` des Skills und prüft zwei Tatsachen: Die Datei existiert, und sie ist ein Skill. Das heißt, sie beginnt mit einem Frontmatter, das `name` und `description` hat:
+Ohne `skill` zeigt die Startantwort `"skill": null`, und nichts wird geprüft. Mit `skill` nennt der Test die `SKILL.md` des Repositorys in `samples.skillFile`, relativ zum Arbeitsordner des Tests; ein Test, der keine nennt, fällt durch die Prüfung. Das Testkit kopiert die Datei in ein Scratch-Home nach `.claude/skills/<name>/SKILL.md`, findet sie dort über ihren Namen, liest ihren Anfang und prüft zwei Tatsachen: Die Datei existiert, und sie ist ein Skill. Das heißt, sie beginnt mit einem Frontmatter, das `name` und `description` hat:
 
 ```markdown
 ---
@@ -1668,10 +1668,10 @@ $ node --test
 
 **`invoke`** führt einen Befehl ohne argv und ohne stdout aus und antwortet mit demselben Objekt, das das Tool ausgibt. Es ist eine Methode des Befehls-Handles, also ist seine Eingabe typisiert: `tickets.invoke({ projekt: 'checkout-web' })` kompiliert nicht. Ein Befehl läuft als Teil seines Tools. Darum importiert die Testdatei auch das Tool. Nutze es für die Fälle, die nur du kennst, etwa einen überlasteten Server. Seine Optionen nehmen die Samples, dazu `dryRun` und `replace` für die zwei Optionen eines Effekts.
 
-**Ein Tool mit einem Datenordner** nennt einen `seed`: einen Ordner mit den Dateien, die das Tool vorfinden soll. Das Testkit kopiert ihn in den Testordner jeder Prüfung:
+**Ein Tool mit einem Datenordner** nennt einen `seed`: einen Ordner mit den Dateien, die das Tool vorfinden soll. Das Testkit kopiert ihn in den Testordner jeder Prüfung. Dieses Tool nennt auch einen `skill`, also nennen die Samples seine `SKILL.md` als `skillFile`:
 
 ```ts
-const samples = { seed: 'test/seed' }; // holds the friend ada
+const samples = { seed: 'test/seed', skillFile: 'SKILL.md' }; // the seed holds the friend ada
 
 test('hello keeps the agent rules', t => conformance(t, hello, samples));
 
@@ -1710,7 +1710,7 @@ test('the input can come through stdin', async () => {
 
 Vier weitere Prüfungen laufen, wenn das Tool ihren Gegenstand hat:
 
-- **Der Skill.** Nennt das Tool einen `skill`, muss seine `SKILL.md` existieren und mit einem Frontmatter beginnen, das `name` und `description` hat.
+- **Der Skill.** Nennt das Tool einen `skill`, muss die `SKILL.md` existieren, die `samples.skillFile` nennt, und mit einem Frontmatter beginnen, das `name` und `description` hat.
 - **Gespeicherte Daten.** Jedes Schema einer `stored`-Datenart muss zum Fingerabdruck passen, der für seine Formatnummer eingecheckt ist.
 - **`--replace`.** Ein Effekt, der `--replace` listet und in keiner Prüfung ein `files.write` vormerkt, schlägt fehl, mit der Lösung: `replace: false` ergänzen.
 - **Große Antworten.** Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.

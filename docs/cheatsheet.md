@@ -399,11 +399,11 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 
 - `conformance`: checks every command against the 15 built-in rules, in-process or as a real program.
 - `fake(api, routes)`, `reply(503)`: a server for the test, as a table of routes.
-- `samples`: `env`, `fakes`, `seed`. What only you know.
+- `samples`: `env`, `fakes`, `seed`, `skillFile`. What only you know.
 - `tickets.invoke(input, options)`: one command without argv, with typed input. Options: the samples, `dryRun`, `replace`.
 - `run(tool, argv, options)`: one whole call in the process of the test. Answers `{ exit, out, err }`. Options: the samples, `cwd`, `stdin` (a text or `null`), `tty` (text with `true`, JSON with `false`).
 - The test kit splits every named command (in `next` or in an issue) with `unbash` and checks that adx knows it.
-- If the tool names a `skill`, the test kit checks that its `SKILL.md` exists and has a frontmatter with `name` and `description`. It reads nothing more.
+- If the tool names a `skill`, the test names the repository's `SKILL.md` in `samples.skillFile`. The test kit copies it into a scratch home at `.claude/skills/<name>/SKILL.md`, finds it there by its name, and checks that it exists and has a frontmatter with `name` and `description`. It reads nothing more. Without `skillFile` the check fails.
 - An effect that lists `--replace` and never stages a `files.write` fails: add `replace: false`.
 - A `read` that answers a long list or a large document without `output` fails.
 - `adxcheck report` and `adxcheck run`: the same check as a command. Without a skill the report says "none named", not "met".

@@ -10,6 +10,7 @@
  * the test kit sees what a call changed.
  * program, serve: a tool run as a program, and a server that answers for a fake of its remote.
  * byteLength: the size of a text in bytes, as stdout carries it.
+ * skillAt, placeSkill: a skill by its name under a home, and a SKILL.md copied there.
  * textAt, keep, digestOf: the start of a file's text, a text written whole, and the digest of a
  * text, with which the test kit reads a skill and keeps the fingerprints of the stored kinds.
  *
@@ -23,6 +24,7 @@ export { network } from "./network.js";
 export { program } from "./program.js";
 export { scratch, seeded } from "./scratch.js";
 export { serve } from "./serve.js";
+export { placeSkill, skillAt } from "./skills.js";
 export { snapshot, testFolder } from "./snapshot.js";
 export { tokensOf } from "./tokens.js";
 export { write } from "./write.js";

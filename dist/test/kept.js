@@ -2,24 +2,7 @@ import { digestOf, keep, textAt } from "../node/index.js";
 import { bareSchemaOf } from "../shapes/index.js";
 import { formatsOf } from "../stored/index.js";
 import { fingerprintsIn } from "./answer.schema.js";
-import { FRONTMATTER_BYTES, STORED_FILE, STORED_FILE_BYTES } from "./limits.js";
-/** The frontmatter of a skill: its first line, then `name` and `description`, then its end. */
-const FRONTMATTER = /^---\r?\n(?:.*\r?\n)*?---\r?\n/;
-/**
- * @param skill - the name the tool gives its skill
- * @param file - the path of its SKILL.md
- * @returns one finding per fact the skill fails, none when it is a skill
- */
-export function skillFindings(skill, file) {
-    const text = textAt(file, FRONTMATTER_BYTES);
-    if (text === undefined)
-        return [`the skill ${skill} has no file ${file}`];
-    const head = FRONTMATTER.exec(text)?.[0] ?? '';
-    const named = /^name:[ \t]*\S/m.test(head) && /^description:[ \t]*\S/m.test(head);
-    return named
-        ? []
-        : [`${file} is no skill: it starts with no frontmatter with name and description`];
-}
+import { STORED_FILE, STORED_FILE_BYTES } from "./limits.js";
 /** @returns one finding per format whose schema changed under its number */
 export function storedFindings(folder, kinds) {
     const path = `${folder}/${STORED_FILE}`;

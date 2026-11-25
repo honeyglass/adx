@@ -6,22 +6,23 @@
  *
  * Both run the same probes, each call in a fresh scratch folder with the seed copied in and the
  * fakes in place of the servers. A probe whose calls broke its rule fails with one finding per
- * call. The agent skill is found by its name through skillFile() alone, and the stored data next
- * to the tool's package.json, which comes from packageFolder() alone; while either is not known,
- * its check is a todo. A program shows neither its skill nor its stored schemas, so the kit checks
- * them only in the process.
+ * call. The agent skill is the SKILL.md that samples.skillFile names, found by its name in a
+ * scratch home; a tool that names a skill and no such file fails the check, since a todo would
+ * pass. The stored data lies next to the tool's package.json, which comes from packageFolder()
+ * alone; while it is not known, its check is a todo. A program shows neither its skill nor its
+ * stored schemas, so the kit checks them only in the process.
  *
  * @example test('hello keeps the agent rules', t => conformance(t, hello, samples));
  */
 import { RefusalError } from '@honeyglass/utils/ts';
 import { specOf } from "../tool/index.js";
 import { toolCaller } from "./caller.js";
-import { skillFindings, storedFindings } from "./kept.js";
+import { storedFindings } from "./kept.js";
 import { packageFolder } from "./package.js";
-import { skillFile } from "./skill.js";
 import { PROBES } from "./probes.js";
 import { Probing } from "./probing.js";
 import { programCaller } from "./program.js";
+import { skillFailure } from "./skill.js";
 /**
  * @param t - the test, whose subtests the probes are
  * @param target - the tool tool() made, or the command line that starts it
@@ -34,7 +35,10 @@ export async function conformance(t, target, samples = {}) {
     const known = await probing.known();
     for (const probe of PROBES) {
         await t.test(probe.name, async (sub) => {
-            failedOn(probe, await probe.findings(probing, known));
+            const findings = await probe.findings(probing, known);
+            const reason = `${findings.length} of the probed calls broke ${probe.name}`;
+            if (findings.length > 0)
+                failedOn({ next: probe.next, reason, findings });
             if (probe.example === true && known.unexampled.length > 0)
                 sub.todo(`not probed without an example: ${known.unexampled.join(', ')}`);
         });
@@ -46,10 +50,9 @@ export async function conformance(t, target, samples = {}) {
         const { skill } = shell;
         if (skill === undefined)
             return;
-        const file = skillFile(skill);
-        if (file === undefined)
-            return sub.todo('where the kit finds a skill by its name is not known yet');
-        failedOn(SKILL, skillFindings(skill, file));
+        const failure = skillFailure(skill, samples.skillFile);
+        if (failure !== undefined)
+            failedOn(failure);
     });
     await t.test('stored data', async (sub) => {
         if (shell === undefined)
@@ -59,25 +62,22 @@ export async function conformance(t, target, samples = {}) {
         const folder = packageFolder();
         if (folder === undefined)
             return sub.todo('the folder of package.json is not known yet');
-        failedOn(STORED, storedFindings(folder, shell.stored));
+        const findings = storedFindings(folder, shell.stored);
+        if (findings.length > 0)
+            failedOn({ ...STORED, findings });
     });
 }
-const SKILL = {
-    name: 'agent skill',
-    next: 'name a skill whose SKILL.md starts with a frontmatter with name and description',
-};
 const STORED = {
-    name: 'stored data',
+    reason: 'a stored schema no longer matches its fingerprint in adx.stored.json',
     next: 'raise the format number of a kind whose schema changed',
 };
-function failedOn(probe, findings) {
-    if (findings.length === 0)
-        return;
+// A probe fails by its calls, a file check by the file it read, so each brings its own reason.
+function failedOn({ next, reason, findings }) {
     throw new RefusalError({
         kind: 'fix',
         step: 'conformance',
-        reason: `${findings.length} of the probed calls broke ${probe.name}`,
-        next: probe.next,
+        reason,
+        next,
         cause: findings.join('\n'),
     });
 }
