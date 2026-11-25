@@ -49,6 +49,13 @@ jobs:
       - uses: honeyglass/actions/supply-check@d775cff14274bc10b5efcf9ad1826455f1ecde18
         with:
           mode: links
+      # adx's own step, not the template's. dist/ is checked in, and a tool installs adx from
+      # GitHub by a commit sha with no build step, so the build must give the dist/ of the
+      # commit. git status shows a changed, deleted or new untracked file and a changed file mode.
+      - run: |
+          pnpm run build
+          git status --porcelain -- dist/
+          test -z "$(git status --porcelain -- dist/)"
       - run: pnpm run format:check
       # Every repository names its scripts lint, typecheck and test, so this file stays the
       # same everywhere. --if-present skips the step in a repository without that script.
