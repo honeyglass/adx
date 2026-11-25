@@ -260,6 +260,9 @@ test('a path that leaves its root is PATH_OUTSIDE, also through a link', async t
   const written = await answer(['save', '--file', 'out/new.txt'], { env });
   assert.equal(codeOf(written), 'PATH_OUTSIDE');
   assert.deepEqual(await readdir(outside), ['secret']);
+  // a backslash is a sign of a name, as POSIX reads one
+  assert.equal((await answer(['save', '--file', 'a\\b.txt'], { env })).exit, 0);
+  assert.deepEqual((await readdir(data)).sort(), ['a\\b.txt', 'out']);
 });
 
 test('a file to read must exist and be a file, and a file to write must not be a folder', async t => {

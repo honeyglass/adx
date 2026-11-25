@@ -150,12 +150,16 @@ export function checked<T>(work: () => T): T {
 }
 
 /**
+ * NUL is refused beside the property the opening checks, the real path inside the root: a
+ * definition, from POSIX, where NUL ends every path, so the parts read here would not be the
+ * parts the disk opens. A backslash is a sign of a name, as POSIX reads one.
+ *
  * @param rel - a path relative to its root, with `/` between its parts
  * @returns its parts without `.` and empty ones, `..` taken back; undefined for an absolute
- * path, one that climbs above its root, and one that holds a NUL or a backslash
+ * path, one that climbs above its root, and one that holds a NUL
  */
 function partsOf(rel: string): string[] | undefined {
-  if (rel.startsWith('/') || /[\0\\]/.test(rel)) return undefined;
+  if (rel.startsWith('/') || rel.includes('\0')) return undefined;
   const parts: string[] = [];
   for (const part of rel.split('/')) {
     if (part === '' || part === '.') continue;
