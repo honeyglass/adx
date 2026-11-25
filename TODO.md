@@ -1,7 +1,7 @@
 # TODO
 
 Open work on adx, the toolkit for command-line tools that AI agents drive.
-<!-- last item number: 14 -->
+<!-- last item number: 16 -->
 
 ## Next
 
@@ -40,6 +40,12 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
 - [ ] #14 Set the two peer settings of decision 75 in adx's pnpm-workspace.yaml (and oriko's, which lacks them too); today honeyglass/actions supply-check refuses them, since its template and its lockfile schema do not know them, so first change supply-check's template and lockfile schema in honeyglass/actions, then lean-code's template, then re-pin the supply-check action in adx's CI (added 2026-11-25)
       after:#1
       'pnpm-workspace.yaml', '.github/workflows/ci.yml'
+- [ ] #15 Add the missing tests from the final audit: `unchanged: true` in a dry run (docs/guide.md:482), `.at(field)` without a message repeats the hint (docs/guide.md:327), a foreign RefusalError gives its reason as the message and its next as the hint (docs/guide.md:1880), and `({ nmae })` in `run` as a `@ts-expect-error` (docs/guide.md:160); not needed for the oriko migration (added 2026-11-25)
+      after:#1
+      'tests/api/'
+- [ ] #16 Bring the doc-block check (blocks.py, today only in the coordinator's scratchpad) into the repository as `pnpm run check:blocks` and run it in CI; plus a test that runs the proto tests, which no run starts today (the tracker test "a busy server is a retry" fails); not needed for the oriko migration (added 2026-11-25)
+      after:#1
+      'package.json', '.github/workflows/ci.yml', 'proto/'
 
 ## Proof of concept
 
