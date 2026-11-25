@@ -143,7 +143,8 @@ function modeIssues(mode: string | undefined) {
 // An option takes its value as the next word or after =, as adx reads the options of a tool.
 function optionsOf(options: readonly string[]) {
   const issues: Issue[] = [];
-  const env: Record<string, string> = {};
+  // A map keeps every name a shell takes, __proto__ too, which an object's own key would drop.
+  const env = new Map<string, string>();
   const once: Record<string, string> = {};
   let at = 0;
   while (at < options.length) {
@@ -160,9 +161,10 @@ function optionsOf(options: readonly string[]) {
     if (taken) at += 1;
     issues.push(...optionIssues(name, value, { env, once }));
   }
-  issues.push(...kitVariableIssues(env), ...seedIssues(once.seed));
+  const variables = Object.fromEntries(env);
+  issues.push(...kitVariableIssues(variables), ...seedIssues(once.seed));
   const samples: Samples = {
-    env,
+    env: variables,
     ...(once.seed === undefined ? {} : { seed: once.seed }),
     ...(once['skill-file'] === undefined ? {} : { skillFile: once['skill-file'] }),
   };
@@ -174,7 +176,7 @@ function optionsOf(options: readonly string[]) {
 function optionIssues(
   name: string,
   value: string | undefined,
-  into: { env: Record<string, string>; once: Record<string, string> },
+  into: { env: Map<string, string>; once: Record<string, string> },
 ): Issue[] {
   if (VALUED.includes(name) === false)
     return [unknownOption.at(name, `adxcheck has no option --${name}`)];
@@ -187,13 +189,12 @@ function optionIssues(
   return [];
 }
 
-function envIssues(value: string, env: Record<string, string>): Issue[] {
+function envIssues(value: string, env: Map<string, string>): Issue[] {
   const [, variable, text] = ENV.exec(value) ?? [];
   if (variable === undefined || text === undefined)
     return [schemaFailed.at('env', `--env takes NAME=value, and ${value} is none`)];
-  if (Object.hasOwn(env, variable))
-    return [repeatedOption.at('env', `--env gives ${variable} twice`)];
-  env[variable] = text;
+  if (env.has(variable)) return [repeatedOption.at('env', `--env gives ${variable} twice`)];
+  env.set(variable, text);
   return [];
 }
 

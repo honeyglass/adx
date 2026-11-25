@@ -190,6 +190,11 @@ test('a wrong call of adxcheck is refused with all its mistakes, as adx refuses 
       ['REPEATED_OPTION', 'UNEXPECTED_ARGUMENT'],
     ],
     [['report', '--env', 'A=1', '--env', 'A=2', '--', 'node', 'x.ts'], ['REPEATED_OPTION']],
+    // __proto__ is a name like any other, kept, so a second one is refused too
+    [
+      ['report', '--env', '__proto__=1', '--env', '__proto__=2', '--', 'node', 'x.ts'],
+      ['REPEATED_OPTION'],
+    ],
     [
       ['report', '--env', 'HOME=/tmp', '--env', 'ADX_FAKES_ONLY=1', '--', 'node', 'x.ts'],
       ['SCHEMA', 'SCHEMA'],

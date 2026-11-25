@@ -107,7 +107,8 @@ function modeIssues(mode) {
 // An option takes its value as the next word or after =, as adx reads the options of a tool.
 function optionsOf(options) {
     const issues = [];
-    const env = {};
+    // A map keeps every name a shell takes, __proto__ too, which an object's own key would drop.
+    const env = new Map();
     const once = {};
     let at = 0;
     while (at < options.length) {
@@ -125,9 +126,10 @@ function optionsOf(options) {
             at += 1;
         issues.push(...optionIssues(name, value, { env, once }));
     }
-    issues.push(...kitVariableIssues(env), ...seedIssues(once.seed));
+    const variables = Object.fromEntries(env);
+    issues.push(...kitVariableIssues(variables), ...seedIssues(once.seed));
     const samples = {
-        env,
+        env: variables,
         ...(once.seed === undefined ? {} : { seed: once.seed }),
         ...(once['skill-file'] === undefined ? {} : { skillFile: once['skill-file'] }),
     };
@@ -153,9 +155,9 @@ function envIssues(value, env) {
     const [, variable, text] = ENV.exec(value) ?? [];
     if (variable === undefined || text === undefined)
         return [schemaFailed.at('env', `--env takes NAME=value, and ${value} is none`)];
-    if (Object.hasOwn(env, variable))
+    if (env.has(variable))
         return [repeatedOption.at('env', `--env gives ${variable} twice`)];
-    env[variable] = text;
+    env.set(variable, text);
     return [];
 }
 // The seed is copied into every probe, so a seed that is no folder would break each of them.
