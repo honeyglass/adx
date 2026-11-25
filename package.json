@@ -24,7 +24,7 @@
     "./tsconfig.json": "./tsconfig.base.json"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p src",
+    "build": "rm -rf dist && tsc -p src && chmod 755 dist/test/bin.js",
     "typecheck": "tsc -p src --noEmit && tsc -p proto --noEmit && tsc -p tests",
     "test": "ls tests/api/*.api.spec.ts >/dev/null && node --test 'tests/api/*.api.spec.ts' && node --test 'tests/internals/*.internals.spec.ts' && ls tests/e2e/*.e2e.spec.ts >/dev/null && node --test --test-concurrency=1 'tests/e2e/*.e2e.spec.ts'",
     "format": "prettier --write .",
