@@ -693,11 +693,33 @@ The next four settle package P11 (the person, 2026-11-25).
     `bug`, exit 2 (76).
 86. **`adxcheck report` shows one line per Agent DX rule**, in the order of the README, each made
     from the probes that cover it. A rule that no probe covers (7, 8, 9, 11) says "not probed", with
-    the reason.
+    the reason. Settled further (the person, 2026-11-25):
+    - The probes map to the rule lines as built: 5 from dry runs and `--replace`, 12 from values
+      outside a list and hints that run, 14 from the start answer, 16 from large answers, every
+      other rule from the probe of its name. "stored data" gets no line. Rules 12 and 14 stay apart.
+    - Without fakes the network stays closed. A refusal by a remote counts for its rule as
+      "not probed", with the reason, not as a failure. `schema` names every remote.
+    - Under the test kit (`run`, `invoke`, `conformance`, `adxcheck`) a request goes only to the
+      origin of a fake the kit started itself. Every other address is refused, loopback included:
+      a port-forward or a tunnel to production also lies on 127.0.0.1 (the person, 2026-11-25).
+    - This closes the requests that go through adx remotes only. A program that calls `fetch`
+      itself, or is not built on adx, reaches the network; the guide says so. A sandbox at the
+      level of the system comes with the security review (TODO #8).
+    - `adxcheck` takes `--seed` and `--skill-file`, as `seed` and `skillFile` in `samples`, and
+      `--env` and `--`.
+    - With `--skill-file` the skill check runs as in `conformance` (82). Without it, the line reads
+      "not probed: pass --skill-file". adxcheck never reads the real home.
+    - The name column of `report` is as wide as the longest rule name plus 2. The guide shows the
+      tracker's real output, mostly "not probed" without fakes, and says why.
+    - `adxcheck run` refuses a broken rule with its own code `RULE_NOT_MET`, kind fix, exit 1, one
+      issue per broken rule. The guide's list of codes names it as adxcheck's code.
 87. **A tool's own codes are known to the tool**:
     - Each call of `code()` registers its code with the tool, and `schema` lists the tool's codes
       beside those of adx. No new field in `tool()`.
     - So "Hints that run" can name a code that was never raised.
+    - One registry per process collects every `code()` (the person, 2026-11-25). A test with two
+      tools in one process therefore sees the codes of the other too; the guide names it under
+      "Known limits".
 88. **A bug that `main()` does not see ends with exit 2** (rule 10):
     - Such a bug is a timer that throws after the answer, or a promise nobody awaits. Node ends it
       with exit 1 today.

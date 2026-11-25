@@ -126,10 +126,10 @@ round is done. The e2e line names the tests the package turns green.
 Added after the build's open points (the person, 2026-11-25).
 - [x] the start check that every `example` passes its command's schema, as a `DECLARATION` error
       (guide: "an example that fails a `.regex()`")
-- [ ] the `adxcheck` command, `report` and `run`, on the conformance engine (guide ~1715-1736,
+- [x] the `adxcheck` command, `report` and `run`, on the conformance engine (guide ~1715-1736,
       cheatsheet 409), as a `bin` of the package
 - [x] the code `PANIC`: dropped from the guide (85)
-- [ ] a tool's own codes in `schema` (87)
+- [x] a tool's own codes in `schema` (87)
 - [x] a bug that `main()` does not see ends with exit 2 (88)
 
 ## Order
