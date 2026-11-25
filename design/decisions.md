@@ -655,6 +655,11 @@ The next three settle points the build of adx left open (the person, 2026-11-24)
       file of 37 still lies next to `package.json`.
     - The test kit's check "agent skill" checks the skill by its name: the file exists and starts
       with a frontmatter that has `name` and `description`, as 7 says.
+    - The skill stays optional: without `skill` the check is skipped. With `skill`, the test names
+      the repository's SKILL.md by a path in `samples`, relative to the test's working folder.
+      The kit copies that file into a scratch home at `.claude/skills/<name>/SKILL.md`, and adx
+      looks for the skill there with that scratch folder as the home. So the test checks the
+      repository's current file, runs in CI, and covers the real lookup path.
     - Reason: Claude Code finds a skill at its standard place, not next to the tool. A path
       relative to `package.json` made adx find that folder at run time, which no rule settled.
 83. **RxJS is a dependency of adx** (confirms 6):
