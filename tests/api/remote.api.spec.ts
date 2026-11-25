@@ -24,6 +24,7 @@ import {
   tool,
 } from '@honeyglass/adx';
 import { fake, reply, run } from '@honeyglass/adx/test';
+import { heard } from '../../dist/remote/index.js';
 import { answerIn } from '../utils/answer.ts';
 import { listen } from '../utils/server.ts';
 
@@ -314,6 +315,42 @@ test('a token that is missing or no token is refused with ENV_MISSING, and nothi
   assert.deepEqual(seen, []);
 });
 
+test('a token goes over https or over http to the machine itself, and any other http address is refused unsent', async () => {
+  const routes: string[] = [];
+  const shelf = heard(fake(api, { 'GET /items/a1': item }), route => routes.push(route));
+  const showAt = (SHOP_URL: string) =>
+    answerOf(['show', '--id', 'a1'], { env: { SHOP_URL, SHOP_TOKEN: 'tok' }, fakes: [shelf] });
+  const near = [
+    'https://shop.example.com/api',
+    'http://localhost:8080/api',
+    'http://LOCALHOST/api',
+  ];
+  for (const SHOP_URL of [...near, 'http://127.0.0.1/api', 'http://[::1]:9/api']) {
+    assert.deepEqual((await showAt(SHOP_URL)).result, item, SHOP_URL);
+  }
+  assert.equal(routes.length, 5);
+  routes.length = 0;
+  const far = ['http://shop.example.com/api', 'http://127.0.0.1.example.com/api'];
+  for (const SHOP_URL of [
+    ...far,
+    'http://localhost.example.com',
+    'http://127.0.0.2',
+    'http://[::2]',
+  ]) {
+    const answer = await showAt(SHOP_URL);
+    assert.deepEqual([answer.kind, codesOf(answer)], ['fix', ['URL_NOT_ALLOWED']], SHOP_URL);
+    assert.match(answer.issues?.[0]?.message ?? '', /token/, SHOP_URL);
+  }
+  assert.deepEqual(routes, []);
+  // a remote without a token may use plain http anywhere
+  const open = remote('open', { url: envUrl('OPEN_URL', 'https://open.example.com') });
+  const peek = read({ does: 'peeks', run: () => open.get(['x'], z.unknown()) });
+  const bare = tool({ name: 'open', version: '0', does: 'x', remotes: [open], commands: { peek } });
+  const env = { OPEN_URL: 'http://open.example.com' };
+  const { exit } = await run(bare, ['peek'], { env, fakes: [fake(open, { 'GET /x': {} })] });
+  assert.equal(exit, 0);
+});
+
 test('a redirect is not followed', async t => {
   const { env, seen } = await server(t, () => ({ status: 302, location: '/api/items/b2' }));
   const answer = await answerOf(['show', '--id', 'a1'], { env });
@@ -441,7 +478,7 @@ test('schema names the variables of each remote, never their values', async () =
   assert.equal(out.includes('secret-token'), false);
 });
 
-test('a remote the tool does not list, a fallback that is no address, and apply without look are DECLARATION errors', async () => {
+test('a remote the tool does not list, a fallback that is no address or sends a token over http, and apply without look are DECLARATION errors', async () => {
   const unlisted = tool({ name: 'shop', version: '1.0.0', does: 'sells', commands: { show } });
   const odd = remote('odd', { url: envUrl('ODD_URL', 'ftp://odd.example.com') });
   const oddShow = read({ does: 'reads', run: () => odd.get(['x'], z.unknown()) });
@@ -452,6 +489,15 @@ test('a remote the tool does not list, a fallback that is no address, and apply 
     remotes: [odd],
     commands: { show: oddShow },
   });
+  const plain = remote('plain', { url: 'http://plain.example.com', auth: bearer('PLAIN_TOKEN') });
+  const plainShow = read({ does: 'reads', run: () => plain.get(['x'], z.unknown()) });
+  const exposed = tool({
+    name: 'plain',
+    version: '1.0.0',
+    does: 'reads',
+    remotes: [plain],
+    commands: { show: plainShow },
+  });
   const blind = effect({ does: 'sends', plan: () => ({}), apply: () => ({}) });
   const unlooked = tool({ name: 'shop', version: '1.0.0', does: 'sells', commands: { blind } });
   const env = { SHOP_TOKEN: 'tok' };
@@ -459,12 +505,20 @@ test('a remote the tool does not list, a fallback that is no address, and apply 
   for (const [made, argv] of [
     [unlisted, ['show', '--id', 'a1']],
     [fallback, []],
+    [exposed, []],
     [unlooked, ['blind', '--dry-run']],
   ] as const) {
     const { exit, out } = await run(made, argv, { env });
     const answer = answerIn(out, z.unknown());
     assert.deepEqual([exit, answer.kind, codesOf(answer)], [2, 'bug', ['DECLARATION']]);
   }
+  // invoke() skips the start checks, so the check before the request is its only guard
+  const routes: string[] = [];
+  const hearing = heard(fake(plain, { 'GET /x': {} }), route => routes.push(route));
+  const invoked = await plainShow.invoke({}, { env: { PLAIN_TOKEN: 'tok' }, fakes: [hearing] });
+  assert.deepEqual([invoked.kind, codesOf(invoked)], ['bug', ['DECLARATION']]);
+  assert.match(invoked.issues?.[0]?.message ?? '', /token/);
+  assert.deepEqual(routes, []);
 });
 
 test('under the test kit a remote without a fake reaches no server beyond the machine', async t => {

@@ -751,7 +751,7 @@ Ein Pfad bleibt in seinem Root und folgt keinem Link hinaus.
 
 ### Keine Geheimnisse
 
-adx speichert keine Geheimnisse. Ein Tool liest ein Token aus einer Umgebungsvariable, die es deklariert, etwa `bearer('TRACKER_TOKEN')`. `schema` nennt die Variable, nie ihren Wert. Eine fehlende Variable ist eine Ablehnung der Art `ask`: Nur die Person kann ein Token liefern. adx hat keinen Schlüsselbund und keinen `login`-Befehl.
+adx speichert keine Geheimnisse. Ein Tool liest ein Token aus einer Umgebungsvariable, die es deklariert, etwa `bearer('TRACKER_TOKEN')`. `schema` nennt die Variable, nie ihren Wert. Eine fehlende Variable ist eine Ablehnung der Art `ask`: Nur die Person kann ein Token liefern. Ein Token geht nur über `https`, oder über `http` an die Maschine selbst (`localhost`, `127.0.0.1`, `[::1]`). Jede andere `http`-Adresse einer Remote mit Token wird mit `URL_NOT_ALLOWED` abgelehnt, bevor eine Anfrage hinausgeht; eine, die im Tool fest steht, ist beim Start ein `DECLARATION`-Fehler. adx hat keinen Schlüsselbund und keinen `login`-Befehl.
 
 ### Was noch nicht abgedeckt ist
 

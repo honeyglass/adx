@@ -23,8 +23,9 @@ import type { Incoming, Network, Outgoing, Unreached } from '../core/index.ts';
 export const network: Network = {
   parse: url => {
     if (URL.canParse(url) === false) return undefined;
-    const { href, protocol, origin, username, password, pathname, search, hash } = new URL(url);
-    return { href, protocol, origin, username, password, pathname, search, hash };
+    const { href, protocol, origin, hostname, username, password, pathname, search, hash } =
+      new URL(url);
+    return { href, protocol, origin, hostname, username, password, pathname, search, hash };
   },
   send,
 };

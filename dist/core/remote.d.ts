@@ -47,6 +47,7 @@ export type Address = {
     readonly href: string;
     readonly protocol: string;
     readonly origin: string;
+    readonly hostname: string;
     readonly username: string;
     readonly password: string;
     readonly pathname: string;

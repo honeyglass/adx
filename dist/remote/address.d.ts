@@ -41,7 +41,8 @@ export declare function tokenOf(server: Server, env: Env): string | undefined;
  * @param remote - a remote the tool lists
  * @param network - the parser of the call
  * @returns one DECLARATION issue for a remote no remote() made, a fallback or a fixed address
- * that adx does not send to, and an auth no bearer() made
+ * that adx does not send to or that would carry the token over plain http beyond the machine,
+ * and an auth no bearer() made
  */
 export declare function setupIssuesOf(remote: Remote, network: Network): Issue[];
 /**

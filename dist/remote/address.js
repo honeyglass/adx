@@ -17,13 +17,19 @@
  * address back as adx built it, so each value stays one part of the path or the query, and none
  * leaves the address of the server. A value that is no well-formed text, such as a lone
  * surrogate, has no encoding, so it is refused there too. A token is a header, so it holds
- * visible ASCII only.
+ * visible ASCII only, and it goes over https, or over plain http only to the machine itself
+ * (decision 22): anyone on the way reads plain http.
  *
  * @example const { url, rel } = addressOf(server, env, network, ['tickets', id], {});
  */
 import { declaration, envMissing, NOTHING_CHANGED, refusedWith, urlNotAllowed, } from "../core/index.js";
 /** The schemes adx sends to: an allow-list, which only the person widens. */
 const SCHEMES = new Set(['http:', 'https:']);
+/**
+ * The hosts of the machine itself, as the WHATWG parser writes them: an allow-list by exact
+ * host, so `127.0.0.1.example.com` is none, and only the person widens it.
+ */
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 /** Visible ASCII, what a header value may hold (RFC 9110, field-vchar without obs-text). */
 const TOKEN = /^[\x21-\x7e]+$/;
 const envUrls = new Map();
@@ -111,15 +117,18 @@ export function tokenOf(server, env) {
  * @param remote - a remote the tool lists
  * @param network - the parser of the call
  * @returns one DECLARATION issue for a remote no remote() made, a fallback or a fixed address
- * that adx does not send to, and an auth no bearer() made
+ * that adx does not send to or that would carry the token over plain http beyond the machine,
+ * and an auth no bearer() made
  */
 export function setupIssuesOf(remote, network) {
     const server = servers.get(remote);
     if (server === undefined)
         return [declaration.issue('a remote of the tool was not made by remote()')];
     const auth = server.auth;
+    const base = declaredBase(server, network);
     return [
-        ...(declaredBase(server, network) === undefined ? [declaration.issue(notAddress(server))] : []),
+        ...(base === undefined ? [declaration.issue(notAddress(server))] : []),
+        ...(base !== undefined && exposes(server, base) ? [declaration.issue(exposed(server))] : []),
         ...(auth === undefined || tokens.has(auth)
             ? []
             : [declaration.issue(`the auth of ${server.name} was not made by bearer()`)]),
@@ -139,17 +148,33 @@ function baseOf(server, env, network) {
     const declared = envUrls.get(server.url);
     const given = declared === undefined ? undefined : env[declared.variable];
     if (declared !== undefined && given !== undefined) {
-        const base = allowed(network.parse(given));
-        if (base !== undefined)
-            return base;
-        const message = `${declared.variable} names no http or https address without user, query or fragment`;
-        throw refused(urlNotAllowed.issue(message));
+        return givenBase(server, declared.variable, network.parse(given));
     }
     const base = declaredBase(server, network);
-    if (base !== undefined)
-        return base;
-    throw bug(notAddress(server));
+    if (base === undefined)
+        throw bug(notAddress(server));
+    if (exposes(server, base))
+        throw bug(exposed(server));
+    return base;
 }
+function givenBase(server, variable, parsed) {
+    const base = allowed(parsed);
+    if (base === undefined) {
+        const message = `${variable} names no http or https address without user, query or fragment`;
+        throw refused(urlNotAllowed.issue(message));
+    }
+    if (exposes(server, base)) {
+        const message = `${variable} names ${base.origin}, and the token of ${server.name} ${TOKEN_ROUTES}`;
+        throw refused(urlNotAllowed.issue(message));
+    }
+    return base;
+}
+// A remote with a token sends it with every request, so its address decides who can read it.
+const exposes = (server, base) => server.auth !== undefined && carriesToken(base) === false;
+// An allow-list: https, or http to the machine itself; a scheme added to SCHEMES carries none.
+const carriesToken = (base) => base.protocol === 'https:' || (base.protocol === 'http:' && LOOPBACK_HOSTS.has(base.hostname));
+const TOKEN_ROUTES = `goes only over https, or over http to ${[...LOOPBACK_HOSTS].join(', ')}`;
+const exposed = (server) => `the address of ${server.name} may carry no token: its token ${TOKEN_ROUTES}`;
 const declaredBase = (server, network) => allowed(network.parse(envUrls.get(server.url)?.fallback ?? server.url));
 const notAddress = (server) => `the address of ${server.name} is no http or https address without user, query or fragment`;
 const allowed = (address) => address !== undefined &&

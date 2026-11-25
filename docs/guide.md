@@ -751,7 +751,7 @@ A path stays inside its root and follows no link out of it.
 
 ### No secrets
 
-adx stores no secrets. A tool reads a token from an environment variable it declares, such as `bearer('TRACKER_TOKEN')`. `schema` names the variable, never its value. A missing variable is a refusal of kind `ask`: only the person can supply a token. adx has no keychain and no `login` command.
+adx stores no secrets. A tool reads a token from an environment variable it declares, such as `bearer('TRACKER_TOKEN')`. `schema` names the variable, never its value. A missing variable is a refusal of kind `ask`: only the person can supply a token. A token goes only over `https`, or over `http` to the machine itself (`localhost`, `127.0.0.1`, `[::1]`). Any other `http` address of a remote with a token is refused with `URL_NOT_ALLOWED` before a request leaves; one fixed in the tool is a `DECLARATION` error at startup. adx has no keychain and no `login` command.
 
 ### What is not covered yet
 

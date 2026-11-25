@@ -309,7 +309,7 @@ next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
 - Every effect takes `--replace`. To a new name it passes. If the plan stages no `files.write`, it is refused.
 - With `replace: false`, `schema` does not list the option, and the hint for an existing file is "pick another name".
 - `changes`: `{ added, changed, removed, more }`. JSON paths, otherwise lines, at most 20 per list. `more` counts the rest. A plan may return its own `changes`.
-- adx stores no secrets. A token comes from an environment variable, such as `bearer('TRACKER_TOKEN')`.
+- adx stores no secrets. A token comes from an environment variable, such as `bearer('TRACKER_TOKEN')`. It goes only over `https`, or over `http` to `localhost`, `127.0.0.1` or `[::1]`. Any other address of a remote with a token is refused before a request: a fixed address or fallback in the tool as a `DECLARATION` error at startup, one from the variable with `URL_NOT_ALLOWED` at the call.
 
 Rule of thumb: `add`, `create`, `save` use `files.write`. `edit`, `update`, `append` use `files.update`.
 
