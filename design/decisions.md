@@ -150,6 +150,9 @@ it where needed.
     - A tool reads a token from an environment variable it declares, such as `bearer('TRACKER_TOKEN')`.
     - `schema` names the variable, never its value. A missing variable is a refusal of kind ask.
     - No keychain and no `login` command in adx; files in a root are `0600` anyway (17).
+    - A token goes only over `https`, or over `http` to a loopback host (`localhost`, `127.0.0.1`,
+      `::1`). A remote with a token at any other `http` address is refused before any request is
+      sent (the person, 2026-11-25).
 
 The next twelve answer the questions of `review-final.md` (2026-11-21).
 
@@ -200,7 +203,9 @@ confirmed each recommendation).
     `skill: 'SKILL.md'`. The start answer shows the absolute path, or `null` without a skill.
 37. **Stored kinds register in the tool.** `tool({ stored: [Friend] })`. The test kit writes the
     fingerprint of each stored schema (21) into a file next to `package.json` on its first run; after
-    that it only compares.
+    that it only compares. At startup adx cannot see which kinds a handler reads, so a kind left out
+    of `stored` is refused at the call, as a `DECLARATION` bug, when `File.json` or `parse` meets it
+    (the person, 2026-11-25).
 38. **`files.update` on a missing file** is refused with `FILE_NOT_FOUND`, kind fix.
 39. **`--replace` when nothing is replaced.** A write to a new name with `--replace` passes. An effect
     whose plan writes no file at all refuses `--replace`.
@@ -391,6 +396,10 @@ for each). Where one changes an earlier decision, both say so.
     - A key is one word, as in `commands` (63). A shape and a command cannot share a name. Both
       are `DECLARATION` errors. A shape may share its word with a group: `tool schema profile`
       prints the shape, and `tool schema profile set` the command.
+    - No command and no group at the top of `commands` may be named `schema`, since adx's own
+      `schema` takes the first word of a call and would hide it without a word; such a name is a
+      `DECLARATION` error at startup (the person, 2026-11-25). Deeper, as in `tool profile
+      schema`, nothing is hidden, and the name stays allowed.
     - The start answer stays what 5, 36 and 65 make it: the name, the version, what the tool does
       (`does`, which the text header needs too; the person, 2026-11-25), the name of the skill
       (82), the commands and the first steps. A tool adds no data of its own to it. Data comes
