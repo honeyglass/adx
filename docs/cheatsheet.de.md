@@ -307,11 +307,11 @@ next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
 - Ein Ordner aus Variable oder Option muss existieren. Ein leerer Wert, ein relativer Pfad, eine Datei oder ein fehlender Ordner: `ROOT_NOT_FOUND`, Art `ask`. adx weicht nie auf den Standard aus.
 - Der Standardordner darf fehlen. Ein Lesebefehl und ein Probelauf legen nichts an. Der erste echte Schreibvorgang legt ihn an.
 - Modi: `0700` für Ordner, `0600` für Dateien. Eine ersetzte Datei behält ihren Modus.
-- `files.write(file, data, { mode: 0o644 })`: ein eigener Modus.
+- `files.write(file, data, { mode: 0o644 })`: ein eigener Modus, der auch bei einem Ersetzen gilt.
 - Jeder Effekt nimmt `--replace`. Auf einen neuen Namen geht es durch. Merkt der Plan kein `files.write` vor, wird es abgelehnt.
 - Mit `replace: false` listet `schema` die Option nicht, und der Hinweis bei einer vorhandenen Datei lautet "pick another name".
 - `changes`: `{ added, changed, removed, more }`. JSON-Pfade, sonst Zeilen, höchstens 20 pro Liste. `more` zählt den Rest. Ein Plan darf sein eigenes `changes` zurückgeben.
-- adx speichert keine Geheimnisse. Ein Token kommt aus einer Umgebungsvariable, etwa `bearer('TRACKER_TOKEN')`. Es geht nur über `https`, oder über `http` an `localhost`, `127.0.0.1` oder `[::1]`. Jede andere Adresse einer Remote mit Token wird vor einer Anfrage abgelehnt: eine feste Adresse oder ein Fallback im Tool als `DECLARATION`-Fehler beim Start, eine aus der Variable mit `URL_NOT_ALLOWED` beim Aufruf.
+- adx speichert keine Geheimnisse. Ein Token kommt aus einer Umgebungsvariable, etwa `bearer('TRACKER_TOKEN')`. Es geht nur über `https`, oder über `http` an `localhost`, `127.0.0.1` oder `[::1]`. Jede andere `http`-Adresse einer Remote mit Token wird vor einer Anfrage abgelehnt: eine feste Adresse oder ein Fallback im Tool als `DECLARATION`-Fehler beim Start, eine aus der Variable mit `URL_NOT_ALLOWED` beim Aufruf.
 
 Faustregel: `add`, `create`, `save` nutzen `files.write`. `edit`, `update`, `append` nutzen `files.update`.
 
@@ -331,7 +331,7 @@ const edit = effect({
 
 - `stored('friend', 2, FriendV2)`: eine Datenart mit ihrer Formatnummer.
 - `.from(1, FriendV1, old => ...)`: ein älteres Format und der Schritt zum nächsten. Mehrere nennst du vom neuesten abwärts.
-- `stored: [Friend]` im Tool: Pflicht für jede Datenart. Eine fehlende wird abgelehnt, wo `file.json`, `Friend.parse` oder `Friend.stringify` während eines Aufrufs auf sie trifft, als `DECLARATION`-Fehler. In `plan` ist noch nichts geschrieben; in `apply` sind die Dateien des Plans schon geschrieben, und der Zustand nennt sie.
+- `stored: [Friend]` im Tool: Pflicht für jede Datenart. Eine fehlende wird abgelehnt, wo `file.json`, `Friend.parse` oder `Friend.stringify` während eines Aufrufs auf sie trifft, als `DECLARATION`-Bug. In `plan` ist noch nichts geschrieben; in `apply` sind die Dateien des Plans schon geschrieben, und der Zustand nennt sie.
 - `Friend.stringify(value)` schreibt `"version": 2` in den Text. `Friend.parse(text)` und `file.json(limit, Friend)` lesen ihn. Eine Datei ohne das Feld ist Format 1.
 - Ein Lesen wandelt eine ältere Datei nur im Speicher um. Der nächste echte Schreibvorgang legt das neue Format ab.
 - Neueres Format: `NEWER_VERSION`. Schema nicht erfüllt: `STORED_INVALID`. Beide haben die Art `ask`.
@@ -617,14 +617,14 @@ adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 - Alle Fehler eines Aufrufs kommen in einer Antwort.
 - Optionen und `--json` füllen ein Objekt. Ein Feld, das beide geben, wird abgelehnt (`REPEATED_OPTION`).
 - Ein Feld `dueDate` ist die Option `--due-date`. Ein boolesches Feld ist ein Schalter ohne Wert.
-- Ein Feld nimmt keinen Namen einer Option, die adx seinem Befehl gibt: `json`, `output`, `dry-run`, `replace` und `help` an jedem Befehl, `page` an einer Liste, `fields` an einer Liste und an einem `read` mit `output`. Ein Zusammenstoß kompiliert nicht. `version` ist frei.
+- Ein Feld nimmt keinen Namen einer Option, die adx seinem Befehl gibt: `json`, `output` und `help` an jedem Befehl, `page` an einer Liste, `fields` an einer Liste und an einem `read` mit `output`. `dry-run` und `replace`, Optionen eines Effekts, sind auch an jedem Befehl vergeben. Ein Zusammenstoß kompiliert nicht. `version` ist frei.
 - Routing und Hilfe kommen aus der Befehlstabelle von adx, die `commands` des Tools füllt.
 - adx setzt keinen Ordneraufbau voraus. Ein Befehl ist ein Wert, und die Tabelle nimmt ihn, wo immer er liegt.
 - Der Agent-Skill gehört nicht zum Toolkit. Das Tool liest ihn nie, bettet ihn nie ein und gibt ihn nie aus. Es nennt nur den Skill, die Startantwort zeigt den Namen.
 - Die Codes und Arten von adx stehen einmal in adx. Jedes Tool gibt sie mit `tool schema` aus.
 - Kein Anleitungstext und kein freier Hilfetext im Tool. Die ersten Schritte kommen aus `next` der Startantwort und aus den Hinweisen der Ablehnungen.
 - `api` läuft intern auf RxJS: Wiederholungen, Zeitlimits, das Abbrechen mehrerer Anfragen. Der Autor sieht davon nichts.
-- adx behandelt jeden erwarteten Fehler intern, mit `$try` und `trySync$` aus `@honeyglass/utils`. Ein Handler schreibt kein `try`. Ein Bug wird einmal gefangen, in `main()`: Art `bug`, Exit-Code 2.
+- adx behandelt jeden erwarteten Fehler intern, mit `$try` und `trySync$` aus `@honeyglass/utils/ts`. Ein Handler schreibt kein `try`. Ein Bug wird einmal gefangen, in `main()`: Art `bug`, Exit-Code 2.
 - Node prüft keine Typen. Die Sicherheit gilt dort, wo `tsc --noEmit` läuft: im Editor, vor dem Commit und in CI.
 
 ## Bekannte Grenzen

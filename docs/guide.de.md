@@ -14,7 +14,7 @@ Was ein Tool auf adx tut, ohne Code von dir:
 
 - **JSON in der Pipe, Text am Terminal.** `hello greet --name Ada | jq` bekommt ein JSON-Dokument. Derselbe Aufruf am Terminal gibt lesbare Zeilen aus.
 - **Alle Fehler auf einmal, jeder mit seiner Lösung.** Alle Fehler eines Aufrufs kommen in einer Antwort zurück. Jeder nennt sein Feld, seine Lösung und, wo einer hilft, einen Befehl zum Ausführen.
-- **Nichts geht still durch.** Ein unbekannter Befehl, eine unbekannte Option, ein überzähliges Wort oder ein unbekanntes Eingabefeld wird abgelehnt. adx rät nie.
+- **Nichts geht still durch.** Ein unbekannter Befehl, eine unbekannte Option, ein unbekanntes Wort oder ein unbekanntes Eingabefeld wird abgelehnt. adx rät nie.
 - **Optionen, die ihre Werte listen.** `--lang` ohne Wert antwortet mit den Sprachen, die das Tool kennt.
 - **Ein Schema zur Laufzeit.** `hello schema greet` gibt die genaue Eingabe aus, die der Befehl annimmt. `hello schema` gibt jeden Code aus und was jede Art von Ablehnung verlangt.
 - **Probeläufe.** Jeder Befehl, der etwas ändert, nimmt `--dry-run`. Er führt dieselben Prüfungen aus, antwortet, was geschehen würde, und ändert nichts.
@@ -325,7 +325,7 @@ $ hello greet --name Ada --lang eo --style formal | jq -c '.kind, .issues[0].mes
 
 - Das Feld wird geprüft. Eine Ablehnung an `'styl'` kompiliert nicht, und der Compiler meldet sie in der Zeile des Tippfehlers.
 - Das zweite Argument von `.at()` ist die Meldung. Ohne es wiederholt die Meldung den Hinweis des Codes.
-- adx hat ein unbekanntes `lang` schon vor `run` abgelehnt, weil `lang` eine Quelle hat. Der Compiler kann das nicht wissen. Darum wirft der Code in dem Zweig, den adx schon ausgeschlossen hat. Er wirft einen `RefusalError` der Art `bug` aus `@honeyglass/utils`, nie einen nackten `Error`, damit die Antwort sagt, wer als Nächstes handelt: Exit 2, Art `bug`.
+- adx hat ein unbekanntes `lang` schon vor `run` abgelehnt, weil `lang` eine Quelle hat. Der Compiler kann das nicht wissen. Darum wirft der Code in dem Zweig, den adx schon ausgeschlossen hat. Er wirft einen `RefusalError` der Art `bug` aus `@honeyglass/utils/ts`, nie einen nackten `Error`, damit die Antwort sagt, wer als Nächstes handelt: Exit 2, Art `bug`.
 - Eine Ablehnung, die kein Feld betrifft, etwa ein abgeschaltetes Konto, nutzt `.issue(message)` statt `.at()`. Sie hat keinen `path`. Der [Tracker](#eine-remote-api-einbinden) zeigt eine.
 - Ein Feld, das eine Liste oder ein Objekt hält, lässt sich an einem Teil davon ablehnen. `.at()` nimmt dann eine Liste, die mit dem Feld beginnt. [Eine Eingabe mit Teilen](#eine-eingabe-mit-teilen) zeigt es.
 
@@ -502,9 +502,11 @@ $ hello friends add --name ada --lang en --replace --dry-run
 file      friends/ada.json
 bytes     26
 replaces  true
-changes   changed: lang
+changes   {"added":[],"changed":["lang"],"removed":[],"more":0}
 applied   false
-next      hello friends add --name ada --lang en --replace
+
+Next:
+  hello friends add --name ada --lang en --replace   remembers a friend
 ```
 
 Ohne `--dry-run` ersetzt derselbe Aufruf die Datei. Ob ein Agent die Daten der Person überschreiben darf, sagt sein Skill. Die meisten Skills fragen zuerst die Person.
@@ -1348,7 +1350,7 @@ adx schreibt jede Datei ganz neben ihren Platz und benennt sie dann nacheinander
 
 ```console
 $ notes add-indexed --file ideas/q4.md --title Q4 --text='- tbd' | jq -r '.state'
-Moved in: ideas/q4.md. Not moved: index.md. No temporary file is left.
+Moved in: ideas/q4.md. Not moved: index.md. The temporary file was removed.
 ```
 
 **Eine volle Platte.** Die Antwort sagt, was übrig ist:
@@ -1516,7 +1518,7 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
 }));
 ```
 
-Liste jede Datenart im Tool. `hello schema` zeigt dann die Nummer, in der jede Datenart geschrieben wird, und das Testkit prüft sie. Beim Start sieht adx nicht, welche Datenarten ein Handler liest oder schreibt. Eine Datenart, die fehlt, wird darum beim Aufruf abgelehnt, als `DECLARATION`-Fehler, sobald `file.json`, `parse` oder `stringify` auf sie trifft. Ein `stringify` in `plan` wird abgelehnt, bevor etwas geschrieben ist; eines in `apply` kommt, nachdem die Dateien des Plans geschrieben sind, und der Zustand der Ablehnung nennt sie.
+Liste jede Datenart im Tool. `hello schema` zeigt dann die Nummer, in der jede Datenart geschrieben wird, und das Testkit prüft sie. Beim Start sieht adx nicht, welche Datenarten ein Handler liest oder schreibt. Eine Datenart, die fehlt, wird darum beim Aufruf abgelehnt, als `DECLARATION`-Bug, sobald `file.json`, `parse` oder `stringify` auf sie trifft. Ein `stringify` in `plan` wird abgelehnt, bevor etwas geschrieben ist; eines in `apply` kommt, nachdem die Dateien des Plans geschrieben sind, und der Zustand der Ablehnung nennt sie.
 
 ```ts
 stored: [Friend],
@@ -1645,18 +1647,18 @@ Die gültigen Aufrufe kommen aus den Beispielen deiner Befehle. Der Fake muss si
 ```console
 $ node --test
 ▶ tracker keeps the agent rules
-  ✔ raw JSON input
+  ✔ start answer
   ✔ schema at run time
-  ✔ JSON when piped
+  ✔ raw JSON input
   ✔ dry runs
-  ✔ hints that run
+  ✔ nothing passes silently
   ...
 ✔ tracker keeps the agent rules (412ms)
 ✔ the program keeps them too (2.9s)
 ✔ a busy server is a retry (14ms)
 ```
 
-**`conformance` mit einem Tool** führt jede Prüfung im selben Prozess aus, jede in einem frischen Testordner. Es vergleicht den Ordner vor und nach jedem Aufruf. Ein Probelauf, der eine Datei geschrieben hat, schlägt also fehl. Der Fake sitzt hinter einem Rekorder. So sieht das Testkit, dass ein Probelauf von `ticket create` kein `POST` gesendet hat und dass ein Verbindungsabbruch im echten Lauf mit dem richtigen `state` beantwortet wird. Das Testkit beobachtet auch stdout. Eine vergessene Debug-Zeile lässt den Test fehlschlagen:
+**`conformance` mit einem Tool** führt jede Prüfung im selben Prozess aus, jede in einem frischen Testordner. Es vergleicht den Ordner vor und nach jedem Aufruf. Ein Probelauf, der eine Datei geschrieben hat, schlägt also fehl. Der Fake sitzt hinter einem Rekorder. So sieht das Testkit, dass ein Probelauf von `ticket create` kein `POST` gesendet hat. Das Testkit beobachtet auch stdout. Eine vergessene Debug-Zeile lässt den Test fehlschlagen:
 
 ```console
 ✖ JSON when piped
@@ -1760,7 +1762,7 @@ Ein Fake ist ein Wert eines Tests, also hat eine Befehlszeile keinen. Eine Anfra
 
 **Aufrufe**
 
-- `tool`: Name, Version, der Name des Skills oder `null`, die Befehle und die ersten Schritte.
+- `tool`: Name, Version, was das Tool tut (`does`), der Name des Skills oder `null`, die Befehle und die ersten Schritte.
 - `tool <group>`: die Aktionen der Gruppe.
 - `tool schema`: jeder Befehl, die Shapes, die Optionen, die adx jeder Art von Befehl gibt, die vier Arten, jeder Code mit Art und Hinweis, erst die von adx, dann die des Tools, die Roots mit Variable und Option, die Remotes mit Namen, die Variablen, die gespeicherten Datenarten mit ihrer Formatnummer, die Grenzen, an die ein Aufruf stößt, etwa die Größe der Eingabe über stdin, einer Antwort und einer Seite, und die Zeit eines Versuchs einer Anfrage, die Versuche und die Pause dazwischen.
 - `tool schema <command>`: das Eingabeschema, die globalen Felder, die der Befehl nimmt, die Optionen, die er nimmt, welche Felder Listen haben, Schlüssel, Felder und Kurzform einer Liste, die Felder eines `read` mit `output`, die Seitengröße, `replace: 'always'` eines Effekts, der eine abgeleitete Datei ersetzt, das Beispiel.
@@ -1794,7 +1796,7 @@ adx nutzt kein CLI-Framework. Es liest die Argumente mit `util.parseArgs` von No
 - Eine Option darf nur für ein Array-Feld mehrfach kommen, etwa `--label bug --label payments`.
 - Optionen und `--json` füllen ein Objekt. Ein Feld, das beide geben, wird mit `REPEATED_OPTION` abgelehnt.
 - Objekte und Arrays von Objekten gehen nur über `--json` hinein.
-- Ein Feld darf nicht wie eine Option heißen, die adx seinem Befehl gibt. `json`, `output`, `dry-run`, `replace` und `help` sind an jedem Befehl vergeben, `page` an einem `list`, und `fields` an einem `list` und an einem `read` mit `output`. Ein `effect` darf also ein Feld `page` nennen. `version` ist an jedem Befehl frei, denn `--version` gehört zum Tool allein. Ein Zusammenstoß kompiliert nicht: Der Compiler meldet ihn an `input`. Ein globales Feld erreicht jede Art von Befehl, also nimmt es keinen dieser Namen.
+- Ein Feld darf nicht wie eine Option heißen, die adx seinem Befehl gibt. `json`, `output` und `help` sind an jedem Befehl vergeben, `page` an einem `list`, und `fields` an einem `list` und an einem `read` mit `output`. Ein `effect` darf also ein Feld `page` nennen. `dry-run` und `replace` sind Optionen nur eines `effect`, aber ihre Namen sind auch an jedem Befehl vergeben. `version` ist an jedem Befehl frei, denn `--version` gehört zum Tool allein. Ein Zusammenstoß kompiliert nicht: Der Compiler meldet ihn an `input`. Ein globales Feld erreicht jede Art von Befehl, also nimmt es keinen dieser Namen.
 - Ein Feld darf auch nicht wie ein Root heißen, etwa `home`. Das ist ein `DECLARATION`-Fehler beim Start. Benenne das Feld um, oder den Root.
 
 **Befehle, die adx nennt**
@@ -1946,6 +1948,6 @@ In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergä
 - **`schema` zeigt keine Antwortform für einen `effect` und für ein `read` ohne `output`.** Ihr Antworttyp wird aus deinem Code abgeleitet.
 - **Der Skill wird nicht gegen das Tool geprüft.** Das Testkit prüft, dass die Datei ein Skill ist. Es bemerkt keinen Befehl und keinen Code, den der Skill nennt und den das Tool nicht mehr hat.
 - **Node prüft keine Typen.** `node hello.ts` führt Code mit Typfehlern aus. Die Sicherheit gilt nur dort, wo `tsc --noEmit` läuft: im Editor, in einem Pre-Commit-Hook und in CI.
-- **Startzeit.** Node, eine `.ts`-Datei und Zod brauchen etwa 65 ms, bevor adx lädt. Ein Agent, der ein Tool in einer Aufgabe 40-mal aufruft, wartet allein dafür etwa 2,5 s.
+- **Startzeit.** Node, eine `.ts`-Datei und Zod brauchen etwa 65 ms, bevor adx lädt. Ein Agent, der ein Tool in einer Aufgabe 40-mal aufruft, wartet allein dafür etwa 2,6 s.
 - **Ausliefern braucht Node 24.2.** Es gibt keine einzelne Datei, die man auf eine Maschine kopiert, und ein Paket für npm muss zuerst kompiliert werden.
 - **Unter Windows werden Dateimodi nicht angewendet.**

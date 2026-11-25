@@ -325,7 +325,7 @@ $ hello greet --name Ada --lang eo --style formal | jq -c '.kind, .issues[0].mes
 
 - The field is checked. A refusal at `'styl'` does not compile, and the compiler reports it on the line of the typo.
 - The second argument of `.at()` is the message. Without it, the message repeats the hint of the code.
-- adx refused an unknown `lang` before `run`, since `lang` has a source. The compiler cannot know that, so the code throws in the branch adx has ruled out. It throws a `RefusalError` of kind `bug` from `@honeyglass/utils`, never a bare `Error`, so the answer says who acts next: exit 2, kind `bug`.
+- adx refused an unknown `lang` before `run`, since `lang` has a source. The compiler cannot know that, so the code throws in the branch adx has ruled out. It throws a `RefusalError` of kind `bug` from `@honeyglass/utils/ts`, never a bare `Error`, so the answer says who acts next: exit 2, kind `bug`.
 - A refusal that concerns no field, such as an account that is switched off, uses `.issue(message)` in place of `.at()`. It has no `path`. The [tracker](#wrapping-a-remote-api) shows one.
 - A field that holds a list or an object can be refused at one part of it. `.at()` then takes a list that starts with the field. [Input that has parts](#input-that-has-parts) shows it.
 
@@ -502,9 +502,11 @@ $ hello friends add --name ada --lang en --replace --dry-run
 file      friends/ada.json
 bytes     26
 replaces  true
-changes   changed: lang
+changes   {"added":[],"changed":["lang"],"removed":[],"more":0}
 applied   false
-next      hello friends add --name ada --lang en --replace
+
+Next:
+  hello friends add --name ada --lang en --replace   remembers a friend
 ```
 
 Without `--dry-run` the same call replaces the file. Whether an agent may overwrite the person's data is for its skill to say. Most skills ask the person first.
@@ -1348,7 +1350,7 @@ adx writes every file whole beside its place, then renames them one after anothe
 
 ```console
 $ notes add-indexed --file ideas/q4.md --title Q4 --text='- tbd' | jq -r '.state'
-Moved in: ideas/q4.md. Not moved: index.md. No temporary file is left.
+Moved in: ideas/q4.md. Not moved: index.md. The temporary file was removed.
 ```
 
 **A full disk.** The answer says what is left:
@@ -1645,18 +1647,18 @@ The valid calls come from the examples of your commands, so the fake must answer
 ```console
 $ node --test
 ▶ tracker keeps the agent rules
-  ✔ raw JSON input
+  ✔ start answer
   ✔ schema at run time
-  ✔ JSON when piped
+  ✔ raw JSON input
   ✔ dry runs
-  ✔ hints that run
+  ✔ nothing passes silently
   ...
 ✔ tracker keeps the agent rules (412ms)
 ✔ the program keeps them too (2.9s)
 ✔ a busy server is a retry (14ms)
 ```
 
-**`conformance` with a tool** runs every probe in-process, each in a fresh scratch folder. It compares the folder before and after each call, so a dry run that wrote a file fails. The fake sits behind a recorder, so the kit sees that a dry run of `ticket create` sent no `POST`, and that a dropped connection during the real run is answered with the right `state`. The kit also watches stdout. A forgotten debug line fails the test:
+**`conformance` with a tool** runs every probe in-process, each in a fresh scratch folder. It compares the folder before and after each call, so a dry run that wrote a file fails. The fake sits behind a recorder, so the kit sees that a dry run of `ticket create` sent no `POST`. The kit also watches stdout. A forgotten debug line fails the test:
 
 ```console
 ✖ JSON when piped
@@ -1760,7 +1762,7 @@ A fake is a value of a test, so a command line has none. A request through an ad
 
 **Calls**
 
-- `tool`: name, version, the name of the skill or `null`, the commands, and the first steps.
+- `tool`: name, version, what the tool does (`does`), the name of the skill or `null`, the commands, and the first steps.
 - `tool <group>`: the actions of the group.
 - `tool schema`: every command, the shapes, the options adx gives each kind of command, the four kinds, every code with its kind and hint, adx's own and then the tool's, the roots with their variable and option, the remotes by name, the variables, the stored kinds with their format number, the limits a call meets, such as the size of the input from stdin, of an answer and of a page, and the time of one try of a request, the tries and the pause between them.
 - `tool schema <command>`: the input schema, the global fields the command takes, the options it takes, which fields have lists, the key, fields and outline of a list, the fields of a `read` with `output`, the page size, `replace: 'always'` of an effect that replaces a derived file, the example.
@@ -1794,7 +1796,7 @@ adx uses no CLI framework. It reads the arguments with Node's `util.parseArgs` i
 - An option may come again only for an array field, such as `--label bug --label payments`.
 - Options and `--json` fill one object. A field given by both is refused with `REPEATED_OPTION`.
 - Objects and arrays of objects go in through `--json` only.
-- A field must not take the name of an option adx gives its command. `json`, `output`, `dry-run`, `replace` and `help` are taken on every command, `page` on a `list`, and `fields` on a `list` and on a `read` with `output`. So an `effect` may name a field `page`. `version` is free on every command, since `--version` belongs to the tool called alone. A clash does not compile: the compiler reports it at `input`. A global field reaches every kind of command, so it takes none of these names.
+- A field must not take the name of an option adx gives its command. `json`, `output` and `help` are taken on every command, `page` on a `list`, and `fields` on a `list` and on a `read` with `output`. So an `effect` may name a field `page`. `dry-run` and `replace` are options of an `effect` only, but their names are taken on every command too. `version` is free on every command, since `--version` belongs to the tool called alone. A clash does not compile: the compiler reports it at `input`. A global field reaches every kind of command, so it takes none of these names.
 - A field must not take the name of a root either, such as `home`. That is a `DECLARATION` error at startup. Rename the field, or the root.
 
 **Commands adx names**
@@ -1946,6 +1948,6 @@ In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env no
 - **`schema` shows no answer shape for an `effect`, or for a `read` without `output`.** Their answer type is inferred from your code.
 - **The skill is not checked against the tool.** The kit checks that the file is a skill. It does not notice a command or a code the skill names and the tool no longer has.
 - **Node does not check types.** `node hello.ts` runs code with type errors. The safety exists only where `tsc --noEmit` runs: in the editor, a pre-commit hook and CI.
-- **Start time.** Node, a `.ts` file and Zod take about 65 ms before adx loads. An agent that calls a tool 40 times in a task waits about 2.5 s for that alone.
+- **Start time.** Node, a `.ts` file and Zod take about 65 ms before adx loads. An agent that calls a tool 40 times in a task waits about 2.6 s for that alone.
 - **Shipping needs Node 24.2.** There is no single file to copy onto a machine, and a package for npm must be compiled first.
 - **File modes are not applied on Windows.**

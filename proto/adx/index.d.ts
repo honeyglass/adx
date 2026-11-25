@@ -323,7 +323,7 @@ type Out<O, I extends Obj, G extends Obj, U> = Maybe<O | Refused<Fields<I, G, U>
 type Merged<O, A> = [A] extends [void] ? O : O & A;
 /** The answer of either run: a dry run lacks what `apply` adds. */
 type Either<O, A> = [A] extends [void] ? O : O & Partial<A>;
-/** The options of adx that every command takes. A field of that name would be the same option. */
+/** The option names adx reserves on every command. A field of that name would be the same option. */
 type Always = 'json' | 'output' | 'help' | 'dryRun' | 'replace';
 /** An input compiles only when no field has the name of an option adx gives the command. */
 type Free<S extends Obj, Taken extends string> = [Extract<keyof z.output<S>, Taken>] extends [never]

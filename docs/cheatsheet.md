@@ -307,11 +307,11 @@ next: (_, { name, kind }) => [schema.step(kind), describe.step({ name })],
 - A folder from the variable or the option must exist. An empty value, a relative path, a file or a missing folder: `ROOT_NOT_FOUND`, kind `ask`. adx never falls back to the default.
 - The default folder may be missing. A read command and a dry run create nothing. The first real write creates it.
 - Modes: `0700` for folders, `0600` for files. A replaced file keeps its mode.
-- `files.write(file, data, { mode: 0o644 })`: a mode of its own.
+- `files.write(file, data, { mode: 0o644 })`: a mode of its own, which holds on a replace too.
 - Every effect takes `--replace`. To a new name it passes. If the plan stages no `files.write`, it is refused.
 - With `replace: false`, `schema` does not list the option, and the hint for an existing file is "pick another name".
 - `changes`: `{ added, changed, removed, more }`. JSON paths, otherwise lines, at most 20 per list. `more` counts the rest. A plan may return its own `changes`.
-- adx stores no secrets. A token comes from an environment variable, such as `bearer('TRACKER_TOKEN')`. It goes only over `https`, or over `http` to `localhost`, `127.0.0.1` or `[::1]`. Any other address of a remote with a token is refused before a request: a fixed address or fallback in the tool as a `DECLARATION` error at startup, one from the variable with `URL_NOT_ALLOWED` at the call.
+- adx stores no secrets. A token comes from an environment variable, such as `bearer('TRACKER_TOKEN')`. It goes only over `https`, or over `http` to `localhost`, `127.0.0.1` or `[::1]`. Any other `http` address of a remote with a token is refused before a request: a fixed address or fallback in the tool as a `DECLARATION` error at startup, one from the variable with `URL_NOT_ALLOWED` at the call.
 
 Rule of thumb: `add`, `create`, `save` use `files.write`. `edit`, `update`, `append` use `files.update`.
 
@@ -617,14 +617,14 @@ adx builds in 15 rules. Rule 6 is the author's.
 - All mistakes of a call come back in one answer.
 - Options and `--json` fill one object. A field given by both is refused (`REPEATED_OPTION`).
 - A field `dueDate` is the option `--due-date`. A boolean field is a switch without a value.
-- A field takes no name of an option adx gives its command: `json`, `output`, `dry-run`, `replace` and `help` on every command, `page` on a list, `fields` on a list and on a `read` with `output`. A clash does not compile. `version` is free.
+- A field takes no name of an option adx gives its command: `json`, `output` and `help` on every command, `page` on a list, `fields` on a list and on a `read` with `output`. `dry-run` and `replace`, options of an effect, are taken on every command too. A clash does not compile. `version` is free.
 - Routing and help come from adx's own command table, which the `commands` of the tool fill.
 - adx assumes no folder layout. A command is a value, and the table takes it from wherever it lies.
 - The agent skill is not part of the toolkit. The tool never reads it, never embeds it and never prints it. It only names the skill, and the start answer shows the name.
 - adx's codes and kinds stand once, in adx. Every tool prints them with `tool schema`.
 - No guide text and no free help text in the tool. The first steps come from the `next` of the start answer and from the hints of the refusals.
 - `api` runs on RxJS inside: retries, timeouts, the cancelling of several requests. The author sees none of it.
-- adx handles every expected error inside, with `$try` and `trySync$` from `@honeyglass/utils`. A handler writes no `try`. A bug is caught once, in `main()`: kind `bug`, exit code 2.
+- adx handles every expected error inside, with `$try` and `trySync$` from `@honeyglass/utils/ts`. A handler writes no `try`. A bug is caught once, in `main()`: kind `bug`, exit code 2.
 - Node does not check types. The safety holds where `tsc --noEmit` runs: in the editor, before the commit and in CI.
 
 ## Known limits
