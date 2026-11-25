@@ -1854,6 +1854,7 @@ plan: async ({ name, lang }, { files }) => {
 - Der Status 401 oder 403, oder die Token-Variable ist nicht gesetzt: `ACCESS_REFUSED` oder `ENV_MISSING`, Art `ask`.
 - Jeder andere Status außerhalb von 2xx, oder eine Antwort, die ihr Schema nicht erfüllt: `REMOTE_REFUSED`, Art `ask`.
 - Ein Systemfehler auf einem Pfad, etwa eine volle Platte: `SYSTEM_REFUSED`, Art `ask`.
+- Ein `RefusalError` aus `@honeyglass/utils`, der nicht von adx stammt: `UNKNOWN_ERROR`, mit der Art, die er trägt, seinem reason als Meldung und seinem next als Hinweis.
 - Jeder andere geworfene Fehler: `UNKNOWN_ERROR`, Art `bug`.
 
 Ein Lesen wird bis zu 3-mal erneut versucht, bevor es abgelehnt wird, mit wachsender Pause, bei einem Netzwerkfehler, einem 429 oder einem 503. Ein Senden versucht adx nie erneut: Der Agent bekommt die Art `retry` und den `look`-Schritt. Jede Ablehnung behält den Fehler, der zu ihr geführt hat, als ihre `cause`.

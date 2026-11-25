@@ -1854,6 +1854,7 @@ plan: async ({ name, lang }, { files }) => {
 - The status 401 or 403, or the token variable is not set: `ACCESS_REFUSED` or `ENV_MISSING`, kind `ask`.
 - Any other status outside 2xx, or an answer that fails its schema: `REMOTE_REFUSED`, kind `ask`.
 - A system error on a path, such as a full disk: `SYSTEM_REFUSED`, kind `ask`.
+- A `RefusalError` of `@honeyglass/utils` that is not adx's own: `UNKNOWN_ERROR`, with the kind it carries, its reason as the message and its next as the hint.
 - Any other thrown error: `UNKNOWN_ERROR`, kind `bug`.
 
 A read is tried again up to 3 times before it is refused, with a growing pause, on a network error, a 429 or a 503. A send is never tried again by adx: the agent gets kind `retry` and the `look` step. Every refusal keeps the error that led to it as its `cause`.
