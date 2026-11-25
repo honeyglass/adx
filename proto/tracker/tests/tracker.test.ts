@@ -39,7 +39,10 @@ test('tracker keeps the agent rules', t => conformance(t, tracker, samples));
 test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'], samples));
 
 test('a busy server is a retry', async () => {
-  const busy = fake(api, { [`GET ${project}/tickets`]: reply(503) });
+  const busy = fake(api, {
+    'GET /projects': [{ name: 'checkout-web' }],
+    [`GET ${project}/tickets`]: reply(503),
+  });
   const options = { ...samples, fakes: [busy] };
   const answer = await tickets.invoke({ project: 'checkout-web' }, options);
   assert.equal(answer.kind, 'retry');
