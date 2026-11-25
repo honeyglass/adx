@@ -73,6 +73,8 @@ Node strips the types and runs the file. It does not check them. The compiler do
 { "extends": "@honeyglass/adx/tsconfig.json" }
 ```
 
+A tool imports from `@honeyglass/adx` and, in its tests, from `@honeyglass/adx/test`. The package also exports `@honeyglass/adx/node`, adx's internal adapter to Node, which its own tests use. It is not part of the API and can change without notice.
+
 ### One tool, one file
 
 The two blocks below are one file, `hello.ts`. First the tool. Its one command stands in `commands`, the table of the tool's commands:

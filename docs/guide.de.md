@@ -73,6 +73,8 @@ Node entfernt die Typen und führt die Datei aus. Es prüft sie nicht. Das tut d
 { "extends": "@honeyglass/adx/tsconfig.json" }
 ```
 
+Ein Tool importiert aus `@honeyglass/adx` und, in seinen Tests, aus `@honeyglass/adx/test`. Das Paket exportiert auch `@honeyglass/adx/node`, den internen Adapter von adx zu Node, den seine eigenen Tests nutzen. Er gehört nicht zur API und kann sich ohne Ankündigung ändern.
+
 ### Ein Tool, eine Datei
 
 Die zwei Blöcke unten sind zusammen eine Datei, `hello.ts`. Zuerst das Tool. Sein einziger Befehl steht in `commands`, der Tabelle der Befehle des Tools:
