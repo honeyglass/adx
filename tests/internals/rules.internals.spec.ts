@@ -69,7 +69,13 @@ test('a rule fails with any probe that covers it, a todo is not probed, a skill 
   assert.deepEqual(
     lines.filter(line => ['Dry runs', 'Agent skill', 'Hints that run'].includes(line.rule)),
     [
-      { rule: 'Dry runs', status: 'failed', reason: '1 of the probed calls broke --replace' },
+      {
+        rule: 'Dry runs',
+        status: 'failed',
+        reason: '1 of the probed calls broke --replace',
+        finding: 'y',
+        next: 'x',
+      },
       { rule: 'Agent skill', status: 'named' },
       {
         rule: 'Hints that run',

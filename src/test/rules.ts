@@ -16,7 +16,8 @@
 
 /** What one check of conformance found: a failure, a todo, or neither, which meets its rule. */
 export type Outcome = {
-  failed?: { reason: string; next: string; findings: readonly string[] };
+  /** `call` holds the words of the call that showed the first finding, when one showed it. */
+  failed?: { reason: string; next: string; findings: readonly string[]; call?: readonly string[] };
   /** Why the check did not run, or ran only in part, such as for a command with no example. */
   todo?: string;
   /** Why the check found nothing to call, such as no effect for the dry runs. */
@@ -25,10 +26,17 @@ export type Outcome = {
   subject?: boolean;
 };
 
+/**
+ * A failed line also holds its first finding, what to do, and the words of the call that showed
+ * it, if one did.
+ */
 export type RuleLine = {
   rule: string;
   status: 'met' | 'failed' | 'not probed' | 'named' | 'none named';
   reason?: string;
+  finding?: string;
+  next?: string;
+  call?: readonly string[];
 };
 
 type Rule = { rule: string; checks: readonly string[]; unprobed?: string };
@@ -74,12 +82,24 @@ function lineOf({ rule, checks, unprobed }: Rule, outcomes: ReadonlyMap<string, 
   if (unprobed !== undefined) return { rule, status: 'not probed', reason: unprobed } as const;
   const found = checks.map(check => ({ check, outcome: outcomes.get(check) }));
   const failed = found.find(({ outcome }) => outcome?.failed !== undefined)?.outcome?.failed;
-  if (failed !== undefined) return { rule, status: 'failed', reason: failed.reason } as const;
+  if (failed !== undefined) {
+    const { reason, next, call, findings } = failed;
+    const [finding] = findings;
+    return {
+      rule,
+      status: 'failed',
+      reason,
+      next,
+      ...(finding === undefined ? {} : { finding }),
+      ...(call === undefined ? {} : { call }),
+    } as const;
+  }
   const missing = found.find(({ outcome }) => outcome === undefined);
   if (missing !== undefined)
     return { rule, status: 'not probed', reason: `${missing.check} did not run` } as const;
-  const todo = found.find(({ outcome }) => outcome?.todo !== undefined)?.outcome?.todo;
-  if (todo !== undefined) return { rule, status: 'not probed', reason: todo } as const;
+  const todos = found.flatMap(({ outcome }) => outcome?.todo ?? []);
+  const todo = [...new Set(todos)].join('; ');
+  if (todo !== '') return { rule, status: 'not probed', reason: todo } as const;
   const [idle] = found.map(({ outcome }) => outcome?.idle);
   const idleAll = found.every(({ outcome }) => outcome?.idle !== undefined);
   if (idleAll && idle !== undefined) return { rule, status: 'not probed', reason: idle } as const;

@@ -74,5 +74,6 @@ test('conformance passes a tool that keeps the rules, and fails each broken rule
     'skilled with no file': ['agent skill'],
     // a fake no program can reach is refused before a server starts, and none stays open
     'fixed as a program': ['fixed as a program'],
+    'hello as a program beside a local server': [],
   });
 });

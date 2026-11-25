@@ -83,6 +83,9 @@ export function variablesOf(remote: Remote) {
   ];
 }
 
+/** @returns the name the tool gave the remote, or undefined for a value remote() did not make */
+export const nameOf = (remote: Remote) => servers.get(remote)?.name;
+
 /** @returns the variable of envUrl() the remote reads its address from, or undefined */
 export function urlVariableOf(remote: Remote) {
   const server = servers.get(remote);

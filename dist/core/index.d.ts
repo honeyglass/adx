@@ -47,7 +47,7 @@ export { entered, Held, isHeld, isRefusing, refusing, valueOf } from './call.ts'
 export { listing, unlisted } from './listed.ts';
 export { exitOf, refusalAnswer } from './answer.ts';
 export type { Code } from './code.ts';
-export { code, factsOf } from './code.ts';
+export { code, codesMade, factsOf } from './code.ts';
 export { ADX_CODES, alreadyExists, declaration, envMissing, fileNotFound, inputTooLarge, invalidJson, missingInput, missingValue, networkFailed, newerVersion, notAFile, notAFolder, notInList, notInListAt, optionBeforeCommand, pathOutside, remoteRefused, repeatedOption, rootNotFound, schemaFailed, storedInvalid, systemRefused, unexpectedArgument, unexpectedValue, unknownCommand, unknownError, unknownOption, urlNotAllowed, } from './codes.ts';
 export { isDecimal } from './decimal.ts';
 export { escaped, oneLine } from './escape.ts';
@@ -64,6 +64,7 @@ export { baseOf, brokenLinesIn, failuresOf, ID, isId, keysOf, layersOf, MULTILIN
 export type { AnyList, Choice, Declared, Fresh, Known, Listed, ListRef, Needs, Source, Sourced, Sources, } from './source.ts';
 export { freshBrand, needsBrand, refBrand } from './source.ts';
 export type { Act, Address, Auth, Fake, Incoming, Network, Outgoing, Remote, Request, Unreached, } from './remote.ts';
+export { kitMark, noFakeLead } from './remote.ts';
 export { status } from './status.ts';
 export { issueOf } from './unmapped.ts';
 export type { CommandStep, Step, StepOption, StepParts, Target, TargetField } from './step.ts';

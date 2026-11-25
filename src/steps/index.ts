@@ -7,6 +7,7 @@
  * of a hint.
  * schemaNameOf: the name a step to `schema` shows.
  * stepAnswer, NextStep, Context: a step written out for the call that answers it.
+ * lineOf: words as one line a shell reads word for word.
  *
  * @example import { hintFor, stepAnswer } from '../steps/index.ts';
  */
@@ -14,5 +15,6 @@ export { stepAnswer } from './answer.ts';
 export type { Context, NextStep } from './answer.ts';
 export { codeOf, hint, hintFor, stepOfHint } from './hint.ts';
 export type { Hint } from './hint.ts';
+export { lineOf } from './line.ts';
 export { everySchema, schema, schemaNameOf } from './schema.ts';
 export { tell } from './tell.ts';

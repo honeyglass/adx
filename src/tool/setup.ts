@@ -8,7 +8,8 @@
  * or one-item command do not fit, per effect with `apply` and no `look`, per id() field without
  * a source, per place where an example fails the input of its command, per remote whose own
  * address or token cannot work, per stored kind whose format numbers do not run from the newest
- * down or whose format has a field `version`, and for a skill whose name has not the form of one.
+ * down or whose format has a field `version`, for a skill whose name has not the form of one,
+ * and per code made in two ways or under a name of adx.
  *
  * The function of a hint gets nothing, so its step is checked here, before any call (decision
  * 73). Every other step is made in a function that a call runs, such as `next`, so the answer
@@ -20,7 +21,7 @@
  * @example const [wrong, ...more] = setupIssues(shell, around.network);
  */
 import { declarationIssues, followsOf, isWord, runnerOf, runnersIn } from '../command/index.ts';
-import { declaration, isId, partsOfStep } from '../core/index.ts';
+import { ADX_CODES, codesMade, declaration, factsOf, isId, partsOfStep } from '../core/index.ts';
 import type { Issue, Network } from '../core/index.ts';
 import { setupIssuesOf } from '../remote/index.ts';
 import { codeOf, schemaNameOf, stepOfHint } from '../steps/index.ts';
@@ -49,7 +50,34 @@ export function setupIssues(shell: Shell, network: Network): Issue[] {
     ...shell.remotes.flatMap(remote => setupIssuesOf(remote, network)),
     ...shell.stored.flatMap(kindIssues),
     ...skillIssues(shell),
+    ...codeIssues(),
   ];
+}
+
+// `schema` lists each code once by its name, so a name must say one kind and one hint, and not
+// hide one of adx's (decision 87). Every code of the process counts: it is one registry.
+function codeIssues() {
+  const adx = new Set(ADX_CODES.map(made => factsOf(made).code));
+  const own = codesMade()
+    .filter(made => ADX_CODES.includes(made) === false)
+    .map(factsOf);
+  const names = [...new Set(own.map(({ code }) => code))];
+  return names.flatMap(name => {
+    if (adx.has(name)) {
+      return [
+        declaration.issue(`the tool makes the code ${name}, which is one of adx's own: rename it`),
+      ];
+    }
+    const ways = new Set(
+      own.filter(({ code }) => code === name).map(({ kind, hint }) => `${kind}: ${hint}`),
+    );
+    if (ways.size < 2) return [];
+    return [
+      declaration.issue(
+        `the code ${name} is made in ${ways.size} ways (${[...ways].join(' | ')}): make it once`,
+      ),
+    ];
+  });
 }
 
 // The test kit finds the skill by its name under ~/.claude/skills/, so the name is part of a path.

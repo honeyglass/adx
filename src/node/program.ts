@@ -5,10 +5,13 @@
  * a scratch, and answers its exit code and what it wrote.
  *
  * The program sees no variable of the person: only PATH, so `node` is found, its home and temp
- * folders in the scratch, and the variables the test names. A word of the command line that
+ * folders in the scratch, which no variable of the test replaces, and the variables the test
+ * names. A word of the command line that
  * names a file of the folder the test runs in, such as bin/tracker.ts, is made absolute, since
  * the program runs in the working directory of the scratch. stdin holds the given text, else it
- * ends at once. A call that does not end in time is killed and answers no exit code.
+ * ends at once. The program leads a process group of its own: when it ends, or when it does not
+ * end in time, the whole group is killed, so a child it left cannot hold the pipes open, and a
+ * killed call answers no exit code.
  *
  * @example const ran = await program(['node', 'bin/tracker.ts'], { argv: ['schema'], ...folders });
  */
@@ -18,7 +21,9 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import process from 'node:process';
 import { text } from 'node:stream/consumers';
-import { $try, RefusalError } from '@honeyglass/utils/ts';
+import { $try, trySync$ } from '@honeyglass/utils/ts';
+import { fileNotFound, NOTHING_CHANGED, refusedWith } from '../core/index.ts';
+import { hold } from './held.ts';
 import { PROGRAM_MS } from './limits.ts';
 
 export type ProgramCall = {
@@ -34,26 +39,35 @@ export type ProgramCall = {
  * @param words - the command line that starts the tool, such as ['node', 'bin/tracker.ts']
  * @param call - the arguments, the folders, the variables and stdin of the call
  * @returns the exit code, or null for a program that was killed, and what it wrote
- * @throws a fix RefusalError when the command line starts no program
+ * @throws a refusal FILE_NOT_FOUND at `command` when the command line starts no program
  */
 export async function program(words: readonly string[], call: ProgramCall) {
   const [file = '', ...args] = words.map(word => (existsSync(word) ? resolve(word) : word));
-  const env = { PATH: process.env.PATH ?? '', HOME: call.home, TMPDIR: call.tmp, ...call.env };
-  const options = { cwd: call.cwd, env, timeout: PROGRAM_MS, killSignal: 'SIGKILL' as const };
-  const child = spawn(file, [...args, ...call.argv], options);
+  // The kit's own folders win over a variable of the call.
+  const env = { ...call.env, PATH: process.env.PATH ?? '', HOME: call.home, TMPDIR: call.tmp };
+  const child = spawn(file, [...args, ...call.argv], { cwd: call.cwd, env, detached: true });
+  const release = hold(() => endGroup(child.pid));
+  const timer = setTimeout(release, PROGRAM_MS);
+  // What the program started goes with it, so no child of it holds the pipes open.
+  child.once('exit', release);
   child.stdin.end(call.stdin ?? undefined);
   const { data, error } = await $try(() =>
     Promise.all([text(child.stdout), text(child.stderr), once(child, 'close')]),
   );
+  clearTimeout(timer);
+  release();
   if (error === null) {
     const [out, err, [exit]] = data;
     return { exit: typeof exit === 'number' ? exit : null, out, err };
   }
-  throw new RefusalError({
-    kind: 'fix',
-    step: 'conformance',
-    reason: `the command line ${words.join(' ')} starts no program`,
-    next: 'pass the words that start the tool, such as node and the file that calls main',
-    cause: error,
-  });
+  const message = `the command line ${words.join(' ')} starts no program`;
+  throw refusedWith([fileNotFound.at('command', message)], NOTHING_CHANGED, error);
+}
+
+/**
+ * The program leads a group of its own, so SIGKILL to the group ends what it started too. A group
+ * that is gone, or a program that never started, leaves nothing to end.
+ */
+function endGroup(pid: number | undefined) {
+  if (pid !== undefined) trySync$(() => process.kill(-pid, 'SIGKILL'));
 }

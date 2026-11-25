@@ -3,15 +3,24 @@
  *
  * Code, code: the declared code, and the function that declares it.
  * factsOf: the name, kind and hint of a code, as `schema` lists them.
+ * codesMade: every code code() made in the process, in the order it made them.
  *
- * Nothing is checked when code() is called: a tool declares its codes when its files load.
+ * Nothing is checked when code() is called: a tool declares its codes when its files load. Each
+ * code() also registers its code in the one registry of the process, so `schema` lists codes a
+ * tool never raised (decision 87). A code is a value of the tool's files and knows no tool, so a
+ * test with two tools in one process lists the codes of both in each.
  *
  * @example const noFormal = code('NO_FORMAL_GREETING', 'fix', 'Greet casually');
  */
 import { Issue, issueAnswer, kindOfIssue } from "./issue.js";
+/** The one registry of the process, which code() fills and nothing empties. */
+const made = [];
 export function code(name, kind, hint) {
-    return new Declared(name, kind, hint);
+    const declared = new Declared(name, kind, hint);
+    made.push(declared);
+    return declared;
 }
+export const codesMade = () => made;
 /** An issue without a message repeats the hint of its code, so one issue tells all three. */
 export function factsOf(declared) {
     const issue = declared.issue();

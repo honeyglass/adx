@@ -6,8 +6,9 @@
  * `schema` knows a name.
  *
  * `schema` alone names every command with its input, the shapes, the roots with their variable
- * and option, the variables of the remotes, never their values, the stored kinds with the
- * format number each is written in, what each kind asks the caller and adx's own codes. `schema <command>` shows the
+ * and option, the remotes by name and their variables, never their values, the stored kinds
+ * with the format number each is written in, what each kind asks the caller, and adx's own codes
+ * followed by every other code made in the process. `schema <command>` shows the
  * input as JSON Schema with what --help shows, and of a list its item, key, outline and page
  * size; `schema <shape>` shows the shape. Each prints the JSON Schema of the same Zod schema adx
  * checks with, so the two never differ. `schema` comes before the command table, and takes no
@@ -17,10 +18,17 @@
  */
 import { refused, runnersIn } from '../command/index.ts';
 import type { Answered, Runner } from '../command/index.ts';
-import { ADX_CODES, exitOf, factsOf, unknownCommand, unknownOption } from '../core/index.ts';
+import {
+  ADX_CODES,
+  codesMade,
+  exitOf,
+  factsOf,
+  unknownCommand,
+  unknownOption,
+} from '../core/index.ts';
 import { rootOptions } from '../files/index.ts';
 import type { Kind, Step, Token } from '../core/index.ts';
-import { variablesOf } from '../remote/index.ts';
+import { nameOf, variablesOf } from '../remote/index.ts';
 import { jsonSchemaOf } from '../shapes/index.ts';
 import type { Shell } from './tool.ts';
 
@@ -89,11 +97,19 @@ function overviewOf(shell: Shell) {
     root: name,
     ...(variable === undefined ? {} : { variable, option: `--${name}` }),
   }));
+  const remotes = shell.remotes.flatMap(remote => nameOf(remote) ?? []);
   const variables = shell.remotes.flatMap(variablesOf);
   const stored = shell.stored.map(({ name, version }) => ({ name, version }));
-  const codes = ADX_CODES.map(factsOf);
+  const codes = codesOf();
   const shapes = Object.keys(shell.shapes);
-  return { commands, shapes, roots, variables, stored, kinds, codes };
+  return { commands, shapes, roots, remotes, variables, stored, kinds, codes };
+}
+
+// adx's own codes first, then each other name code() made in the process, as its first code()
+// made it (decision 87).
+function codesOf() {
+  const codes = [...ADX_CODES, ...codesMade()].map(factsOf);
+  return codes.filter((facts, i) => codes.findIndex(other => other.code === facts.code) === i);
 }
 
 function commandSchemaOf(runner: Runner) {

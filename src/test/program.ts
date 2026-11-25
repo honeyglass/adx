@@ -2,35 +2,42 @@
  * How conformance calls a tool as a real program, started from its command line.
  *
  * programCaller: the caller of a command line, such as ['node', 'bin/tracker.ts'].
+ * kitVariableIssues: one issue per variable of the samples that the kit sets itself.
  *
  * Each session is a fresh scratch folder with a home, a temp folder and a working directory.
  * Each root the tool names with a variable lies in the scratch folder too, with the seed copied
  * in, so the program never reaches the person's data. Each fake answers on a local port, and the
- * variable of its remote's address points the program there. ADX_FAKES_ONLY=1 closes the
- * program's network to the machine itself, so a remote without a fake reaches no server.
- * The roots come from `tool schema`, which the caller reads once in a bare session.
+ * variable of its remote's address points the program there. ADX_FAKES_ONLY, a fresh token, closes
+ * the program's network to the origins ADX_FAKE_ORIGINS names, those of the fakes, so a remote
+ * without a fake reaches no server, not even one on the machine itself (decision 86). The roots
+ * come from `tool schema`, which the caller reads once in a bare session.
+ *
+ * The kit sets PATH, HOME, TMPDIR, the two variables above, the variable of each root and the
+ * address of each fake; a variable of the samples cannot replace them, and naming one is refused.
  *
  * @example const caller = await programCaller(t, ['node', 'bin/tracker.ts'], samples);
  */
-import { $try, RefusalError } from '@honeyglass/utils/ts';
-import type { Fake } from '../core/index.ts';
-import { program, scratch, seeded, serve, snapshot } from '../node/index.ts';
-import { FAKES_ONLY, fakeAnswer, heard, urlVariableOf } from '../remote/index.ts';
+import { $try } from '@honeyglass/utils/ts';
+import { NOTHING_CHANGED, refusedWith, schemaFailed, urlNotAllowed } from '../core/index.ts';
+import type { Fake, Issue } from '../core/index.ts';
+import { nonce, program, scratch, seeded, serve, snapshot } from '../node/index.ts';
+import { FAKE_ORIGINS, FAKES_ONLY, fakeAnswer, heard, urlVariableOf } from '../remote/index.ts';
 import { answerIn, Overview, resultOf } from './answer.schema.ts';
-import { changedIn } from './caller.ts';
-import type { Asked, Caller, Context, Session } from './caller.ts';
+import { changedIn, fakedBy } from './caller.ts';
+import type { Asked, Caller, Cleanup, Session } from './caller.ts';
 import type { Samples } from './run.ts';
 
 type Program = { words: readonly string[]; env: Record<string, string>; seed?: string };
 
 /**
- * @param t - the test, which closes the servers of the fakes when it ends
+ * @param t - what closes the servers of the fakes when the check ends
  * @param words - the command line that starts the tool
  * @param samples - the variables, the seed and the fakes of every call
- * @throws a fix RefusalError for a fake whose remote has a fixed address
+ * @throws a refusal URL_NOT_ALLOWED for a fake whose remote has a fixed address, and SCHEMA at
+ * `env` for a variable of the samples the kit sets itself
  */
 export async function programCaller(
-  t: Context,
+  t: Cleanup,
   words: readonly string[],
   samples: Samples,
 ): Promise<Caller> {
@@ -44,11 +51,20 @@ export async function programCaller(
     t.after(server.close);
     addresses.push([variable, server.url]);
   }
-  const env = { ...samples.env, ...Object.fromEntries(addresses), [FAKES_ONLY]: '1' };
+  const token = nonce();
+  // a fake's server answers at the root of its origin, so its url is its origin
+  const origins = addresses.map(([, url]) => url).join(',');
+  const kit = { ...Object.fromEntries(addresses), [FAKES_ONLY]: token, [FAKE_ORIGINS]: origins };
+  const env = { ...samples.env, ...kit };
   const bare: Program = { words, env };
   const roots = await rootsOf(bare, sent);
+  const kitVariables = [...Object.keys(kit), ...roots.map(({ variable }) => variable)];
+  const [wrong, ...more] = kitVariableIssues(samples.env ?? {}, kitVariables);
+  if (wrong !== undefined) throw refusedWith([wrong, ...more], NOTHING_CHANGED);
   const run = { words, env, ...(samples.seed === undefined ? {} : { seed: samples.seed }) };
   return {
+    faked: fakedBy(samples),
+    closedBy: token,
     session: work => inSession(run, roots, sent, work),
     watched:
       'the kit watches the scratch folder, which holds the home, temp and working folders of the program',
@@ -60,12 +76,29 @@ export async function programCaller(
 function variableOf(made: Fake) {
   const variable = urlVariableOf(made.remote);
   if (variable !== undefined) return variable;
-  throw new RefusalError({
-    kind: 'fix',
-    step: 'conformance',
-    reason: 'a fake stands for a remote with a fixed address, so the program cannot reach it',
-    next: 'give the remote its address with envUrl, so the kit points the program at the fake',
-  });
+  const message =
+    'a fake stands for a remote with a fixed address, so the program cannot reach it: give the remote its address with envUrl';
+  throw refusedWith([urlNotAllowed.issue(message)], NOTHING_CHANGED);
+}
+
+/** The variables the kit always sets: a definition, from node/program.ts and this file. */
+const KIT_VARIABLES = ['PATH', 'HOME', 'TMPDIR', FAKES_ONLY, FAKE_ORIGINS];
+
+/**
+ * @param env - the variables of the samples
+ * @param more - the variables the kit sets for this tool, such as those of its roots
+ * @returns one SCHEMA issue at `env` per variable the kit sets itself
+ */
+export function kitVariableIssues(
+  env: Readonly<Record<string, string>>,
+  more: readonly string[] = [],
+) {
+  const taken = new Set([...KIT_VARIABLES, ...more]);
+  return Object.keys(env)
+    .filter(variable => taken.has(variable))
+    .map((variable): Issue =>
+      schemaFailed.at('env', `${variable} is a variable the test kit sets itself`),
+    );
 }
 
 // Each root with a variable, by that variable.
@@ -88,11 +121,6 @@ async function inSession<T>(
     variable,
     folder: `${made.folder}/roots/${root}`,
   }));
-  if (placed.length > 0) made.disk.makeFolder(`${made.folder}/roots`, 0o700);
-  for (const { folder } of placed) {
-    if (run.seed === undefined) made.disk.makeFolder(folder, 0o700);
-    else seeded(run.seed, folder);
-  }
   const env = { ...run.env, ...Object.fromEntries(placed.map(p => [p.variable, p.folder])) };
   const session: Session = {
     call: async (asked: Asked) => {
@@ -114,7 +142,16 @@ async function inSession<T>(
       };
     },
   };
-  const { data, error } = await $try(() => work(session));
+  // The seed is copied inside the one $try, so a seed that cannot be copied removes the scratch
+  // too.
+  const { data, error } = await $try(() => {
+    if (placed.length > 0) made.disk.makeFolder(`${made.folder}/roots`, 0o700);
+    for (const { folder } of placed) {
+      if (run.seed === undefined) made.disk.makeFolder(folder, 0o700);
+      else seeded(run.seed, folder);
+    }
+    return work(session);
+  });
   made.remove();
   if (error !== null) throw error;
   return data;

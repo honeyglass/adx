@@ -14,7 +14,15 @@
  *
  * @example const known = await probing.known();
  */
-import { RefusalError } from '@honeyglass/utils/ts';
+import {
+  ADX_CODES,
+  factsOf,
+  kitMark,
+  noFakeLead,
+  NOTHING_CHANGED,
+  refusedWith,
+  schemaFailed,
+} from '../core/index.ts';
 import { answerIn, Facts, keysIn, Overview, resultOf, Started } from './answer.schema.ts';
 import type { Answer } from './answer.schema.ts';
 import type { Asked, Called, Caller, Session } from './caller.ts';
@@ -31,6 +39,11 @@ export type Known = {
   name: string;
   commands: Command[];
   shapes: string[];
+  /** The remotes `schema` names, and the codes it lists beside adx's, which the tool made. */
+  remotes: string[];
+  codes: string[];
+  /** The skill the start answer names, or undefined without one. */
+  skill: string | undefined;
   /** The words of each group, which lists its commands when called alone. */
   groups: string[][];
   /** What the start answer and `schema` broke, for their probes. */
@@ -39,6 +52,9 @@ export type Known = {
   /** Each command with a required field and no example, which no probe can call validly. */
   unexampled: string[];
 };
+
+/** adx's own codes, so the codes `schema` lists beside them are the tool's. */
+const ADX_NAMES = new Set(ADX_CODES.map(made => factsOf(made).code));
 
 /**
  * The codes of an issue that says a call leaves a field open or gives it a value it does not
@@ -66,12 +82,15 @@ const UNKNOWN_CALL = new Set([
 
 export class Probing {
   readonly calls: Called[] = [];
+  /** The calls of the commands answers named, a part of `calls` that belongs to no probe. */
+  readonly namedCalls: Called[] = [];
   /** What the commands the answers named broke. */
   readonly named: string[] = [];
   readonly #caller: Caller;
   readonly #ran = new Set<string>();
   #name = '';
   #commands: readonly Command[] = [];
+  #unfaked: readonly string[] = [];
 
   constructor(caller: Caller) {
     this.#caller = caller;
@@ -79,7 +98,8 @@ export class Probing {
 
   /**
    * @returns the tool as the start answer and `schema` show it
-   * @throws a fix RefusalError when the start answer names no tool, since no probe can run then
+   * @throws a refusal SCHEMA at `command` when neither the start answer nor `schema` names the
+   * tool, since no probe can run then
    */
   async known(): Promise<Known> {
     // The name first, since every command an answer names begins with it: from the start
@@ -90,13 +110,8 @@ export class Probing {
     const name =
       resultOf(answerIn(first.out).answer, Started)?.name ?? command?.command.split(' ')[0];
     if (name === undefined) {
-      throw new RefusalError({
-        kind: 'fix',
-        step: 'conformance',
-        reason: 'neither the tool called alone nor its schema names the tool',
-        next: 'run the tool alone and its schema, and fix what they answer',
-        cause: `${first.out}${first.err}${listed.out}${listed.err}`,
-      });
+      const message = 'neither the tool called alone nor its schema answers as a tool of adx does';
+      throw refusedWith([schemaFailed.at('command', message)], NOTHING_CHANGED);
     }
     this.#name = name;
     const start = await this.ask({ argv: [] });
@@ -115,12 +130,19 @@ export class Probing {
       else commands.push(commandOf(words, facts));
     }
     this.#commands = commands;
+    const remotes = overview?.remotes ?? [];
+    this.#unfaked = remotes.filter(remote => this.#caller.faked.includes(remote) === false);
     const shapes = overview?.shapes ?? [];
     for (const shape of shapes) shown.push(await this.ask({ argv: ['schema', shape] }));
     return {
       name,
       commands,
       shapes,
+      remotes,
+      codes: (overview?.codes ?? [])
+        .map(({ code }) => code)
+        .filter(code => ADX_NAMES.has(code) === false),
+      skill: resultOf(answerIn(first.out).answer, Started)?.skill ?? undefined,
       groups: groupsOf(commands.map(command => command.words)),
       started: refusedOf([start]),
       unexampled: commands
@@ -149,6 +171,40 @@ export class Probing {
     return this.#caller.session(session => session.call(asked));
   }
 
+  /**
+   * The closed network of the kit refuses a request to a remote without a fake, so such a call
+   * shows nothing of the rule it probes, and counts as not probed. Its message ends with the
+   * kit's token, which no program can guess, so a refusal the program prints itself still counts.
+   *
+   * @returns the remote without a fake that refused the call, or undefined
+   */
+  unreached(called: Called) {
+    const issues = answerIn(called.out).answer?.issues ?? [];
+    const mark = kitMark(this.#caller.closedBy);
+    return this.#unfaked.find(remote =>
+      issues.some(
+        ({ code, message }) =>
+          code === 'DECLARATION' &&
+          message.startsWith(noFakeLead(remote)) &&
+          message.endsWith(mark),
+      ),
+    );
+  }
+
+  /** The remotes `schema` names that no fake stands for. */
+  get unfaked() {
+    return this.#unfaked;
+  }
+
+  /** @returns each code an answer of a call so far raised */
+  raised() {
+    return new Set(
+      this.calls
+        .flatMap(called => answerIn(called.out).answer?.issues ?? [])
+        .map(issue => issue.code),
+    );
+  }
+
   /** Which folders a call's `changed` covers. */
   get watched() {
     return this.#caller.watched;
@@ -156,7 +212,12 @@ export class Probing {
 
   /** @returns the call as an agent would type it, the tool's name first */
   line(called: Asked) {
-    return [this.#name, ...called.argv].join(' ');
+    return this.wordsOf(called).join(' ');
+  }
+
+  /** @returns the words of the call, the tool's name first */
+  wordsOf(called: Asked) {
+    return [this.#name, ...called.argv];
   }
 
   async #namedIn(session: Session, called: Called) {
@@ -183,6 +244,7 @@ export class Probing {
     if (program !== this.#name) return [`${said}, which does not call ${this.#name}`];
     const named = await session.call({ argv });
     this.calls.push(named);
+    this.namedCalls.push(named);
     const { answer } = answerIn(named.out);
     const unknown = (answer?.issues ?? []).filter(issue => UNKNOWN_CALL.has(issue.code));
     if (unknown.length > 0) return [`${said}, and adx does not know it: ${messagesOf(unknown)}`];

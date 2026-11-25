@@ -7,7 +7,10 @@
  * The probes that call come first. The last ones read every call made before them: each answer
  * is one JSON document, each exit code fits its answer, each named command runs, and a read
  * without `output` answers no long list or large document. The valid calls come from the
- * examples `schema` shows, so the fakes and the seed must answer them.
+ * examples `schema` shows, so the fakes and the seed must answer them. A call that the kit's
+ * closed network refused, since no fake stands for its remote, breaks no rule: the probe that
+ * made it is not probed in full, and says so, as does a probe that cannot see what it needs,
+ * such as the sends of a remote without a fake, or the hint of a code no call raised.
  *
  * @example for (const probe of PROBES) findings.push(...(await probe.findings(probing, known)));
  */
@@ -36,6 +39,9 @@ export const PROBES = [
         next: 'stage files in plan and send in apply only, through adx, never straight to the disk or the network',
         example: true,
         idle: known => (withExample(known).some(isEffect) ? undefined : 'no effect to dry-run'),
+        unprobed: (probing, known) => probing.unfaked.length === 0 || withExample(known).some(isEffect) === false
+            ? undefined
+            : `no recorder for ${quotedNames(probing.unfaked)}: pass a fake to probe sends`,
         findings: dryRuns,
     },
     {
@@ -87,19 +93,38 @@ export const PROBES = [
     {
         name: 'exit codes',
         next: 'fix the bug the error names, or refuse with a code of the tool',
+        unprobed: probing => {
+            const unreached = probing.calls.filter(called => reached(probing, called) === false);
+            if (unreached.length === 0)
+                return undefined;
+            return `${countOf(unreached.length)} reached ${quotedNames(probing.unfaked)}, which no fake stands for, so their exit codes show nothing`;
+        },
         findings: exits,
     },
     {
         name: 'hints that run',
         next: 'name steps with step() of a listed command, and commands adx knows',
+        unprobed: (probing, known) => {
+            const raised = probing.raised();
+            const never = known.codes.filter(code => raised.has(code) === false);
+            if (never.length === 0)
+                return undefined;
+            return `${never.join(', ')} ${never.length === 1 ? 'was' : 'were'} never raised`;
+        },
+        calls: probing => probing.namedCalls,
         findings: async (probing) => probing.named,
     },
     {
         name: 'large answers',
         next: 'give a read that answers a long list or a large document an output schema',
-        idle: known => known.commands.filter(isRead).some(command => command.facts.output === undefined)
-            ? undefined
-            : 'no read without an output schema',
+        idle: known => (unbounded(known).length > 0 ? undefined : 'no read without an output schema'),
+        unprobed: (probing, known) => {
+            const calls = callsOf(probing, unbounded(known));
+            const answered = calls.some(called => answerIn(called.out).answer?.ok === true);
+            if (unbounded(known).length === 0 || answered)
+                return undefined;
+            return 'no read without an output schema answered';
+        },
         findings: large,
     },
 ];
@@ -107,7 +132,7 @@ async function rawJson(probing, known) {
     const findings = known.unexampled.map(line => `${line} has a required field and no example, so no probe can call it validly`);
     for (const command of withExample(known)) {
         const called = await probing.ask(exampleCall(command));
-        if (called.exit !== 0)
+        if (called.exit !== 0 && reached(probing, called))
             findings.push(refused(probing, called));
     }
     return findings;
@@ -118,7 +143,7 @@ async function dryRuns(probing, known) {
         const called = await probing.ask(exampleCall(command, ['--dry-run']));
         const { answer } = answerIn(called.out);
         const line = probing.line(called);
-        if (called.exit !== 0)
+        if (called.exit !== 0 && reached(probing, called))
             findings.push(refused(probing, called));
         if (called.exit === 0 && answer?.applied !== false)
             findings.push(`${line} applied it`);
@@ -173,7 +198,7 @@ async function listing(probing, known) {
             const listed = command.facts.lists.includes(field.field);
             const missing = issues.every(issue => issue.code === 'MISSING_VALUE');
             const line = probing.line(called);
-            if (listed && called.exit !== 0 && missing === false)
+            if (listed && called.exit !== 0 && missing === false && reached(probing, called))
                 findings.push(`${line} lists no values: ${messages(issues)}`);
             if (listed === false && (called.exit !== 1 || missing === false))
                 findings.push(`${line} was not refused with MISSING_VALUE`);
@@ -241,7 +266,9 @@ async function piped(probing) {
     return findings;
 }
 async function exits(probing) {
-    return probing.calls.flatMap(called => {
+    return probing.calls
+        .filter(called => reached(probing, called))
+        .flatMap(called => {
         const { answer } = answerIn(called.out);
         const line = probing.line(called);
         if (called.exit === null)
@@ -258,13 +285,7 @@ async function exits(probing) {
 }
 // Only the calls a probe made of a known command count: their kind tells a read without output.
 async function large(probing, known) {
-    const unbounded = known.commands
-        .filter(isRead)
-        .filter(command => command.facts.output === undefined);
-    const named = new Set(unbounded.map(command => command.words.join(' ')));
-    return probing.calls
-        .filter(called => called.command !== undefined && named.has(called.command))
-        .flatMap(called => {
+    return callsOf(probing, unbounded(known)).flatMap(called => {
         const { answer } = answerIn(called.out);
         if (answer?.ok !== true)
             return [];
@@ -283,6 +304,17 @@ function longestList(value) {
         return 0;
     return Math.max(0, ...Object.values(value).map(longestList));
 }
+const unbounded = (known) => known.commands.filter(isRead).filter(command => command.facts.output === undefined);
+/** @returns the calls a probe made of one of the commands */
+function callsOf(probing, commands) {
+    const named = new Set(commands.map(command => command.words.join(' ')));
+    return probing.calls.filter(called => called.command !== undefined && named.has(called.command));
+}
+/** A call the closed network refused shows nothing of a rule, so it breaks none. */
+const reached = (probing, called) => probing.unreached(called) === undefined;
+/** @returns the number of calls in words, such as "1 call" or "7 calls" */
+export const countOf = (count) => `${count} ${count === 1 ? 'call' : 'calls'}`;
+export const quotedNames = (names) => names.map(name => JSON.stringify(name)).join(', ');
 const withExample = (known) => known.commands.filter(command => command.example !== undefined);
 const isEffect = (command) => command.facts.options.some(o => o.option === '--dry-run');
 const takesReplace = (command) => command.facts.options.some(o => o.option === '--replace');

@@ -6,6 +6,8 @@
  * Network, Address, Outgoing, Incoming, Unreached: the port a remote reaches a server through,
  * an address as it reads one, a request as it leaves the program, the answer of the server, and
  * a request that got no whole answer.
+ * noFakeLead, kitMark: how the refusal of a request the test kit's closed network stops begins,
+ * and how it ends, with the kit's token, so the kit tells it from a refusal a program prints.
  *
  * The types stand in core/, since command/ types `apply` with Act and invoke with Fake, and
  * remote/ makes the values. An Incoming has a status and headers, so status() and the guide's
@@ -86,4 +88,8 @@ export interface Network {
     /** Cold: each subscription sends once, and an unsubscribe before the answer aborts the request. */
     send(request: Outgoing): Observable<Incoming | Unreached>;
 }
+/** @returns the start of the message of a request to the remote that no fake answers */
+export declare const noFakeLead: (name: string) => string;
+/** @returns the end of that message, with the token the kit closed the network with */
+export declare const kitMark: (token: string) => string;
 export {};

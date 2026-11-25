@@ -15,10 +15,12 @@
  */
 /** What one check of conformance found: a failure, a todo, or neither, which meets its rule. */
 export type Outcome = {
+    /** `call` holds the words of the call that showed the first finding, when one showed it. */
     failed?: {
         reason: string;
         next: string;
         findings: readonly string[];
+        call?: readonly string[];
     };
     /** Why the check did not run, or ran only in part, such as for a command with no example. */
     todo?: string;
@@ -27,10 +29,17 @@ export type Outcome = {
     /** For a check of something a tool may lack, such as the skill: whether the tool has it. */
     subject?: boolean;
 };
+/**
+ * A failed line also holds its first finding, what to do, and the words of the call that showed
+ * it, if one did.
+ */
 export type RuleLine = {
     rule: string;
     status: 'met' | 'failed' | 'not probed' | 'named' | 'none named';
     reason?: string;
+    finding?: string;
+    next?: string;
+    call?: readonly string[];
 };
 /**
  * @param outcomes - the outcome of each check of conformance, by its name

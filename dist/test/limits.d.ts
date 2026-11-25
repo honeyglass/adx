@@ -6,6 +6,7 @@
  * STORED_FILE, STORED_FILE_BYTES: the file of the fingerprints of stored kinds (decision 55),
  * and how much of it the kit reads.
  * FRONTMATTER_BYTES: how much of a skill the kit reads to find its frontmatter.
+ * REPORT_NAME, REPORT_GAP, REPORT_STATUS: the columns of adxcheck report, as the guide shows it.
  *
  * @example if (bytes > LARGE_ANSWER) findings.push(`${line} answers ${bytes} bytes`);
  */
@@ -20,3 +21,8 @@ export declare const STORED_FILE = "adx.stored.json";
 export declare const STORED_FILE_BYTES = 1048576;
 /** Four KiB, far beyond a frontmatter with a name and a description. */
 export declare const FRONTMATTER_BYTES = 4096;
+/** The status of a rule starts at column 20, or two spaces after a longer name. */
+export declare const REPORT_NAME = 20;
+export declare const REPORT_GAP = 2;
+/** The reason starts 13 characters after the status: "not probed" and three spaces. */
+export declare const REPORT_STATUS = 13;

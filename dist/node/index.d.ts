@@ -1,8 +1,10 @@
 /**
  * The entry of '@honeyglass/adx/node', the adapter to Node: the one folder that imports node:.
  *
- * around, output, Output: what one call gets from Node, and what the program leaves there.
+ * args, around, output, Output: what one call gets from Node, and what the program leaves there.
  * catchLost: the errors of the program that no call awaited.
+ * disk: the file system, for adxcheck's check of its seed.
+ * endOnSignals, nonce: what adxcheck closes on a signal, and a token no program can guess.
  * tokensOf: the arguments of a call as tokens, read by util.parseArgs.
  * captured: what console writes during a call in the process of a test.
  * network: the port a remote reaches its server through.
@@ -17,12 +19,15 @@
  *
  * @example const node = await import('../node/index.ts');
  */
-export { around } from './around.ts';
+export { args, around } from './around.ts';
 export { captured } from './capture.ts';
 export { byteLength } from './bytes.ts';
+export { disk } from './disk.ts';
 export { digestOf, keep, textAt } from './kept.ts';
+export { endOnSignals } from './held.ts';
 export { catchLost } from './lost.ts';
 export { network } from './network.ts';
+export { nonce } from './nonce.ts';
 export { program } from './program.ts';
 export type { ProgramCall } from './program.ts';
 export { scratch, seeded } from './scratch.ts';

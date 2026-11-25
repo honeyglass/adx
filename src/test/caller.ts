@@ -3,9 +3,11 @@
  *
  * Asked, Called, Session, Caller: one call a probe asks for, what it left, the scratch folder
  * that calls share, and what makes such folders.
- * Context: what conformance uses of the test it runs in.
+ * Context, Cleanup: what conformance uses of the test it runs in, and the part of it a check
+ * that runs outside a test, such as adxcheck, gives too.
  * toolCaller: the caller of a tool that tool() made.
  * changedIn: each path two snapshots of a folder hold differently.
+ * fakedBy: the remotes the fakes of the samples stand for, by name.
  *
  * Each session is a fresh scratch folder with the seed copied in, and each call in it goes
  * through the same call as main(), so what a probe sees is what the program answers. A session
@@ -17,8 +19,8 @@
  */
 import { RefusalError } from '@honeyglass/utils/ts';
 import type { Surroundings } from '../core/index.ts';
-import { captured, snapshot, testFolder, tokensOf } from '../node/index.ts';
-import { heard } from '../remote/index.ts';
+import { captured, nonce, snapshot, testFolder, tokensOf } from '../node/index.ts';
+import { FAKES_ONLY, heard, nameOf } from '../remote/index.ts';
 import { call, inScratch, specOf } from '../tool/index.ts';
 import type { Shell } from '../tool/index.ts';
 import type { Checked, Samples } from './run.ts';
@@ -50,7 +52,14 @@ export interface Context {
   todo(message: string): void;
 }
 
+/** What closes the servers of the fakes when the check ends. */
+export type Cleanup = Pick<Context, 'after'>;
+
 export interface Caller {
+  /** The name of each remote a fake stands for, so a request to another one is not probed. */
+  readonly faked: readonly string[];
+  /** The token in ADX_FAKES_ONLY, which ends a refusal of the closed network and no other. */
+  readonly closedBy: string;
   /** Runs the work in a fresh scratch folder with the seed copied in. */
   session<T>(work: (session: Session) => Promise<T>): Promise<T>;
   /** Which folders a call's `changed` covers, for a finding about what it changed. */
@@ -74,8 +83,11 @@ export function toolCaller(tool: Checked, samples: Samples): Caller {
   }
   const sent: string[] = [];
   const fakes = (samples.fakes ?? []).map(made => heard(made, route => sent.push(route)));
-  const scene = { ...samples, fakes };
+  const closedBy = nonce();
+  const scene = { ...samples, env: { ...samples.env, [FAKES_ONLY]: closedBy }, fakes };
   return {
+    faked: fakedBy(samples),
+    closedBy,
     session: work => inScratch(shell, scene, around => work(sessionIn(shell, around, sent))),
     watched:
       'in the process the kit watches the scratch folder and the top of the working directory of the test, not the temp folder; conformance with the command line watches every folder the program gets',
@@ -120,3 +132,7 @@ export const changedIn = (
   [...new Set([...before.keys(), ...after.keys()])].filter(
     rel => before.get(rel) !== after.get(rel),
   );
+
+/** @returns the name of each remote the samples give a fake for */
+export const fakedBy = (samples: Samples) =>
+  (samples.fakes ?? []).flatMap(made => nameOf(made.remote) ?? []);

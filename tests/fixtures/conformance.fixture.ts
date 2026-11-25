@@ -1,5 +1,8 @@
 // The tools of tools.ts under conformance; conformance.api.spec.ts runs this file in a scratch
 // working directory and reads which probes fail. Each path is absolute for that reason.
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { conformance, fake } from '@honeyglass/adx/test';
@@ -38,3 +41,18 @@ test('skilled with no file', t =>
   conformance(t, tools.skilled, { skillFile: join(here, 'skill', 'none.md') }));
 test('fixed as a program', t =>
   conformance(t, program('hello'), { fakes: [fake(tools.api, {}), fake(tools.fixed, {})] }));
+// a server on the machine itself is no fake the kit started, so no probe reaches it
+test('hello as a program beside a local server', async t => {
+  let requests = 0;
+  const server = createServer((_, response) => {
+    requests += 1;
+    response.end('{}');
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+  const address = server.address();
+  const port = typeof address === 'object' && address !== null ? address.port : 0;
+  await conformance(t, program('hello'), { env: { HELLO_URL: `http://127.0.0.1:${port}` } });
+  assert.equal(requests, 0);
+});

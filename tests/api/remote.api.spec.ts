@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -25,140 +24,12 @@ import {
 } from '@honeyglass/adx';
 import { fake, reply, run } from '@honeyglass/adx/test';
 import { heard } from '../../dist/remote/index.js';
+import { api, shop, show } from '../fixtures/shop.ts';
 import { answerIn } from '../utils/answer.ts';
+import { program } from '../utils/program.ts';
 import { listen } from '../utils/server.ts';
 
-const api = remote('shop', {
-  url: envUrl('SHOP_URL', 'https://shop.example.com/api'),
-  auth: bearer('SHOP_TOKEN'),
-});
-
-const Item = z.object({ id: z.string(), name: z.string() });
-
-const noItem = code('ITEM_NOT_FOUND', 'fix', 'Use an id the shop knows');
-const stillOpen = code('STILL_OPEN', 'fix', 'Wait until the item is free');
-
-const show = read({
-  does: 'shows one item',
-  input: z.object({ id: z.string() }),
-  example: { id: 'a1' },
-  run: async ({ id }, { refuse }) => {
-    const item = await api.get(['items', id], Item, { on: { 404: undefined } });
-    return item ?? refuse(noItem.at('id', `the shop has no item ${id}`));
-  },
-});
-
-const search = read({
-  does: 'finds items',
-  input: z.object({ q: z.string() }),
-  example: { q: 'pen' },
-  run: ({ q }) => api.get(['items'], z.array(Item), { query: { q, limit: 5, cursor: undefined } }),
-});
-
-const create = effect({
-  does: 'adds an item',
-  input: z.object({ name: z.string() }),
-  example: { name: 'pen' },
-  replace: false,
-  plan: ({ name }) => ({ name }),
-  apply: async ({ name }, { act }) => ({
-    item: await act.send('the new item', api.post(['items'], { name }), Item),
-  }),
-  look: ({ name }) => search.step({ q: name }),
-});
-
-const close = effect({
-  does: 'closes an item',
-  input: z.object({ id: z.string() }),
-  example: { id: 'a1' },
-  replace: false,
-  plan: ({ id }) => ({ id }),
-  apply: async ({ id }, { act, refuse }) => {
-    await act.send('the note', api.post(['items', id, 'notes'], { text: 'closing' }), z.unknown());
-    const request = api.patch(['items', id], { state: 'closed' });
-    const sent = await $try(act.send('the closed item', request, Item));
-    if (sent.error === null) return { item: sent.data };
-    if (status(sent.error) === 409) return refuse(stillOpen.issue(`${id} is still open`));
-    throw sent.error;
-  },
-  look: ({ id }) => show.step({ id }),
-});
-
-const pick = read({
-  does: 'picks an item',
-  input: z.object({ id: z.string() }),
-  example: { id: 'a1' },
-  values: {
-    id: async () => (await api.get(['ids'], z.array(z.string()))).map(value => ({ value })),
-  },
-  run: ({ id }) => ({ id }),
-});
-
-const move = read({
-  does: 'moves an item to a slot',
-  input: z.object({ shelf: z.string().optional(), slot: z.string() }),
-  example: { shelf: 'top', slot: 's1' },
-  values: {
-    shelf: async () => (await api.get(['shelves'], z.array(z.string()))).map(value => ({ value })),
-    slot: ({ shelf }) => (shelf === undefined ? needs('shelf') : [{ value: 's1' }]),
-  },
-  run: ({ slot }) => ({ slot }),
-});
-
-const work = root('work', cwd);
-
-const stock = effect({
-  does: 'stocks an item and tells the shop',
-  input: z.object({ name: z.string() }),
-  example: { name: 'pen' },
-  plan: ({ name }, { files }) => files.write(work.file(`${name}.json`), '{}'),
-  apply: async ({ name }, { act }) => ({
-    item: await act.send('the stock', api.post(['items'], { name }), Item),
-  }),
-  look: ({ name }) => search.step({ q: name }),
-});
-
-const migrate = effect({
-  does: 'migrates the shop',
-  replace: false,
-  plan: () => ({}),
-  apply: async (_, { act }) => {
-    await act.send('the note', api.post(['notes'], { text: 'migrating' }), z.unknown());
-    throw failed('The migration ran up to step 3.', new Error('step 4 broke'));
-  },
-  look: () => search.step({ q: 'migration' }),
-});
-
-const reserve = effect({
-  does: 'reserves an item',
-  input: z.object({ id: z.string() }),
-  example: { id: 'a1' },
-  replace: false,
-  plan: ({ id }) => ({ id }),
-  apply: (_, { refuse }) => refuse(noItem.at('id')),
-  look: ({ id }) => show.step({ id }),
-});
-
-const weigh = effect({
-  does: 'weighs an item',
-  replace: false,
-  plan: () => ({}),
-  apply: async (_, { act }) => {
-    const sent = await $try(act.send('the weight', api.post(['weights'], {}), z.unknown()));
-    return { status: status(sent.error) ?? null };
-  },
-  look: () => search.step({ q: 'weight' }),
-});
-
-const shop = tool({
-  name: 'shop',
-  version: '1.0.0',
-  does: 'sells things',
-  roots: [work],
-  remotes: [api],
-  commands: { show, search, create, close, pick, move, stock, migrate, reserve, weigh },
-  hints: [hint(noItem, () => pick.step().carry('id'))],
-});
+const SHOP = join(import.meta.dirname, '..', 'fixtures', 'shop.program.ts');
 
 const item = { id: 'a1', name: 'pen' };
 
@@ -186,8 +57,18 @@ async function server(t: TestContext, answer: (seen: Seen, count: number) => Rep
   return { env: { SHOP_URL: `${url}/api`, SHOP_TOKEN: 'tok' }, seen };
 }
 
-async function answerOf(argv: string[], options: Parameters<typeof run>[2]) {
-  const { exit, out } = await run(shop, argv, options);
+/**
+ * A call with fakes runs in the test kit; any other call runs shop as a program, outside the kit,
+ * since the kit sends only to its own fakes and a local server is none of them.
+ */
+async function answerOf(argv: string[], options: Parameters<typeof run>[2] = {}) {
+  if (options.fakes !== undefined) {
+    const { exit, out } = await run(shop, argv, options);
+    return { exit, ...answerIn(out, z.unknown()) };
+  }
+  const home = options.cwd ?? mkdtempSync(join(tmpdir(), 'adx-shop-'));
+  const { exit, out } = await program(SHOP, argv, { home, env: options.env ?? {} });
+  if (options.cwd === undefined) rmSync(home, { recursive: true, force: true });
   return { exit, ...answerIn(out, z.unknown()) };
 }
 
@@ -467,10 +348,14 @@ test('a source a refusal asks sends no request, and the issue names the call tha
   assert.deepEqual(seen, []);
 });
 
-test('schema names the variables of each remote, never their values', async () => {
+test('schema names each remote and its variables, never their values', async () => {
   const { out } = await run(shop, ['schema'], { env: { SHOP_TOKEN: 'secret-token' } });
-  const Variables = z.object({ variables: z.array(z.object({ variable: z.string() })) });
+  const Variables = z.object({
+    remotes: z.array(z.string()),
+    variables: z.array(z.object({ variable: z.string() })),
+  });
   const { result } = answerIn(out, Variables);
+  assert.deepEqual(result?.remotes, ['shop']);
   assert.deepEqual(
     result?.variables.map(v => v.variable),
     ['SHOP_URL', 'SHOP_TOKEN'],
@@ -521,7 +406,7 @@ test('a remote the tool does not list, a fallback that is no address or sends a 
   assert.deepEqual(routes, []);
 });
 
-test('under the test kit a remote without a fake reaches no server beyond the machine', async t => {
+test('under the test kit a request goes only to a fake, never to another address, local or not', async t => {
   const away = remote('away', { url: envUrl('AWAY_URL', 'https://away.example.com/api') });
   const reads = read({ does: 'reads', run: () => away.get(['x'], z.unknown()) });
   const far = tool({ name: 'away', version: '0', does: 'x', remotes: [away], commands: { reads } });
@@ -533,25 +418,37 @@ test('under the test kit a remote without a fake reaches no server beyond the ma
       [
         [
           'DECLARATION',
-          'the remote away has no fake in this test, and a request to https://away.example.com would leave the machine: add a fake of away to the samples',
+          'the remote away has no fake in this test, and the test kit sends only to its fakes, not to https://away.example.com: add a fake of away to the samples',
         ],
       ],
     ],
   );
-  // a program the kit runs gets ADX_FAKES_ONLY=1, and its remote without a fake is refused too
+  // a server on the machine itself is no fake either, as a tunnel to production lies there too
+  const { env, seen } = await server(t, () => ({ status: 200, body: item }));
+  const ran = answerIn((await run(shop, ['show', '--id', 'a1'], { env })).out, z.unknown());
+  const invoked = await show.invoke({ id: 'a1' }, { env });
+  assert.deepEqual(
+    [ran.issues?.map(i => i.code), invoked.issues?.map(i => i.code), seen.length],
+    [['DECLARATION'], ['DECLARATION'], 0],
+  );
+});
+
+test('a program the kit runs sends only to the origins of the fakes the kit started', async t => {
+  const { env, seen } = await server(t, () => ({ status: 200, body: item }));
   const home = mkdtempSync(join(tmpdir(), 'adx-remote-'));
   t.after(() => rmSync(home, { recursive: true, force: true }));
-  const program = join(import.meta.dirname, '..', 'fixtures', 'hello.program.ts');
-  const env = { PATH: process.env.PATH, HOME: home, ADX_FAKES_ONLY: '1' };
-  const ran = spawnSync(process.execPath, [program, 'whoami'], {
-    env,
-    cwd: home,
-    encoding: 'utf8',
-  });
+  const kit = { ...env, ADX_FAKES_ONLY: 'kit-7' };
+  const closed = await program(SHOP, ['show', '--id', 'a1'], { home, env: kit });
   assert.deepEqual(
-    answerIn(ran.stdout, z.unknown()).issues?.map(i => i.message),
+    [answerIn(closed.out, z.unknown()).issues?.map(i => i.message), seen.length],
     [
-      'the remote hello has no fake in this test, and a request to https://hello.example.com would leave the machine: add a fake of hello to the samples',
+      [
+        `the remote shop has no fake in this test, and the test kit sends only to its fakes, not to ${new URL(env.SHOP_URL).origin}: add a fake of shop to the samples [kit kit-7]`,
+      ],
+      0,
     ],
   );
+  const started = { ...kit, ADX_FAKE_ORIGINS: new URL(env.SHOP_URL).origin };
+  const opened = await program(SHOP, ['show', '--id', 'a1'], { home, env: started });
+  assert.deepEqual([answerIn(opened.out, z.unknown()).result, seen.length], [item, 1]);
 });

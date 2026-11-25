@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { code, effect, global, read, stored, tool } from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
+import { program, scratch } from '../utils/program.ts';
+
+const CODES = fileURLToPath(new URL('../fixtures/codes.program.ts', import.meta.url));
 
 const Person = z.object({
   name: z.string().describe('who to greet'),
@@ -129,6 +133,30 @@ test('schema alone names every command with its input, the shapes, the stored ki
       ['NEWER_VERSION', 'ask'],
       ['DECLARATION', 'bug'],
     ],
+  );
+});
+
+test("schema lists the tool's own codes after adx's, and one made the same way twice once", async () => {
+  const noTicket = code('TICKET_NOT_FOUND', 'fix', 'Use a key the list command answers');
+  code('TICKET_NOT_FOUND', 'fix', 'Use a key the list command answers');
+  const show = read({ does: 'x', run: () => ({ ticket: noTicket.issue().code }) });
+  const tracker = tool({ name: 'tracker', version: '0.1.0', does: 'x', commands: { show } });
+  const { out } = await run(tracker, ['schema']);
+  const names = (answerIn(out, Overview).result?.codes ?? []).map(c => c.code);
+  assert.deepEqual(
+    [names.filter(name => name === 'TICKET_NOT_FOUND').length, names.at(-1)],
+    [1, 'TICKET_NOT_FOUND'],
+  );
+  assert.equal(names.indexOf('TICKET_NOT_FOUND') > names.indexOf('UNKNOWN_ERROR'), true);
+});
+
+// One registry per process, so the program runs alone: its codes would break every tool here.
+test('a code made twice with another kind or hint, or named like one of adx, is a DECLARATION error', async t => {
+  const home = await scratch(t);
+  const { exit, out } = await program(CODES, ['schema'], { home });
+  assert.deepEqual(
+    [exit, answerIn(out, z.unknown()).issues?.map(i => i.code)],
+    [2, ['DECLARATION', 'DECLARATION']],
   );
 });
 

@@ -53,13 +53,24 @@ function lineOf({ rule, checks, unprobed }, outcomes) {
         return { rule, status: 'not probed', reason: unprobed };
     const found = checks.map(check => ({ check, outcome: outcomes.get(check) }));
     const failed = found.find(({ outcome }) => outcome?.failed !== undefined)?.outcome?.failed;
-    if (failed !== undefined)
-        return { rule, status: 'failed', reason: failed.reason };
+    if (failed !== undefined) {
+        const { reason, next, call, findings } = failed;
+        const [finding] = findings;
+        return {
+            rule,
+            status: 'failed',
+            reason,
+            next,
+            ...(finding === undefined ? {} : { finding }),
+            ...(call === undefined ? {} : { call }),
+        };
+    }
     const missing = found.find(({ outcome }) => outcome === undefined);
     if (missing !== undefined)
         return { rule, status: 'not probed', reason: `${missing.check} did not run` };
-    const todo = found.find(({ outcome }) => outcome?.todo !== undefined)?.outcome?.todo;
-    if (todo !== undefined)
+    const todos = found.flatMap(({ outcome }) => outcome?.todo ?? []);
+    const todo = [...new Set(todos)].join('; ');
+    if (todo !== '')
         return { rule, status: 'not probed', reason: todo };
     const [idle] = found.map(({ outcome }) => outcome?.idle);
     const idleAll = found.every(({ outcome }) => outcome?.idle !== undefined);

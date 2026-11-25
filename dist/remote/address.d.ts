@@ -16,6 +16,8 @@ export declare function variablesOf(remote: Remote): {
     variable: string;
     does: string;
 }[];
+/** @returns the name the tool gave the remote, or undefined for a value remote() did not make */
+export declare const nameOf: (remote: Remote) => string | undefined;
 /** @returns the variable of envUrl() the remote reads its address from, or undefined */
 export declare function urlVariableOf(remote: Remote): string | undefined;
 /**

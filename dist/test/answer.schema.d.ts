@@ -26,6 +26,7 @@ export declare const Answer: z.ZodObject<{
 export type Answer = z.output<typeof Answer>;
 export declare const Started: z.ZodObject<{
     name: z.ZodString;
+    skill: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 export declare const Overview: z.ZodObject<{
     commands: z.ZodArray<z.ZodObject<{
@@ -36,6 +37,10 @@ export declare const Overview: z.ZodObject<{
         root: z.ZodString;
         variable: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
+    remotes: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    codes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 export declare const Facts: z.ZodObject<{
     fields: z.ZodArray<z.ZodObject<{

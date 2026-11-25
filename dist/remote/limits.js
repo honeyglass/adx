@@ -4,8 +4,8 @@
  * RETRIES, PAUSE_MS: how often a read is tried again, and the first pause before it (decision 41).
  * TIMEOUT_MS: how long one request and its answer may take.
  * ANSWER_BYTES: the largest answer adx reads.
- * FAKES_ONLY, LOOPBACK: the variable the test kit sets in a program it runs, and the addresses
- * of the machine itself, which a call under the kit may reach without a fake.
+ * FAKES_ONLY, FAKE_ORIGINS: the variables the test kit sets in a program it runs: the token that
+ * closes its network, and the origins of the fakes the kit serves, the only ones it may reach.
  *
  * @example repeat({ count: RETRIES + 1, delay: count => line.pause(remote, PAUSE_MS * 2 ** (count - 1)) });
  */
@@ -17,7 +17,10 @@ export const PAUSE_MS = 200;
 export const TIMEOUT_MS = 30_000;
 /** Sixteen MiB, far beyond the JSON of any one answer, so only a mistake reaches it. */
 export const ANSWER_BYTES = 16_777_216;
-/** Set to 1 by the test kit only; it closes the network of a program, and no value opens it. */
+/**
+ * Set by the test kit only, to a token no program can guess. Any value closes the network of a
+ * program, and the refusal of a closed request ends with the token, so the kit knows it its own.
+ */
 export const FAKES_ONLY = 'ADX_FAKES_ONLY';
-/** An origin on the machine itself: 127.0.0.0/8 or [::1], as the WHATWG parser writes it. */
-export const LOOPBACK = /^https?:\/\/(?:127(?:\.\d{1,3}){3}|\[::1\])(?::\d+)?$/;
+/** The origins of the fakes the kit serves, joined by commas; a closed program reaches only them. */
+export const FAKE_ORIGINS = 'ADX_FAKE_ORIGINS';

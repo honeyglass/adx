@@ -37,11 +37,13 @@ export const Answer = z.object({
     }))
         .optional(),
 });
-export const Started = z.object({ name: z.string() });
+export const Started = z.object({ name: z.string(), skill: z.string().nullable().optional() });
 export const Overview = z.object({
     commands: z.array(z.object({ command: z.string() })),
     shapes: z.array(z.string()),
     roots: z.array(z.object({ root: z.string(), variable: z.string().optional() })),
+    remotes: z.array(z.string()).default([]),
+    codes: z.array(z.object({ code: z.string() })).default([]),
 });
 export const Facts = z.object({
     fields: z.array(z.object({

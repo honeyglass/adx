@@ -3,9 +3,11 @@
  *
  * Asked, Called, Session, Caller: one call a probe asks for, what it left, the scratch folder
  * that calls share, and what makes such folders.
- * Context: what conformance uses of the test it runs in.
+ * Context, Cleanup: what conformance uses of the test it runs in, and the part of it a check
+ * that runs outside a test, such as adxcheck, gives too.
  * toolCaller: the caller of a tool that tool() made.
  * changedIn: each path two snapshots of a folder hold differently.
+ * fakedBy: the remotes the fakes of the samples stand for, by name.
  *
  * Each session is a fresh scratch folder with the seed copied in, and each call in it goes
  * through the same call as main(), so what a probe sees is what the program answers. A session
@@ -16,8 +18,8 @@
  * @example const caller = toolCaller(tracker, samples);
  */
 import { RefusalError } from '@honeyglass/utils/ts';
-import { captured, snapshot, testFolder, tokensOf } from "../node/index.js";
-import { heard } from "../remote/index.js";
+import { captured, nonce, snapshot, testFolder, tokensOf } from "../node/index.js";
+import { FAKES_ONLY, heard, nameOf } from "../remote/index.js";
 import { call, inScratch, specOf } from "../tool/index.js";
 /**
  * @param tool - the value tool() returned
@@ -36,8 +38,11 @@ export function toolCaller(tool, samples) {
     }
     const sent = [];
     const fakes = (samples.fakes ?? []).map(made => heard(made, route => sent.push(route)));
-    const scene = { ...samples, fakes };
+    const closedBy = nonce();
+    const scene = { ...samples, env: { ...samples.env, [FAKES_ONLY]: closedBy }, fakes };
     return {
+        faked: fakedBy(samples),
+        closedBy,
         session: work => inScratch(shell, scene, around => work(sessionIn(shell, around, sent))),
         watched: 'in the process the kit watches the scratch folder and the top of the working directory of the test, not the temp folder; conformance with the command line watches every folder the program gets',
     };
@@ -71,3 +76,5 @@ function sessionIn(shell, around, sent) {
 }
 /** @returns the path of each entry that is new, gone or different */
 export const changedIn = (before, after) => [...new Set([...before.keys(), ...after.keys()])].filter(rel => before.get(rel) !== after.get(rel));
+/** @returns the name of each remote the samples give a fake for */
+export const fakedBy = (samples) => (samples.fakes ?? []).flatMap(made => nameOf(made.remote) ?? []);

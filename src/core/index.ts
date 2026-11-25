@@ -47,7 +47,7 @@ export { entered, Held, isHeld, isRefusing, refusing, valueOf } from './call.ts'
 export { listing, unlisted } from './listed.ts';
 export { exitOf, refusalAnswer } from './answer.ts';
 export type { Code } from './code.ts';
-export { code, factsOf } from './code.ts';
+export { code, codesMade, factsOf } from './code.ts';
 export {
   ADX_CODES,
   alreadyExists,
@@ -146,6 +146,7 @@ export type {
   Request,
   Unreached,
 } from './remote.ts';
+export { kitMark, noFakeLead } from './remote.ts';
 export { status } from './status.ts';
 export { issueOf } from './unmapped.ts';
 export type { CommandStep, Step, StepOption, StepParts, Target, TargetField } from './step.ts';
