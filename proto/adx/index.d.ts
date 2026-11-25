@@ -54,7 +54,8 @@ export function tell(does: string): Step;
 export const schema: {
   /**
    * A step to `schema <name>`. The name is a shape of the tool's `shapes`, or a command by its
-   * words, such as `profile set`. A name `schema` does not know is a `DECLARATION` error at startup.
+   * words, such as `profile set`. A name `schema` does not know is a `DECLARATION` error: in a
+   * `hint` at startup, in `start`, `next`, `after` or at an issue when the call writes the step.
    */
   step(name: string): Step;
 };

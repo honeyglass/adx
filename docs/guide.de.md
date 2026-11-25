@@ -401,7 +401,7 @@ const language = read({
 });
 ```
 
-Zwei Tatsachen prüft adx beim Start: Eine Liste, deren Kurzform ein Feld verbirgt, braucht genau einen solchen Befehl, und jedes `id()`-Feld braucht eine Quelle. So hat jeder Name in deinem Tool einen Befehl, der die echten Namen listet.
+Drei Tatsachen prüft adx beim Start: Eine Liste, deren Kurzform ein Feld verbirgt, braucht genau einen solchen Befehl, jedes `id()`-Feld braucht eine Quelle, und die Liste, die ein `keyOf` oder `detailOf` nennt, steht in den `commands` des Tools. So hat jeder Name in deinem Tool einen Befehl, der die echten Namen listet.
 
 Nenne die Felder, die du willst, und jedes kommt ganz zurück:
 
@@ -828,6 +828,8 @@ const projects = async () =>
     does: p.description,
   }));
 ```
+
+Ein globales Feld nimmt jede Quelle außer `keyOf` und `detailOf`, die dort nicht kompilieren: Eine Liste entsteht vor der globalen Eingabe, also könnte kein Tool mit einer sie listen.
 
 **Was der Server antwortet**, ist für ein Ticket ein Schema, das fünf Befehle lesen. Darum hat es einen Namen und eine eigene Datei im Feature, `tickets/ticket.schema.ts`:
 
@@ -1496,7 +1498,7 @@ hello friends describe --name ada
 ```
 
 - Der Name ist ein Shape oder ein Befehl, so wie ein Aufrufer ihn nach `schema` schreibt.
-- adx prüft den Namen beim Start. Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler.
+- Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler. Den Schritt eines `hint` prüft adx beim Start. Einen Schritt, den eine Funktion während eines Aufrufs baut, in `start`, `next`, `after` oder an einem Issue, prüft adx, wenn der Aufruf den Schritt schreibt.
 
 ### Gespeicherte Daten, die ihr Format ändern
 
@@ -1760,7 +1762,7 @@ Ein Fake ist ein Wert eines Tests, also hat eine Befehlszeile keinen. Eine Anfra
 
 - `tool`: Name, Version, der Name des Skills oder `null`, die Befehle und die ersten Schritte.
 - `tool <group>`: die Aktionen der Gruppe.
-- `tool schema`: jeder Befehl, die Shapes, die gemeinsamen Optionen, die vier Arten, jeder Code mit Art und Hinweis, erst die von adx, dann die des Tools, die Roots mit Variable und Option, die Remotes mit Namen, die Variablen, die gespeicherten Datenarten mit ihrer Formatnummer, die Grenzen.
+- `tool schema`: jeder Befehl, die Shapes, die Optionen, die adx jeder Art von Befehl gibt, die vier Arten, jeder Code mit Art und Hinweis, erst die von adx, dann die des Tools, die Roots mit Variable und Option, die Remotes mit Namen, die Variablen, die gespeicherten Datenarten mit ihrer Formatnummer, die Grenzen, an die ein Aufruf stößt, etwa die Größe der Eingabe über stdin, einer Antwort und einer Seite, und die Zeit eines Versuchs einer Anfrage, die Versuche und die Pause dazwischen.
 - `tool schema <command>`: das Eingabeschema, die globalen Felder, die der Befehl nimmt, die Optionen, die er nimmt, welche Felder Listen haben, Schlüssel, Felder und Kurzform einer Liste, die Felder eines `read` mit `output`, die Seitengröße, `replace: 'always'` eines Effekts, der eine abgeleitete Datei ersetzt, das Beispiel.
 - `tool schema <shape>`: ein Shape als JSON Schema.
 - `tool <command> --help`: dieselben Tatsachen als Text für Menschen.
@@ -1869,7 +1871,7 @@ plan: async ({ name, lang }, { files }) => {
 
 `adxcheck` fügt einen eigenen Code hinzu: `RULE_NOT_MET`, Art `fix`, für eine Regel, die eine Prüfung gebrochen hat.
 
-`SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. Ein Handler löst es mit `check` aus. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
+`SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. Ein Handler löst es mit `check` aus. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf. Ein Schritt aus `start`, `next`, `after` oder einem Issue entsteht erst während eines Aufrufs, also prüft adx ihn, wenn dieser Aufruf ihn schreibt.
 
 **Fehler, die du nicht zugeordnet hast**
 
@@ -1937,7 +1939,7 @@ In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergä
 - **Zwei Eingabetypen sind auseinanderzuhalten.** `example: { dir: '.' }` ist ein String, während `run` ein `Dir` bekommt. Ein Feld mit Standardwert ist in `example` optional und in `run` vorhanden.
 - **Zwei Tools in einem Prozess teilen ihre Codes.** Jedes `code()` landet in einer Liste pro Prozess, und `schema` gibt sie ganz aus. Ein Test, der zwei Tools in einer Datei baut, sieht in jedem die Codes des anderen, und "Hints that run" kann einen Code des anderen Tools als nie ausgelöst nennen. Ein Codename, der mit zwei Arten oder Hinweisen angelegt ist oder wie einer von adx heißt, ist beim Start ein `DECLARATION`-Fehler, in jedem Tool des Prozesses. Ein Programm führt ein Tool aus, also ist seine Liste seine eigene.
 - **Eine Quelle mit Namen und ohne `Source` meldet einen Tippfehler in `needs` weit weg.** Eine Quelle, die in `values` steht, und eine Quelle mit Namen und dem Typ `Source<...>` melden den Tippfehler an der Quelle. Eine Quelle mit Namen und einem eigenen Parametertyp meldet ihn an der `values`-Zeile, die die Quelle benutzt, in etwa zehn Zeilen und ohne Vorschlag.
-- **Manche Tatsachen zeigen sich erst beim Start, beim Aufruf oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt (beim Aufruf, der sie liest oder schreibt), ein Feld, das wie ein Root heißt, ein Hinweis für einen Befehl, den kein Tool listet, ein `apply` ohne `look`, ein Befehl, der in `commands` fehlt, und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
+- **Manche Tatsachen zeigen sich erst beim Start, beim Aufruf oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt (beim Aufruf, der sie liest oder schreibt), ein Feld, das wie ein Root heißt, ein Hinweis für einen Befehl, den kein Tool listet, ein Schritt aus `start`, `next` oder `after` zu einem Befehl, den kein Tool listet, oder zu einem Namen, den `schema` nicht kennt (beim Aufruf, der ihn schreibt), ein `apply` ohne `look`, ein Befehl, der in `commands` fehlt, und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
 - **Eine gespeicherte Datei, die an ihrer Datenart vorbei geschrieben wurde, hat keine Nummer.** Einer Datei, die mit `JSON.stringify` statt mit `Friend.stringify` geschrieben wurde, fehlt `"version"`, und das nächste Lesen hält sie für Format 1.
 - **Ein Status eines Sendens wird von Hand zugeordnet.** `on` gibt es nur für `get`. Bei einem Senden nimmst du den Fehler mit `$try` und liest `status(error)`, wie [Fehler, die du nicht zugeordnet hast](#6-was-jedes-tool-bekommt) zeigt.
 - **Ein Schalter lässt sich nicht mit einer Option auf false setzen.** Ein boolesches Feld mit dem Standardwert `true` wird nur über `--json` abgeschaltet.

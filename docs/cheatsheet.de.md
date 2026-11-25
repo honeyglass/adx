@@ -49,7 +49,7 @@ adx braucht Node 24.2 oder neuer.
 - `--name` als Option, die ganze Eingabe als `--json`, oder beides in einem Aufruf.
 - Alle Fehler eines Aufrufs in einer Antwort, jeder mit Hinweis.
 - `hello schema greet`: die genaue Eingabe als JSON Schema.
-- `hello schema`: jeder Code und was jede Art von Ablehnung verlangt.
+- `hello schema`: jeder Code, was jede Art von Ablehnung verlangt, die Optionen, die adx jeder Art von Befehl gibt, und die Grenzen, an die ein Aufruf stößt.
 - `hello` allein: die Befehle und der erste Schritt.
 - Exit-Codes 0, 1 und 2.
 - Ein Tippfehler in einem Feldnamen kompiliert nicht.
@@ -176,7 +176,7 @@ apply: async ({ project, title, body, label }, { act }) => {
 
 ### Globale Eingabe
 
-- `const project = global({ input, example, values })`, und im Tool `global: project`: Jeder Befehl nimmt die Felder, etwa `--project`.
+- `const project = global({ input, example, values })`, und im Tool `global: project`: Jeder Befehl nimmt die Felder, etwa `--project`. `values` nimmt jede Quelle außer `keyOf` und `detailOf`, die dort nicht kompilieren.
 - `project.read`, `project.list`, `project.effect`: die drei Arten, mit den globalen Feldern in jedem Handler typisiert. Ein Tool ohne globale Eingabe nimmt die drei direkt aus adx.
 - `global: false` an einem Befehl: Er nimmt kein globales Feld (etwa `whoami`).
 - `global: { project: 'optional' }`: Das Feld darf fehlen. `run` sieht `string | undefined`.
@@ -196,7 +196,7 @@ global: { project: 'optional' },
 - `z.enum([...])` im Schema: eine feste Liste. Mehr ist nicht nötig.
 - eine Funktion: eine berechnete Liste, `() => [{ value, does }]`.
 - `fresh(fn)`: ein neuer Name. `fn` antwortet mit den vergebenen Namen. `fresh` lehnt nichts ab.
-- `keyOf(list)`: Das Feld nimmt einen Schlüssel dieser Liste.
+- `keyOf(list)`: Das Feld nimmt einen Schlüssel dieser Liste. Eine Liste, die das Tool nicht listet, ist beim Start ein `DECLARATION`-Fehler.
 - `detailOf(list)`: wie `keyOf`, und dieser Befehl zeigt einen Eintrag ganz.
 - `needs('project')`: Rückgabe einer Quelle, die erst ein anderes Feld braucht.
 - `needs('project', 'team')`: mehrere Felder. adx lehnt mit einem Problem `MISSING_VALUE` pro Feld ab, in einer Antwort.
@@ -267,7 +267,7 @@ Schichten: Argumente, Schema, jeder Wert gegen seine Liste, `check`, Handler.
 - `.needs('style')`: nur für ein optionales Feld, das der Schritt noch braucht.
 - `tell('upload the file')`: ein Schritt für die Person, ohne Befehl.
 - `{ does, command }`: ein Schritt von Hand; sein Befehl muss ein schlichter Aufruf des Tools sein, sonst ein `DECLARATION`-Fehler.
-- `schema.step('person')`: ein Schritt zu adx' eigenem Befehl `schema`, für ein Shape oder einen Befehl. adx prüft den Namen beim Start.
+- `schema.step('person')`: ein Schritt zu adx' eigenem Befehl `schema`, für ein Shape oder einen Befehl. Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler: beim Start in einem `hint`, sonst wenn ein Aufruf den Schritt schreibt.
 - Folgt nichts, gibt `next` keinen Schritt zurück.
 - `after(command, fn)` in `next` des Tools: Schritte nach einem Befehl, die zu einem Befehl eines anderen Ordners führen. `fn` bekommt, was `next` bekommt. Eine Liste von Befehlen statt eines Befehls gibt jedem dieselben Schritte, und `fn` muss zu jedem von ihnen passen.
 - `hint(code, fn)` in `hints` des Tools: der Befehl für jedes Problem eines Codes, wenn er in einem anderen Ordner liegt. `fn` bekommt nichts und antwortet mit einem Schritt zu einem Befehl. Ein `.command(step)` am Problem gewinnt.

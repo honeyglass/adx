@@ -49,7 +49,7 @@ adx needs Node 24.2 or later.
 - `--name` as an option, the whole input as `--json`, or both in one call.
 - All mistakes of a call in one answer, each with a hint.
 - `hello schema greet`: the exact input as JSON Schema.
-- `hello schema`: every code and what each kind of refusal asks for.
+- `hello schema`: every code, what each kind of refusal asks for, the options adx gives each kind of command, and the limits a call meets.
 - `hello` alone: the commands and the first step.
 - Exit codes 0, 1 and 2.
 - A typo in a field name does not compile.
@@ -176,7 +176,7 @@ apply: async ({ project, title, body, label }, { act }) => {
 
 ### Global input
 
-- `const project = global({ input, example, values })`, and `global: project` in the tool: every command takes the fields, such as `--project`.
+- `const project = global({ input, example, values })`, and `global: project` in the tool: every command takes the fields, such as `--project`. `values` takes every source but `keyOf` and `detailOf`, which do not compile there.
 - `project.read`, `project.list`, `project.effect`: the three kinds, with the global fields typed into every handler. A tool without global input takes the three straight from adx.
 - `global: false` on a command: it takes no global field (such as `whoami`).
 - `global: { project: 'optional' }`: the field may be missing. `run` sees `string | undefined`.
@@ -196,7 +196,7 @@ global: { project: 'optional' },
 - `z.enum([...])` in the schema: a fixed list. Nothing more is needed.
 - a function: a computed list, `() => [{ value, does }]`.
 - `fresh(fn)`: a new name. `fn` answers the names already taken. `fresh` refuses nothing.
-- `keyOf(list)`: the field takes a key of that list.
+- `keyOf(list)`: the field takes a key of that list. A list the tool does not list is a `DECLARATION` error at startup.
 - `detailOf(list)`: like `keyOf`, and this command shows one item in full.
 - `needs('project')`: what a source returns when it needs another field first.
 - `needs('project', 'team')`: several fields. adx refuses with one issue `MISSING_VALUE` per field, in one answer.
@@ -267,7 +267,7 @@ Layers: the arguments, the schema, each value against its list, `check`, the han
 - `.needs('style')`: only for an optional field the step still needs.
 - `tell('upload the file')`: a step for the person, without a command.
 - `{ does, command }`: a step by hand; its command must be one plain call of the tool, else a `DECLARATION` error.
-- `schema.step('person')`: a step to adx's own command `schema`, for a shape or a command. adx checks the name at startup.
+- `schema.step('person')`: a step to adx's own command `schema`, for a shape or a command. A name `schema` does not know is a `DECLARATION` error: at startup in a `hint`, else when a call writes the step.
 - When nothing follows, `next` returns no step.
 - `after(command, fn)` in the `next` of the tool: steps after a command that lead to a command of another folder. `fn` gets what `next` gets. A list of commands in place of one gives each the same steps, and `fn` must fit every one of them.
 - `hint(code, fn)` in the `hints` of the tool: the command for every issue of a code, when it lies in another folder. `fn` gets nothing and answers one step to a command. A `.command(step)` at the issue wins.

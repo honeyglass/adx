@@ -401,7 +401,7 @@ const language = read({
 });
 ```
 
-Two facts adx checks at startup: a list whose outline hides a field needs exactly one such command, and every `id()` field needs a source. So every name in your tool has a command that lists the real names.
+Three facts adx checks at startup: a list whose outline hides a field needs exactly one such command, every `id()` field needs a source, and the list a `keyOf` or `detailOf` names stands in the tool's `commands`. So every name in your tool has a command that lists the real names.
 
 Name the fields you want, and each comes back whole:
 
@@ -828,6 +828,8 @@ const projects = async () =>
     does: p.description,
   }));
 ```
+
+A global field takes every source but `keyOf` and `detailOf`, which do not compile there: a list is made before the global input, so no tool with one could list it.
 
 **What the server answers** for a ticket is a schema that five commands read. So it has a name and a file of its own in the feature, `tickets/ticket.schema.ts`:
 
@@ -1496,7 +1498,7 @@ hello friends describe --name ada
 ```
 
 - The name is a shape or a command, as a caller writes it after `schema`.
-- adx checks the name at startup. A name `schema` does not know is a `DECLARATION` error.
+- A name `schema` does not know is a `DECLARATION` error. adx checks the step of a `hint` at startup. A step that a function makes while a call runs, in `start`, `next`, `after` or at an issue, it checks when the call writes the step.
 
 ### Stored data that changes its format
 
@@ -1760,7 +1762,7 @@ A fake is a value of a test, so a command line has none. A request through an ad
 
 - `tool`: name, version, the name of the skill or `null`, the commands, and the first steps.
 - `tool <group>`: the actions of the group.
-- `tool schema`: every command, the shapes, the shared options, the four kinds, every code with its kind and hint, adx's own and then the tool's, the roots with their variable and option, the remotes by name, the variables, the stored kinds with their format number, the limits.
+- `tool schema`: every command, the shapes, the options adx gives each kind of command, the four kinds, every code with its kind and hint, adx's own and then the tool's, the roots with their variable and option, the remotes by name, the variables, the stored kinds with their format number, the limits a call meets, such as the size of the input from stdin, of an answer and of a page, and the time of one try of a request, the tries and the pause between them.
 - `tool schema <command>`: the input schema, the global fields the command takes, the options it takes, which fields have lists, the key, fields and outline of a list, the fields of a `read` with `output`, the page size, `replace: 'always'` of an effect that replaces a derived file, the example.
 - `tool schema <shape>`: one shape as JSON Schema.
 - `tool <command> --help`: the same facts as text for people.
@@ -1869,7 +1871,7 @@ plan: async ({ name, lang }, { files }) => {
 
 `adxcheck` adds one code of its own: `RULE_NOT_MET`, kind `fix`, for a rule a probe broke.
 
-`SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. A handler raises it with `check`. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run.
+`SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. A handler raises it with `check`. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run. A step from `start`, `next`, `after` or an issue is made only while a call runs, so adx checks it when that call writes it.
 
 **Errors you did not map**
 
@@ -1937,7 +1939,7 @@ In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env no
 - **Two input types to keep apart.** `example: { dir: '.' }` is a string, while `run` gets a `Dir`. A field with a default is optional in `example` and present in `run`.
 - **Two tools in one process share their codes.** Every `code()` lands in one list per process, and `schema` prints it all. A test that builds two tools in one file sees the codes of the other in each, and "Hints that run" can name a code of the other tool as never raised. A code name made with two kinds or hints, or named like one of adx's, is a `DECLARATION` error at startup, in every tool of the process. A program runs one tool, so its list is its own.
 - **A named source without `Source` reports a typo in `needs` far from it.** A source written in `values`, and a named source typed with `Source<...>`, report the typo at the source. A named source with a parameter type of its own reports it at the `values` line that uses the source, in about ten lines and without a suggestion.
-- **Some facts only show at startup, at the call or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored` (at the call that reads or writes it), a field named like a root, a hint for a command no tool lists, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
+- **Some facts only show at startup, at the call or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored` (at the call that reads or writes it), a field named like a root, a hint for a command no tool lists, a step from `start`, `next` or `after` to a command no tool lists or to a name `schema` does not know (at the call that writes it), an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
 - **A stored file written around its kind has no number.** A file written with `JSON.stringify` in place of `Friend.stringify` lacks `"version"`, and the next read takes it for format 1.
 - **A status of a send is mapped by hand.** `on` exists for `get` only. For a send, take the error with `$try` and read `status(error)`, as [Errors you did not map](#6-what-every-tool-gets) shows.
 - **A switch cannot be set to false by an option.** A boolean field with the default `true` is switched off through `--json` only.

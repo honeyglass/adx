@@ -1119,7 +1119,7 @@ test('the input can come through stdin', async () => {
 
 ## 47. Ein Schritt kann zu `schema` führen
 
-Ein Schritt kam nur aus einem Befehl des Tools. `schema` ist adx' eigener Befehl, also hatte kein Tool einen Wert dafür. Ein Tool konnte den Aufruf nicht nennen, der zeigt, was der Agent als Nächstes schreibt. Jetzt exportiert adx `schema`, und `schema.step(name)` ist ein Schritt zu `tool schema <name>`. Der Name ist ein Shape oder ein Befehl. adx prüft ihn beim Start: Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler.
+Ein Schritt kam nur aus einem Befehl des Tools. `schema` ist adx' eigener Befehl, also hatte kein Tool einen Wert dafür. Ein Tool konnte den Aufruf nicht nennen, der zeigt, was der Agent als Nächstes schreibt. Jetzt exportiert adx `schema`, und `schema.step(name)` ist ein Schritt zu `tool schema <name>`. Der Name ist ein Shape oder ein Befehl. Ein Name, den `schema` nicht kennt, ist ein `DECLARATION`-Fehler: beim Start in einem `hint`, sonst wenn ein Aufruf den Schritt schreibt.
 
 Vorher:
 
