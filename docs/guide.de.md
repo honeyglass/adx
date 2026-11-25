@@ -1070,7 +1070,7 @@ $ tracker ticket schedule --milestone | jq -c '.issues[] | {path, command}'
 {"path":"project","command":"tracker ticket schedule --project"}
 {"path":"team","command":null}
 $ tracker ticket schedule --milestone | jq -r '.issues[1].hint'
-Give --project first: the teams depend on it
+Give --project first: the values of --team depend on it
 ```
 
 adx fragt die Quelle jedes fehlenden Feldes, was diese Quelle ihrerseits braucht. Die Teams brauchen das Projekt, und das fehlt auch. Darum hat das zweite Problem kein `command`: adx nennt einen Befehl nur, wenn er so läuft, wie er dasteht. Ist das Projekt gegeben, nennt das Problem für `team` den Befehl `tracker ticket schedule --project checkout-web --team`.
@@ -1316,7 +1316,7 @@ const append = effect({
 ```
 
 ```console
-$ notes append --file ideas/q3.md --text '- ship gift cards' --dry-run | jq -c '.result.changes.added'
+$ notes append --file ideas/q3.md --text='- ship gift cards' --dry-run | jq -c '.result.changes.added'
 ["- ship gift cards"]
 ```
 
@@ -1345,14 +1345,14 @@ commands: { add, 'add-indexed': addIndexed, append, show },
 adx schreibt jede Datei ganz neben ihren Platz und benennt sie dann nacheinander um. Ein Absturz oder eine volle Platte hinterlässt nie eine halbe Notiz. Zwei Umbenennungen sind kein atomarer Schritt. Scheitert eine spätere, nennt `state` die Dateien, die schon verschoben sind:
 
 ```console
-$ notes add-indexed --file ideas/q4.md --title Q4 --text '- tbd' | jq -r '.state'
+$ notes add-indexed --file ideas/q4.md --title Q4 --text='- tbd' | jq -r '.state'
 Moved in: ideas/q4.md. Not moved: index.md. No temporary file is left.
 ```
 
 **Eine volle Platte.** Die Antwort sagt, was übrig ist:
 
 ```console
-$ notes add --file ideas/q5.md --title Q5 --text '- tbd' | jq -c '.kind, .state, .issues[0].code'
+$ notes add --file ideas/q5.md --title Q5 --text='- tbd' | jq -c '.kind, .state, .issues[0].code'
 "ask"
 "Nothing was changed. The temporary file was removed."
 "SYSTEM_REFUSED"

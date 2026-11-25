@@ -1070,7 +1070,7 @@ $ tracker ticket schedule --milestone | jq -c '.issues[] | {path, command}'
 {"path":"project","command":"tracker ticket schedule --project"}
 {"path":"team","command":null}
 $ tracker ticket schedule --milestone | jq -r '.issues[1].hint'
-Give --project first: the teams depend on it
+Give --project first: the values of --team depend on it
 ```
 
 adx asks the source of each missing field what that source needs in turn. The teams need the project, which is missing too. So the second issue has no `command`: adx names a command only when it runs as it stands. Once the project is given, the issue for `team` names `tracker ticket schedule --project checkout-web --team`.
@@ -1316,7 +1316,7 @@ const append = effect({
 ```
 
 ```console
-$ notes append --file ideas/q3.md --text '- ship gift cards' --dry-run | jq -c '.result.changes.added'
+$ notes append --file ideas/q3.md --text='- ship gift cards' --dry-run | jq -c '.result.changes.added'
 ["- ship gift cards"]
 ```
 
@@ -1345,14 +1345,14 @@ commands: { add, 'add-indexed': addIndexed, append, show },
 adx writes every file whole beside its place, then renames them one after another. A crash or a full disk never leaves half a note. Two renames are not one atomic step, so if a later rename fails, `state` names the files already moved:
 
 ```console
-$ notes add-indexed --file ideas/q4.md --title Q4 --text '- tbd' | jq -r '.state'
+$ notes add-indexed --file ideas/q4.md --title Q4 --text='- tbd' | jq -r '.state'
 Moved in: ideas/q4.md. Not moved: index.md. No temporary file is left.
 ```
 
 **A full disk.** The answer says what is left:
 
 ```console
-$ notes add --file ideas/q5.md --title Q5 --text '- tbd' | jq -c '.kind, .state, .issues[0].code'
+$ notes add --file ideas/q5.md --title Q5 --text='- tbd' | jq -c '.kind, .state, .issues[0].code'
 "ask"
 "Nothing was changed. The temporary file was removed."
 "SYSTEM_REFUSED"
