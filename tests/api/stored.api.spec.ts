@@ -161,7 +161,7 @@ const hello = tool({
   version: '0.1.0',
   does: 'greets people',
   roots: [home],
-  stored: [Friend],
+  stored: [Friend, Broken],
   commands: { show, learn, broken },
 });
 
@@ -191,6 +191,42 @@ test('a stored file adx cannot read is refused with its path, through file.json 
     for (const command of ['show', 'learn'])
       assert.deepEqual(await called(data, command), [1, 'ask', code, true], `${command} ${code}`);
   }
+});
+
+test('a kind left out of stored is refused at the call, through file.json and parse, as a DECLARATION bug', async t => {
+  const peek = read({ does: 'peeks at ada', run: () => ada.json(LIMIT, Friend) });
+  const reread = read({
+    does: 'parses ada',
+    run: () => Friend.parse('{"name":"ada","lang":"de"}'),
+  });
+  const forgetful = tool({
+    name: 'hello',
+    version: '0.1.0',
+    does: 'greets people',
+    roots: [home],
+    commands: { peek, reread },
+  });
+  const data = await holding(t, '{"name":"ada","lang":"de"}');
+  for (const command of ['peek', 'reread']) {
+    const { exit, out } = await run(forgetful, [command], { env: { HELLO_HOME: data } });
+    const answer = answerIn(out, z.unknown());
+    const codes = answer.issues?.map(issue => issue.code);
+    assert.deepEqual([exit, answer.kind, codes], [2, 'bug', ['DECLARATION']], command);
+    assert.match(answer.issues?.[0]?.message ?? '', /friend.*stored/, command);
+  }
+  // the listing is checked before the read, so a missing file does not hide it
+  const empty = await mkdtemp(join(tmpdir(), 'adx-stored-'));
+  t.after(() => rm(empty, { recursive: true, force: true }));
+  const missing = answerIn(
+    (await run(forgetful, ['peek'], { env: { HELLO_HOME: empty } })).out,
+    z.unknown(),
+  );
+  assert.deepEqual(
+    missing.issues?.map(issue => issue.code),
+    ['DECLARATION'],
+  );
+  // the tool starts, since adx cannot see at startup which kinds a handler reads
+  assert.equal((await run(forgetful, [], { env: { HELLO_HOME: data } })).exit, 0);
 });
 
 test('a step up that throws flies on as a bug of the tool, UNKNOWN_ERROR with exit 2', async t => {

@@ -31,7 +31,7 @@
  */
 import { $try, readRefusal, shown } from '@honeyglass/utils/ts';
 import { followsOf, refused, runnerOf } from "../command/index.js";
-import { answerOfRefused, commandStep, lookOf, NOTHING_CHANGED, placeOf, Refused, refusedOf, refusing, stepOf, withCommand, } from "../core/index.js";
+import { answerOfRefused, commandStep, listing, lookOf, NOTHING_CHANGED, placeOf, Refused, refusedOf, refusing, stepOf, withCommand, } from "../core/index.js";
 import { Located, staging, within } from "../files/index.js";
 import { firstPage, listSteps } from "../list/index.js";
 import { Line } from "../remote/index.js";
@@ -54,7 +54,8 @@ export async function through(shell, call, around) {
     if (missing !== undefined)
         return refused([missing, ...more]);
     const line = new Line(shell, around);
-    return within(roots, () => line.run(() => answeredIn(shell, call, roots, line)));
+    const work = () => line.run(() => answeredIn(shell, call, roots, line));
+    return within(roots, () => listing(around.scope, shell, work));
 }
 /** @param call - the command, its input, its run, and the samples of the test that invokes it */
 export function invoked(shell, call) {

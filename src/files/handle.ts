@@ -25,6 +25,7 @@ import {
   refusedWith,
   shownAs,
   storedInvalid,
+  unlisted,
 } from '../core/index.ts';
 import type { Dir, File, Issue, Root, Stored } from '../core/index.ts';
 import { cleaned, found, openedOrThrown } from './paths.ts';
@@ -62,6 +63,9 @@ export class Handle implements File {
   json<T>(limit: number, shape: Stored<T, any>): Promise<T>;
   json<S extends z.ZodType>(limit: number, shape: S): Promise<z.output<S>>;
   async json(limit: number, shape: z.ZodType | Stored<unknown>) {
+    // A kind the tool does not list is its bug, whatever the file holds, or whether it is there.
+    const refusal = isStored(shape) ? unlisted(shape) : undefined;
+    if (refusal !== undefined) throw refusal;
     const text = await this.text(limit);
     // A stored kind reads its own text, converting an older format, and knows no file.
     if (isStored(shape)) {

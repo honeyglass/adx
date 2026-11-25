@@ -1514,7 +1514,7 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
 }));
 ```
 
-List every kind in the tool. `hello schema` then shows the number each kind is written in, and the test kit checks it. A kind that is left out is a `DECLARATION` error at startup.
+List every kind in the tool. `hello schema` then shows the number each kind is written in, and the test kit checks it. adx cannot see at startup which kinds a handler reads, so a kind that is left out is refused at the call, as a `DECLARATION` bug, when `file.json` or `parse` meets it.
 
 ```ts
 stored: [Friend],
@@ -1912,7 +1912,7 @@ In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env no
 - **The compiler does not know what adx checked.** adx has already refused an unknown `lang`, but `byCode(lang)` still returns a language or `undefined`, so the code needs a branch for the compiler alone.
 - **Two input types to keep apart.** `example: { dir: '.' }` is a string, while `run` gets a `Dir`. A field with a default is optional in `example` and present in `run`.
 - **A named source without `Source` reports a typo in `needs` far from it.** A source written in `values`, and a named source typed with `Source<...>`, report the typo at the source. A named source with a parameter type of its own reports it at the `values` line that uses the source, in about ten lines and without a suggestion.
-- **Some facts only show at startup or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored`, a field named like a root, a hint for a command no tool lists, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
+- **Some facts only show at startup, at the call or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored` (at the call that reads it), a field named like a root, a hint for a command no tool lists, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
 - **A stored file written around its kind has no number.** A file written with `JSON.stringify` in place of `Friend.stringify` lacks `"version"`, and the next read takes it for format 1.
 - **A status of a send is mapped by hand.** `on` exists for `get` only. For a send, take the error with `$try` and read `status(error)`, as [Errors you did not map](#6-what-every-tool-gets) shows.
 - **A switch cannot be set to false by an option.** A boolean field with the default `true` is switched off through `--json` only.

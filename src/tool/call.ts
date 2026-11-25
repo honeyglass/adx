@@ -13,7 +13,7 @@
 import { $try } from '@honeyglass/utils/ts';
 import { formOf, listed, refused, route } from '../command/index.ts';
 import type { Answered, Runner } from '../command/index.ts';
-import { answerOfError, exitOf } from '../core/index.ts';
+import { answerOfError, exitOf, listing } from '../core/index.ts';
 import type { Around, Issue, Ran, Surroundings, Token } from '../core/index.ts';
 import { Located, within } from '../files/index.ts';
 import { Line } from '../remote/index.ts';
@@ -79,7 +79,8 @@ async function startedIn(shell: Shell, around: Surroundings) {
   const [missing, ...more] = roots.issues();
   if (missing !== undefined) return refused([missing, ...more]);
   const line = new Line(shell, around);
-  return within(roots, () => line.run(() => started(shell, roots.moved())));
+  const work = () => line.run(() => started(shell, roots.moved()));
+  return within(roots, () => listing(around.scope, shell, work));
 }
 
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.

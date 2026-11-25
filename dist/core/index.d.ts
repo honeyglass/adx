@@ -30,6 +30,7 @@
  * and the port to the network.
  * entered, valueOf, refusing, isRefusing, isHeld, Held: the values of the call that runs, and the
  * block of every remote while a refusal is answered.
+ * listing, unlisted: the stored kinds of the call that runs, and the refusal of one it lacks.
  * urlNotAllowed, envMissing, remoteRefused, networkFailed: the codes of remotes.
  * Token, Piped, Stdin, Disk, Entry, Surroundings, Around, Ran: what one call gets and leaves.
  * File, Dir, Root, RootSource, Stored, Changes, Written, Files, Writer: roots and files, and the
@@ -43,6 +44,7 @@
  */
 export type { Answer } from './answer.ts';
 export { entered, Held, isHeld, isRefusing, refusing, valueOf } from './call.ts';
+export { listing, unlisted } from './listed.ts';
 export { exitOf, refusalAnswer } from './answer.ts';
 export type { Code } from './code.ts';
 export { code, factsOf } from './code.ts';

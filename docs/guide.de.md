@@ -1514,7 +1514,7 @@ const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, old => ({
 }));
 ```
 
-Liste jede Datenart im Tool. `hello schema` zeigt dann die Nummer, in der jede Datenart geschrieben wird, und das Testkit prüft sie. Eine Datenart, die fehlt, ist ein `DECLARATION`-Fehler beim Start.
+Liste jede Datenart im Tool. `hello schema` zeigt dann die Nummer, in der jede Datenart geschrieben wird, und das Testkit prüft sie. Beim Start sieht adx nicht, welche Datenarten ein Handler liest. Eine Datenart, die fehlt, wird darum beim Aufruf abgelehnt, als `DECLARATION`-Fehler, sobald `file.json` oder `parse` auf sie trifft.
 
 ```ts
 stored: [Friend],
@@ -1912,7 +1912,7 @@ In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergä
 - **Der Compiler weiß nicht, was adx geprüft hat.** adx hat ein unbekanntes `lang` schon abgelehnt, aber `byCode(lang)` gibt weiter eine Sprache oder `undefined` zurück. Der Code braucht also einen Zweig allein für den Compiler.
 - **Zwei Eingabetypen sind auseinanderzuhalten.** `example: { dir: '.' }` ist ein String, während `run` ein `Dir` bekommt. Ein Feld mit Standardwert ist in `example` optional und in `run` vorhanden.
 - **Eine Quelle mit Namen und ohne `Source` meldet einen Tippfehler in `needs` weit weg.** Eine Quelle, die in `values` steht, und eine Quelle mit Namen und dem Typ `Source<...>` melden den Tippfehler an der Quelle. Eine Quelle mit Namen und einem eigenen Parametertyp meldet ihn an der `values`-Zeile, die die Quelle benutzt, in etwa zehn Zeilen und ohne Vorschlag.
-- **Manche Tatsachen zeigen sich erst beim Start oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt, ein Feld, das wie ein Root heißt, ein Hinweis für einen Befehl, den kein Tool listet, ein `apply` ohne `look`, ein Befehl, der in `commands` fehlt, und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
+- **Manche Tatsachen zeigen sich erst beim Start, beim Aufruf oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt (beim Aufruf, der sie liest), ein Feld, das wie ein Root heißt, ein Hinweis für einen Befehl, den kein Tool listet, ein `apply` ohne `look`, ein Befehl, der in `commands` fehlt, und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
 - **Eine gespeicherte Datei, die an ihrer Datenart vorbei geschrieben wurde, hat keine Nummer.** Einer Datei, die mit `JSON.stringify` statt mit `Friend.stringify` geschrieben wurde, fehlt `"version"`, und das nächste Lesen hält sie für Format 1.
 - **Ein Status eines Sendens wird von Hand zugeordnet.** `on` gibt es nur für `get`. Bei einem Senden nimmst du den Fehler mit `$try` und liest `status(error)`, wie [Fehler, die du nicht zugeordnet hast](#6-was-jedes-tool-bekommt) zeigt.
 - **Ein Schalter lässt sich nicht mit einer Option auf false setzen.** Ein boolesches Feld mit dem Standardwert `true` wird nur über `--json` abgeschaltet.

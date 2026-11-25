@@ -9,7 +9,8 @@
  * is format 1. A read converts in memory only, so the file keeps its format until a write.
  * A text the kind cannot read is the person's to fix; a step up that answers no item of the
  * current format is the tool's bug. Nothing is checked when a kind is made: it is made when its
- * file loads, and the tool checks the kinds it lists at the start of every call.
+ * file loads, and the tool checks the kinds it lists at the start of every call. A read inside a
+ * call of a kind its tool does not list is refused, as unlisted() in core says (decision 37).
  *
  * @example const Friend = stored('friend', 2, FriendV2).from(1, FriendV1, toV2);
  */
@@ -22,6 +23,7 @@ import {
   NOTHING_CHANGED,
   refusedWith,
   storedInvalid,
+  unlisted,
 } from '../core/index.ts';
 import type { Issue, Stored } from '../core/index.ts';
 
@@ -59,6 +61,8 @@ class Kind<T, Oldest> implements Stored<T, Oldest> {
 
   parse(text: string): T {
     const { name } = this;
+    const refusal = unlisted(this);
+    if (refusal !== undefined) throw refusal;
     const json = trySync$((): unknown => JSON.parse(text));
     if (json.error !== null)
       throw unreadable(name, of => storedInvalid.issue(`${of} holds no JSON`), json.error);

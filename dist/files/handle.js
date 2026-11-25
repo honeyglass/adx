@@ -14,7 +14,7 @@
  * @example const text = await home.file('notes.txt').text(4096);
  */
 import { shown, trySync$ } from '@honeyglass/utils/ts';
-import { aboutFile, fileNotFound, inputTooLarge, notAFile, NOTHING_CHANGED, refusedOf, refusedWith, shownAs, storedInvalid, } from "../core/index.js";
+import { aboutFile, fileNotFound, inputTooLarge, notAFile, NOTHING_CHANGED, refusedOf, refusedWith, shownAs, storedInvalid, unlisted, } from "../core/index.js";
 import { cleaned, found, openedOrThrown } from "./paths.js";
 import { located } from "./located.js";
 export class Handle {
@@ -39,6 +39,10 @@ export class Handle {
         return textOf(this, readBytes(this, limit));
     }
     async json(limit, shape) {
+        // A kind the tool does not list is its bug, whatever the file holds, or whether it is there.
+        const refusal = isStored(shape) ? unlisted(shape) : undefined;
+        if (refusal !== undefined)
+            throw refusal;
         const text = await this.text(limit);
         // A stored kind reads its own text, converting an older format, and knows no file.
         if (isStored(shape)) {

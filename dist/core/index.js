@@ -1,4 +1,5 @@
 export { entered, Held, isHeld, isRefusing, refusing, valueOf } from "./call.js";
+export { listing, unlisted } from "./listed.js";
 export { exitOf, refusalAnswer } from "./answer.js";
 export { code, factsOf } from "./code.js";
 export { ADX_CODES, alreadyExists, declaration, envMissing, fileNotFound, inputTooLarge, invalidJson, missingInput, missingValue, networkFailed, newerVersion, notAFile, notAFolder, notInList, notInListAt, optionBeforeCommand, pathOutside, remoteRefused, repeatedOption, rootNotFound, schemaFailed, storedInvalid, systemRefused, unexpectedArgument, unexpectedValue, unknownCommand, unknownOption, urlNotAllowed, } from "./codes.js";

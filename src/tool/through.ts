@@ -35,6 +35,7 @@ import type { Answered, Run, Runner, Scene } from '../command/index.ts';
 import {
   answerOfRefused,
   commandStep,
+  listing,
   lookOf,
   NOTHING_CHANGED,
   placeOf,
@@ -71,7 +72,8 @@ export async function through(shell: Shell, call: Call, around: Surroundings): P
   const [missing, ...more] = roots.issues();
   if (missing !== undefined) return refused([missing, ...more]);
   const line = new Line(shell, around);
-  return within(roots, () => line.run(() => answeredIn(shell, call, roots, line)));
+  const work = () => line.run(() => answeredIn(shell, call, roots, line));
+  return within(roots, () => listing(around.scope, shell, work));
 }
 
 /** @param call - the command, its input, its run, and the samples of the test that invokes it */

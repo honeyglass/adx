@@ -12,7 +12,7 @@
  */
 import { $try } from '@honeyglass/utils/ts';
 import { formOf, listed, refused, route } from "../command/index.js";
-import { answerOfError, exitOf } from "../core/index.js";
+import { answerOfError, exitOf, listing } from "../core/index.js";
 import { Located, within } from "../files/index.js";
 import { Line } from "../remote/index.js";
 import { namesSchema, schemaAnswer } from "./schema.js";
@@ -74,7 +74,8 @@ async function startedIn(shell, around) {
     if (missing !== undefined)
         return refused([missing, ...more]);
     const line = new Line(shell, around);
-    return within(roots, () => line.run(() => started(shell, roots.moved())));
+    const work = () => line.run(() => started(shell, roots.moved()));
+    return within(roots, () => listing(around.scope, shell, work));
 }
 // Text at a terminal, else one JSON document, so a program that reads the answer parses it.
 function written({ answer, text, err }, tty) {
