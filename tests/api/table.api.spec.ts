@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { z } from 'zod';
-import { effect, list, read, tool } from '@honeyglass/adx';
+import { effect, global, list, read, tool } from '@honeyglass/adx';
 import { run } from '@honeyglass/adx/test';
 import { answerIn } from '../utils/answer.ts';
 
@@ -170,4 +170,57 @@ test('an option with no command after it names the call that lists the commands'
       [1, [['OPTION_BEFORE_COMMAND', `--help needs a command, and ${place} names none`, place]]],
     );
   }
+});
+
+test('an example that fails the schema of its command is a DECLARATION error, one per place', async () => {
+  const input = z.object({ key: z.string().regex(/^[A-Z]+-\d+$/), count: z.number().int() });
+  const show = read({ does: 'x', input, example: { key: 'cw-112', count: 1.5 }, run: () => ({}) });
+  const fine = read({ does: 'x', input, example: { key: 'CW-112', count: 2 }, run: () => ({}) });
+  const shows = (command: typeof show) =>
+    tool({ name: 'tracker', version: '0.1.0', does: 'x', commands: { show: command } });
+  const failed = await answerOf(shows(show), 'show', '--key', 'CW-112', '--count', '2');
+  assert.deepEqual(
+    [failed.exit, failed.kind, failed.issues?.map(i => i.code)],
+    [2, 'bug', ['DECLARATION', 'DECLARATION']],
+  );
+  // the message up to the reason of Zod, which is Zod's wording
+  assert.deepEqual(
+    failed.issues?.map(i => i.message.slice(0, i.message.indexOf(': '))),
+    [
+      'tracker show has the example {"key":"cw-112","count":1.5}, which fails its input at key',
+      'tracker show has the example {"key":"cw-112","count":1.5}, which fails its input at count',
+    ],
+  );
+  const passed = await answerOf(shows(fine), 'show', '--key', 'CW-112', '--count', '2');
+  assert.deepEqual([passed.exit, passed.result], [0, {}]);
+});
+
+test('an example on which the input throws is one DECLARATION error that names it', async () => {
+  // JSON.parse throws on a text that is no JSON, inside the schema
+  const input = z.object({ n: z.string().transform(text => JSON.parse(text)) });
+  const show = read({ does: 'x', input, example: { n: 'boom' }, run: () => ({}) });
+  const broken = tool({ name: 'tracker', version: '0.1.0', does: 'x', commands: { show } });
+  const { exit, issues } = await answerOf(broken, 'show', '--n', '1');
+  assert.deepEqual(
+    [exit, issues?.map(i => [i.code, i.message.slice(0, i.message.indexOf(': '))])],
+    [2, [['DECLARATION', 'tracker show has the example {"n":"boom"}, and its input threw on it']]],
+  );
+});
+
+test('a global example that fails the global input is a DECLARATION error of each command that takes it', async () => {
+  const project = global({
+    input: z.object({ project: z.string().regex(/^[a-z]+-[a-z]+$/) }),
+    example: { project: 'web' },
+  });
+  const labels = project.read({ does: 'x', run: () => ({}) });
+  const whoami = project.read({ does: 'x', global: false, run: () => ({}) });
+  const tracker = tool({
+    name: 'tracker',
+    version: '0.1.0',
+    does: 'x',
+    global: project,
+    commands: { labels, whoami },
+  });
+  const { exit, issues } = await answerOf(tracker, 'whoami');
+  assert.deepEqual([exit, issues?.map(i => i.code)], [2, ['DECLARATION']]);
 });

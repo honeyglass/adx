@@ -20,7 +20,7 @@ export declare function placeAll(table: Table, tool: {
     roots: readonly RootOption[];
     act: Act;
 }, words?: readonly string[]): void;
-/** @returns the issues of the keys, of commands listed in more than one place, and of fields */
+/** @returns the issues of the keys, of commands listed in two places, of fields and of examples */
 export declare function declarationIssues(table: Table): Issue[];
 /** @returns the runner of every command the table lists, at any depth, each once */
 export declare function runnersIn(table: Table): Set<Runner>;

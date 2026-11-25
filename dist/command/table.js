@@ -42,7 +42,7 @@ export function placeAll(table, tool, words = []) {
             placeAll(entry, tool, [...words, word]);
     }
 }
-/** @returns the issues of the keys, of commands listed in more than one place, and of fields */
+/** @returns the issues of the keys, of commands listed in two places, of fields and of examples */
 export function declarationIssues(table) {
     return [...keyIssues(table, []), ...[...runnersIn(table)].flatMap(runnerIssues)];
 }
@@ -71,8 +71,9 @@ function badKey(word, words) {
 }
 function runnerIssues(runner) {
     const places = runner.places.map(({ tool, words }) => `${tool} ${words}`);
+    const own = [...runner.clashes(), ...runner.exampleIssues()];
     if (places.length < 2)
-        return runner.clashes();
+        return own;
     const twice = declaration.issue(`one command stands at ${places.join(' and at ')}`);
-    return [twice, ...runner.clashes()];
+    return [twice, ...own];
 }

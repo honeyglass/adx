@@ -20,9 +20,10 @@
  *
  * @example const read = await runnerOf(greet)?.read(tokens, [], stdin);
  */
-import { $try, RefusalError } from '@honeyglass/utils/ts';
+import { $try, RefusalError, trySync$ } from '@honeyglass/utils/ts';
 import {
   declaration,
+  issueAnswer,
   NOTHING_CHANGED,
   notInList,
   oneLine,
@@ -358,6 +359,32 @@ export class Runner implements Sourced {
       field => `${this.name} has a field ${field}, and so has the global input`,
     );
     return [...adxTaken, ...shared, ...replaced].map(message => declaration.issue(message));
+  }
+
+  /**
+   * The compiler checks the type of an example, not its values, such as a `.regex()`.
+   *
+   * Only the input schema is checked here. A path that leaves its root, a `check` rule across
+   * fields and a value outside a source of `values` show only at a call, since they need the
+   * disk, the whole input or the sources.
+   *
+   * @returns one DECLARATION issue per place where the example `schema` shows fails the input,
+   * or one for an input that throws on the example, such as in a transform
+   */
+  exampleIssues(): Issue[] {
+    const example = this.#example();
+    if (example === undefined) return [];
+    const said = `${this.#call()} has the example ${JSON.stringify(example)}`;
+    const parsed = trySync$(() => parsedBy(this.input, example));
+    if (parsed.error !== null) {
+      const reason = parsed.error instanceof Error ? parsed.error.message : `${parsed.error}`;
+      return [declaration.issue(`${said}, and its input threw on it: ${reason}`)];
+    }
+    return parsed.data.issues.map(issue => {
+      const { path, message } = issueAnswer(issue);
+      const at = path === undefined ? '' : ` at ${path}`;
+      return declaration.issue(`${said}, which fails its input${at}: ${message}`);
+    });
   }
 
   /**

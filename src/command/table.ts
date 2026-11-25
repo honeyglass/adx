@@ -61,7 +61,7 @@ export function placeAll(
   }
 }
 
-/** @returns the issues of the keys, of commands listed in more than one place, and of fields */
+/** @returns the issues of the keys, of commands listed in two places, of fields and of examples */
 export function declarationIssues(table: Table): Issue[] {
   return [...keyIssues(table, []), ...[...runnersIn(table)].flatMap(runnerIssues)];
 }
@@ -93,7 +93,8 @@ function badKey(word: string, words: readonly string[]) {
 
 function runnerIssues(runner: Runner): Issue[] {
   const places = runner.places.map(({ tool, words }) => `${tool} ${words}`);
-  if (places.length < 2) return runner.clashes();
+  const own = [...runner.clashes(), ...runner.exampleIssues()];
+  if (places.length < 2) return own;
   const twice = declaration.issue(`one command stands at ${places.join(' and at ')}`);
-  return [twice, ...runner.clashes()];
+  return [twice, ...own];
 }

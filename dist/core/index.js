@@ -7,7 +7,7 @@ export { isDecimal } from "./decimal.js";
 export { escaped, oneLine } from "./escape.js";
 export { codePointsIn } from "./length.js";
 export { answerOfError, answerOfRefused, failed, refusedOf } from "./failed.js";
-export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from "./issue.js";
+export { atField, Issue, issueAnswer, placed, placeOf, stepOf, withCommand, withHint, } from "./issue.js";
 export { STDIN_LIMIT } from "./limits.js";
 export { aboutFile, aboutText, lookOf, NOTHING_CHANGED, Refused, refusedWith, UNKNOWN_STATE, withLook, } from "./refused.js";
 export { baseOf, brokenLinesIn, failuresOf, ID, isId, keysOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, } from "./shape.js";

@@ -84,7 +84,16 @@ export { codePointsIn } from './length.ts';
 export type { Listing, Page } from './listing.ts';
 export { answerOfError, answerOfRefused, failed, refusedOf } from './failed.ts';
 export type { Path, SchemaPlace } from './issue.ts';
-export { atField, Issue, placed, placeOf, stepOf, withCommand, withHint } from './issue.ts';
+export {
+  atField,
+  Issue,
+  issueAnswer,
+  placed,
+  placeOf,
+  stepOf,
+  withCommand,
+  withHint,
+} from './issue.ts';
 export type { Kind } from './kind.ts';
 export { STDIN_LIMIT } from './limits.ts';
 export {

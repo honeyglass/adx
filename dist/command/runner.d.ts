@@ -122,6 +122,17 @@ export declare class Runner implements Sourced {
      */
     clashes(): Issue[];
     /**
+     * The compiler checks the type of an example, not its values, such as a `.regex()`.
+     *
+     * Only the input schema is checked here. A path that leaves its root, a `check` rule across
+     * fields and a value outside a source of `values` show only at a call, since they need the
+     * disk, the whole input or the sources.
+     *
+     * @returns one DECLARATION issue per place where the example `schema` shows fails the input,
+     * or one for an input that throws on the example, such as in a transform
+     */
+    exampleIssues(): Issue[];
+    /**
      * @returns what `schema <command>` shows beside its input: the facts of --help, the fields
      * whose option alone lists their values, and the global fields the command takes
      */

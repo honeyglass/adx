@@ -6,9 +6,9 @@
  * a command the tool does not list or a name `schema` does not know, for a command or a group
  * named `schema`, per shape that is no word or has the word of a command, per list whose pages
  * or one-item command do not fit, per effect with `apply` and no `look`, per id() field without
- * a source, per remote whose own address or token cannot work, per stored kind whose format
- * numbers do not run from the newest down or whose format has a field `version`, and for a skill
- * whose name has not the form of one.
+ * a source, per place where an example fails the input of its command, per remote whose own
+ * address or token cannot work, per stored kind whose format numbers do not run from the newest
+ * down or whose format has a field `version`, and for a skill whose name has not the form of one.
  *
  * The function of a hint gets nothing, so its step is checked here, before any call (decision
  * 73). Every other step is made in a function that a call runs, such as `next`, so the answer
