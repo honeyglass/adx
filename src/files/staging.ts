@@ -59,7 +59,7 @@ class Staging implements Writer {
   readonly #staged: Staged[] = [];
   /** The temporary files the commit made, in the order of the staged files. */
   readonly #temps: string[] = [];
-  /** Every path the plan wrote or met unchanged, each once. */
+  /** Every place the plan wrote or met unchanged, each once, by the name the disk knows it by. */
   readonly #paths = new Set<string>();
   /** The place in the input of each handle the input holds, for the issues of its file. */
   readonly #fields = new Map<object, Path<string>>();
@@ -172,8 +172,9 @@ class Staging implements Writer {
 
   // Two writes of one file in one plan would leave it to their order which one stays.
   #once(to: Target) {
-    if (this.#paths.has(to.path) === false) {
-      this.#paths.add(to.path);
+    const place = identityOf(to);
+    if (this.#paths.has(place) === false) {
+      this.#paths.add(place);
       return to;
     }
     const issue = declaration.issue(`the plan writes ${shown(to.rel)} twice`);
@@ -207,6 +208,37 @@ class Staging implements Writer {
     if (first === undefined) throw error;
     throw refusedWith([first, ...rest], NOTHING_CHANGED, error);
   }
+}
+
+/**
+ * The name the disk knows a file by, so two writes that land in one file are found. The path is
+ * NFC always, since APFS reads both forms of a name as one; its case is folded only where the
+ * file system of the deepest folder that stands folds case, as APFS does and ext4 does not. The
+ * upper case first folds `ß` with `SS` too.
+ */
+function identityOf(to: Target) {
+  const { disk } = located();
+  const path = to.path.normalize('NFC');
+  const standing = disk.parent(to.folders[0] ?? to.path);
+  return foldsCase(standing) ? path.toUpperCase().toLowerCase() : path;
+}
+
+/**
+ * A property of the folder's file system, asked of the disk: the folder, or the nearest one above
+ * whose name has a case, is found under its name in the other case as itself. A path with no
+ * such name counts as folding, which refuses more, never less.
+ */
+function foldsCase(folder: string): boolean {
+  const { disk } = located();
+  const parent = disk.parent(folder);
+  if (parent === folder) return true;
+  const name = folder.slice(parent.endsWith('/') ? parent.length : parent.length + 1);
+  const swapped = [...name]
+    .map(char => (char === char.toUpperCase() ? char.toLowerCase() : char.toUpperCase()))
+    .join('');
+  if (swapped === name) return foldsCase(parent);
+  const real = disk.real(folder);
+  return real !== undefined && disk.real(disk.join(parent, swapped)) === real;
 }
 
 /** @throws a bug refusal, DECLARATION, for a file no root of adx made */

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import {
   chmod,
   lstat,
@@ -94,9 +95,11 @@ const touch = effect({
 
 const twice = effect({
   does: 'writes one file twice',
-  plan: (_, { files }) => [
-    files.write(home.file('a.txt'), 'a'),
-    files.write(home.file('a.txt'), 'b'),
+  input: z.object({ first: z.string(), second: z.string() }),
+  example: { first: 'a.txt', second: 'a.txt' },
+  plan: ({ first, second }, { files }) => [
+    files.write(home.file(first), 'a'),
+    files.write(home.file(second), 'b'),
   ],
 });
 
@@ -350,14 +353,42 @@ test('a rename that fails after the first names the files moved in and those not
   assert.deepEqual(await readdir(join(data, 'x', 'a')), ['b']);
 });
 
-test('a plan that writes one file twice is a DECLARATION error', async t => {
+test('a plan that writes one file twice is a DECLARATION error, also by a name the file system folds', async t => {
+  // Unicode normalization always; case only where the file system folds it, as APFS does and
+  // ext4 does not, so the second write would replace the first
+  const probe = await folder(t);
+  await writeFile(join(probe, 'Probe'), '');
+  const foldsCase = existsSync(join(probe, 'probe'));
+  const cased = [
+    ['Notes.txt', 'notes.txt'],
+    ['Old/a.txt', 'old/a.txt'],
+  ];
+  const pairs = [
+    ['a.txt', 'a.txt'],
+    ['x/../a.txt', 'a.txt'],
+    ['caf\u00e9.txt', 'cafe\u0301.txt'],
+    ...(foldsCase ? cased : []),
+  ];
+  for (const [first = '', second = ''] of pairs) {
+    for (const existing of [false, true]) {
+      const data = await folder(t);
+      if (existing) await mkdir(join(data, second, '..'), { recursive: true });
+      if (existing) await writeFile(join(data, second), 'old');
+      const replace = existing ? ['--replace'] : [];
+      const ran = await call(data, 'twice', '--first', first, '--second', second, ...replace);
+      assert.deepEqual(
+        [ran.exit, answerIn(ran.out, z.unknown()).issues?.[0]?.code],
+        [2, 'DECLARATION'],
+        `${first} ${second} ${existing}`,
+      );
+      assert.deepEqual(await readdir(data), existing ? [second.split('/')[0]] : []);
+    }
+  }
+  if (foldsCase) return;
+  // a file system that keeps case keeps both files
   const data = await folder(t);
-  const ran = await call(data, 'twice');
-  assert.deepEqual(
-    [ran.exit, answerIn(ran.out, z.unknown()).issues?.[0]?.code],
-    [2, 'DECLARATION'],
-  );
-  assert.deepEqual(await readdir(data), []);
+  const ran = await call(data, 'twice', '--first', 'Notes.txt', '--second', 'notes.txt');
+  assert.deepEqual([ran.exit, (await readdir(data)).sort()], [0, ['Notes.txt', 'notes.txt']]);
 });
 
 test('an update keeps a byte order mark and refuses bytes that are no UTF-8', async t => {
