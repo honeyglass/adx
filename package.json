@@ -5,6 +5,9 @@
   "license": "AGPL-3.0-only",
   "description": "A TypeScript toolkit for command-line tools that AI agents drive, with the Agent DX rules built in. Designed, not built yet.",
   "type": "module",
+  "bin": {
+    "adxcheck": "./dist/test/bin.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,7 +26,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p src",
     "typecheck": "tsc -p src --noEmit && tsc -p proto --noEmit && tsc -p tests",
-    "test": "ls tests/api/*.api.spec.ts >/dev/null && node --test 'tests/api/*.api.spec.ts' && ls tests/e2e/*.e2e.spec.ts >/dev/null && node --test --test-concurrency=1 'tests/e2e/*.e2e.spec.ts'",
+    "test": "ls tests/api/*.api.spec.ts >/dev/null && node --test 'tests/api/*.api.spec.ts' && node --test 'tests/internals/*.internals.spec.ts' && ls tests/e2e/*.e2e.spec.ts >/dev/null && node --test --test-concurrency=1 'tests/e2e/*.e2e.spec.ts'",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
