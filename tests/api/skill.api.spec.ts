@@ -42,7 +42,8 @@ test('an unreadable file is a finding, and the scratch home is gone after the ch
   const scratchRoot = mkdtempSync(join(tmpdir(), 'adx-skill-'));
   const before = process.env.TMPDIR;
   t.after(() => {
-    process.env.TMPDIR = before;
+    if (before === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = before;
     rmSync(scratchRoot, { recursive: true, force: true });
   });
   const file = join(scratchRoot, 'SKILL.md');
