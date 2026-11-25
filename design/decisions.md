@@ -687,6 +687,26 @@ The next three settle points the build of adx left open (the person, 2026-11-24)
     - The test kit splits every named command with `unbash`. It replaces adx's own splitter.
     - Reason: as for 83, the brief of the first build was wrong; 3 stands.
 
+The next four settle package P11 (the person, 2026-11-25).
+
+85. **No code `PANIC`**: it leaves the guide's list of codes. Every bug stays `UNKNOWN_ERROR`, kind
+    `bug`, exit 2 (76).
+86. **`adxcheck report` shows one line per Agent DX rule**, in the order of the README, each made
+    from the probes that cover it. A rule that no probe covers (7, 8, 9, 11) says "not probed", with
+    the reason.
+87. **A tool's own codes are known to the tool**:
+    - Each call of `code()` registers its code with the tool, and `schema` lists the tool's codes
+      beside those of adx. No new field in `tool()`.
+    - So "Hints that run" can name a code that was never raised.
+88. **A bug that `main()` does not see ends with exit 2** (rule 10):
+    - Such a bug is a timer that throws after the answer, or a promise nobody awaits. Node ends it
+      with exit 1 today.
+    - `src/node/` catches it at the level of the process (`uncaughtException`,
+      `unhandledRejection`) and answers exit 2, kind `bug`, code `UNKNOWN_ERROR`.
+    - While stdout holds no answer yet, adx writes the normal error answer. When an answer stands
+      there already, the bug goes to stderr only, so stdout stays one JSON.
+    - Tested with a handler that leaves a `Promise.reject()` unawaited.
+
 ## Clarifications
 
 - **`--dry-run` is a core function.** adx gives it to every `effect`, for every combination of
