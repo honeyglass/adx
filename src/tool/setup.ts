@@ -1,18 +1,18 @@
 /**
  * The setup of a tool that the compiler cannot see, checked at the start of every call.
  *
- * setupIssues: one DECLARATION issue per mistake: in the command table, per command an `after`
- * names that the tool does not list, per code that has a second hint, per hint whose step names
- * a command the tool does not list or a name `schema` does not know, for a command or a group
- * named `schema`, per shape that is no word or has the word of a command, per list whose pages
- * or one-item command do not fit, per effect with `apply` and no `look`, per id() field without
- * a source, per place where an example fails the input of its command, per remote whose own
- * address or token cannot work, per stored kind whose format numbers do not run from the newest
- * down or whose format has a field `version`, for a skill whose name has not the form of one,
- * per code made in two ways, under a name of adx or without the form of a code, and per name of
- * the tool, a root, a stored kind or a variable without its form, or a root named like an option
- * of adx (decision 90), and per place of an input or a shape whose kind of schema the walks for
- * unknown keys and line breaks cannot look into.
+ * setupIssues: one DECLARATION issue per mistake: in the command table, per command an `after`,
+ * a keyOf or a detailOf names that the tool does not list, per code that has a second hint, per
+ * hint whose step names a command the tool does not list or a name `schema` does not know, for
+ * a command or a group named `schema`, per shape that is no word or has the word of a command,
+ * per list whose pages or one-item command do not fit, per effect with `apply` and no `look`,
+ * per id() field without a source, per place where an example fails the input of its command,
+ * per remote whose own address or token cannot work, per stored kind whose format numbers do
+ * not run from the newest down or whose format has a field `version`, for a skill whose name
+ * has not the form of one, per code made in two ways, under a name of adx or without the form
+ * of a code, and per name of the tool, a root, a stored kind or a variable without its form, or
+ * a root named like an option of adx (decision 90), and per place of an input or a shape whose
+ * kind of schema the walks for unknown keys and line breaks cannot look into.
  *
  * The function of a hint gets nothing, so its step is checked here, before any call (decision
  * 73). Every other step is made in a function that a call runs, such as `next`, so the answer
@@ -47,6 +47,7 @@ import { setupIssuesOf, variablesOf } from '../remote/index.ts';
 import { codeOf, schemaNameOf, stepOfHint } from '../steps/index.ts';
 import type { Hint } from '../steps/index.ts';
 import { kindIssues } from '../stored/index.ts';
+import { refOf } from '../values/index.ts';
 import { detailsOf } from './detail.ts';
 import { SKILL_NAME } from './limits.ts';
 import { knows, SCHEMA } from './schema.ts';
@@ -61,6 +62,7 @@ export function setupIssues(shell: Shell, network: Network): Issue[] {
   return [
     ...declarationIssues(shell.commands),
     ...afterIssues(shell),
+    ...refIssues(shell),
     ...hintIssues(shell),
     ...shell.hints.flatMap(made => hintStepIssues(shell, made)),
     ...schemaIssues(shell),
@@ -251,6 +253,23 @@ function hintIssues(shell: Shell) {
   return codes
     .filter((code, i) => codes.indexOf(code) < i)
     .map(code => declaration.issue(`${shell.name} has a second hint for the code ${code}`));
+}
+
+// A key of a list no tool lists names no call that lists the keys (decision 63).
+function refIssues(shell: Shell) {
+  const listed = runnersIn(shell.commands);
+  return [...listed].flatMap(runner =>
+    runner.fields().flatMap(({ field }) => {
+      const source = runner.sourceOf(field);
+      const ref = source === undefined ? undefined : refOf(source);
+      if (ref === undefined) return [];
+      const list = runnerOf(ref.list);
+      if (list !== undefined && listed.has(list)) return [];
+      const does = list === undefined ? 'is no command' : list.does;
+      const message = `${shell.name} ${runner.name} takes a key of the list that ${does}, and ${shell.name} does not list it`;
+      return [declaration.issue(message)];
+    }),
+  );
 }
 
 // A command no tool lists has no words yet, so the issue names what it does.

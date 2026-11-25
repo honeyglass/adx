@@ -9,6 +9,7 @@ import {
   global,
   hint,
   keyOf,
+  list,
   needs,
   read,
   tool,
@@ -374,6 +375,36 @@ test('a key of a list names the list without a value, is not checked against it,
   assert.deepEqual(await issuesOf(tracker, 'schedule', '--project', 'web', '--id'), [
     ['MISSING_VALUE', 'id', 'tracker tickets --project web'],
   ]);
+});
+
+test('a keyOf or detailOf of a list the tool does not list is a DECLARATION error at startup', async () => {
+  const unlisted = list({
+    does: 'lists the codes',
+    item: z.object({ code: z.string() }),
+    key: 'code',
+    outline: ['code'],
+    run: () => ({ items: [] }),
+  });
+  for (const ref of [keyOf(unlisted), detailOf(unlisted)]) {
+    const one = read({
+      does: 'shows one code',
+      input: z.object({ code: z.string() }),
+      values: { code: ref },
+      run: ({ code }) => ({ code }),
+    });
+    const made = tool({ name: 'codes', version: '1.0.0', does: 'x', commands: { one } });
+    for (const argv of [['one', '--code', 'a'], ['one', '--code'], []]) {
+      const answer = await answerOf(made, ...argv);
+      assert.deepEqual(
+        [argv, answer.exit, answer.issues?.map(i => i.message)],
+        [
+          argv,
+          2,
+          ['codes one takes a key of the list that lists the codes, and codes does not list it'],
+        ],
+      );
+    }
+  }
 });
 
 test('carry takes a value only when it stands in the list, is no taken name, and its source can answer', async () => {
