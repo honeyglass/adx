@@ -1,14 +1,14 @@
 /**
- * The stored kinds of the call that runs, so a read of a kind its tool does not list is refused.
+ * The stored kinds of the call that runs, so a kind its tool does not list is refused when used.
  *
  * listing: runs the work of a call with the kinds its tool lists in `stored`.
  * unlisted: the refusal of a kind the tool of the running call does not list.
  *
- * Which kinds a handler reads shows only when it reads, so a read inside a call of a kind its
- * tool does not list is the tool's bug (decision 37). A read outside any call, such as a test
- * that calls `parse`, has no tool, so nothing is refused there.
+ * Which kinds a handler reads or writes shows only when it does, so a read or a write inside a
+ * call of a kind its tool does not list is the tool's bug (decision 37). Outside any call, such
+ * as a test that calls `parse`, there is no tool, so nothing is refused there.
  *
- * @example const refusal = unlisted(Friend); if (refusal !== undefined) throw refusal;
+ * @example const refusal = unlisted(Friend, 'reads'); if (refusal !== undefined) throw refusal;
  */
 import { entered, valueOf } from './call.ts';
 import { declaration } from './codes.ts';
@@ -38,11 +38,15 @@ export const listing = <T>(
   work: () => Promise<T>,
 ) => entered(scope, Listed, new Listed(tool.name, tool.stored), work);
 
-/** @returns a DECLARATION refusal for a kind the running call's tool does not list, else undefined */
-export function unlisted(kind: { name: string }) {
+/**
+ * @param kind - the stored kind a handler uses
+ * @param use - what the handler does with it, for the message
+ * @returns a DECLARATION refusal for a kind the running call's tool does not list, else undefined
+ */
+export function unlisted(kind: { name: string }, use: 'reads' | 'writes') {
   const listed = valueOf(Listed);
   if (listed instanceof Listed && listed.kinds.includes(kind) === false) {
-    const message = `${listed.tool} reads the stored kind ${kind.name}, and does not list it in stored`;
+    const message = `${listed.tool} ${use} the stored kind ${kind.name}, and does not list it in stored`;
     return refusedWith([declaration.issue(message)], NOTHING_CHANGED);
   }
   return undefined;

@@ -40,7 +40,7 @@ export class Handle {
     }
     async json(limit, shape) {
         // A kind the tool does not list is its bug, whatever the file holds, or whether it is there.
-        const refusal = isStored(shape) ? unlisted(shape) : undefined;
+        const refusal = isStored(shape) ? unlisted(shape, 'reads') : undefined;
         if (refusal !== undefined)
             throw refusal;
         const text = await this.text(limit);

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -193,26 +193,42 @@ test('a stored file adx cannot read is refused with its path, through file.json 
   }
 });
 
-test('a kind left out of stored is refused at the call, through file.json and parse, as a DECLARATION bug', async t => {
+test('a kind left out of stored is refused at the call, through file.json, parse and stringify, as a DECLARATION bug', async t => {
   const peek = read({ does: 'peeks at ada', run: () => ada.json(LIMIT, Friend) });
   const reread = read({
     does: 'parses ada',
     run: () => Friend.parse('{"name":"ada","lang":"de"}'),
+  });
+  const ada2 = { name: 'ada', langs: ['eo'] };
+  const save = effect({
+    does: 'saves ada',
+    replace: false,
+    plan: (_, { files }) => files.write(ada, Friend.stringify(ada2)),
+  });
+  const swap = effect({
+    does: 'swaps ada',
+    replace: false,
+    plan: (_, { files }) => files.update(ada, LIMIT, () => Friend.stringify(ada2)),
   });
   const forgetful = tool({
     name: 'hello',
     version: '0.1.0',
     does: 'greets people',
     roots: [home],
-    commands: { peek, reread },
+    commands: { peek, reread, save, swap },
   });
   const data = await holding(t, '{"name":"ada","lang":"de"}');
-  for (const command of ['peek', 'reread']) {
+  for (const [command, use] of [
+    ['peek', 'reads'],
+    ['reread', 'reads'],
+    ['swap', 'writes'],
+  ]) {
     const { exit, out } = await run(forgetful, [command], { env: { HELLO_HOME: data } });
     const answer = answerIn(out, z.unknown());
     const codes = answer.issues?.map(issue => issue.code);
     assert.deepEqual([exit, answer.kind, codes], [2, 'bug', ['DECLARATION']], command);
-    assert.match(answer.issues?.[0]?.message ?? '', /friend.*stored/, command);
+    const said = `hello ${use} the stored kind friend, and does not list it in stored`;
+    assert.equal(answer.issues?.[0]?.message, said, command);
   }
   // the listing is checked before the read, so a missing file does not hide it
   const empty = await mkdtemp(join(tmpdir(), 'adx-stored-'));
@@ -225,8 +241,31 @@ test('a kind left out of stored is refused at the call, through file.json and pa
     missing.issues?.map(issue => issue.code),
     ['DECLARATION'],
   );
-  // the tool starts, since adx cannot see at startup which kinds a handler reads
+  // a stringify that is refused writes nothing, neither a new file nor over an old one
+  const saving = await run(forgetful, ['save'], { env: { HELLO_HOME: empty } });
+  const saved = answerIn(saving.out, z.unknown());
+  assert.deepEqual(
+    [saving.exit, saved.kind, saved.issues?.map(issue => [issue.code, issue.message])],
+    [
+      2,
+      'bug',
+      [['DECLARATION', 'hello writes the stored kind friend, and does not list it in stored']],
+    ],
+  );
+  assert.deepEqual(await readdir(empty), []);
+  assert.equal(
+    await readFile(join(data, 'friends', 'ada.json'), 'utf8'),
+    '{"name":"ada","lang":"de"}',
+  );
+  // the tool starts, since adx cannot see at startup which kinds a handler reads or writes
   assert.equal((await run(forgetful, [], { env: { HELLO_HOME: data } })).exit, 0);
+  // a tool that lists the kind stringifies it in a call
+  const learned = await run(hello, ['learn'], { env: { HELLO_HOME: data } });
+  assert.equal(learned.exit, 0);
+  assert.equal(
+    await readFile(join(data, 'friends', 'ada.json'), 'utf8'),
+    '{"version":2,"name":"ada","langs":["de","eo"]}',
+  );
 });
 
 test('a step up that throws flies on as a bug of the tool, UNKNOWN_ERROR with exit 2', async t => {

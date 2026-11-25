@@ -64,7 +64,7 @@ export class Handle implements File {
   json<S extends z.ZodType>(limit: number, shape: S): Promise<z.output<S>>;
   async json(limit: number, shape: z.ZodType | Stored<unknown>) {
     // A kind the tool does not list is its bug, whatever the file holds, or whether it is there.
-    const refusal = isStored(shape) ? unlisted(shape) : undefined;
+    const refusal = isStored(shape) ? unlisted(shape, 'reads') : undefined;
     if (refusal !== undefined) throw refusal;
     const text = await this.text(limit);
     // A stored kind reads its own text, converting an older format, and knows no file.
