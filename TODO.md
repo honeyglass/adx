@@ -19,7 +19,7 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
       'design/adx-write/'
 - [ ] #7 Once @honeyglass/utils and adx are published to the npm registry, let adx bring utils itself as a registry peerDependency that pnpm installs, so a tool no longer names utils in its own package.json; one shared copy stays required, since `instanceof RefusalError` needs it; revisit decision 75 (added 2026-11-24)
       after:#1
-- [ ] #8 Security review of adx once the build and the oriko migration are done: every check is an allow-list or a property (~/.claude/rules/security.md), close open flanks; decide whether network fetches (adx remotes, and oriko's `read --posting`) run in a sandbox, and whether lean-code's SandboxManager ('sandbox-manager/') and SyntaxManager ('syntax-manager/') can serve as dependencies there; both are not finished yet (added 2026-11-24)
+- [ ] #8 Security review of adx once the build and the oriko migration are done: every check is an allow-list or a property (~/.claude/rules/security.md), close open flanks; decide whether network fetches (adx remotes, and oriko's `read --posting`) run in a sandbox, and whether lean-code's SandboxManager ('sandbox-manager/') and SyntaxManager ('syntax-manager/') can serve as dependencies there; both are not finished yet; the sandbox also covers the program that adxcheck and conformance start, since the test kit closes the network only for requests through adx remotes, not for a program that calls fetch itself (decision 86) (added 2026-11-24)
       after:#1
       Plan: '~/src/github.com/honeyglass/lean-code/plannings/plans/security-managers/plan.md'
       '~/.claude/rules/security.md'
