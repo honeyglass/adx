@@ -1,16 +1,16 @@
 # Build plan: adx
 
 Builds the toolkit that `proto/adx/index.d.ts` and `proto/adx/test.d.ts` declare, so that every
-example under `proto/` runs. The design is settled in `design/decisions.md` (1 to 81); this plan
+example under `proto/` runs. The design is settled in `design/decisions.md` (1 to 91); this plan
 only cuts the work into packages. The main session of Claude Code is the coordinator; per
 package it starts one Opus sub-agent as worker and one fresh Opus sub-agent as
 reviewer, at effort high or medium by the package's complexity, one package at a time.
 
 ## Rules for the run
 
-- **The design is fixed.** Nothing in `decisions.md` or `index.d.ts` changes during the build.
-  A worker or reviewer who finds that a decision cannot work as written stops and reports; the
-  coordinator asks the person and does not decide.
+- **The design is fixed by the person.** `decisions.md` and `index.d.ts` change during the build
+  only by the person's decision, as 82 to 91 did. A worker or reviewer who finds that a decision
+  cannot work as written stops and reports; the coordinator asks the person and does not decide.
 - **Tests first.** Each package writes its api tests from `index.d.ts` and its doc comments, sees
   them fail, then writes the code (`~/.claude/rules/testing.md`).
 - **Layout.** `~/.claude/rules/ecmascript/layout.md`: one folder per feature, a feature imports
@@ -117,7 +117,7 @@ round is done. The e2e line names the tests the package turns green.
 - [x] the start checks: hint and schema names known (73, 77); utils present (75) dropped, the
       install stops first (the person, 2026-11-25)
 - [x] `test/conformance`
-- [ ] `dist/` built and checked in, README install line points at a real sha
+- [x] `dist/` built and checked in, README install line points at a real sha
 - [x] `tests/e2e/oriko.e2e.spec.ts` removed: proto/oriko stays type-only and never runs, since
       it imports functions it only declares (the person, 2026-11-23). The real oriko, migrated
       onto adx after this build, is the acceptance test, with its behavior golden.

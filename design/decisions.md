@@ -355,7 +355,7 @@ for each). Where one changes an earlier decision, both say so.
     - adx fills `command` from the source of the first part, as it does for a flat path.
     - Reason: a field given through `--json` can hold a list or an object. An issue at the field
       alone does not say which part is wrong, and the agent has to search for it.
-    - Type-checked in `proto/examples/parts.ts`.
+    - Type-checked in `proto/examples/parts.ts` and `proto/examples/parts.types.ts`.
 70. **A derived file is replaced without `--replace`** (changes 10, 12 and 16):
     - A derived file is one the tool builds again from what it stores, such as a built document or
       an export. A command that writes such files says `replace: 'always'`, and every `files.write`
@@ -377,8 +377,8 @@ for each). Where one changes an earlier decision, both say so.
       without a thought, and then it no longer guards the data that someone keeps.
     - For oriko's move, a deliberate change: `photo set` will need `--replace` when a photo is
       already there.
-    - Type-checked in `proto/examples/datafolder.ts`: `files.write` takes no `replaces` option, and
-      `replace` takes `false` or `'always'` and no other value.
+    - Type-checked in `proto/examples/datafolder.types.ts`: `files.write` takes no `replaces` option,
+      and `replace` takes `false` or `'always'` and no other value.
 71. **A field name is reserved only where the command has adx's option** (changes 51):
     - 51 refused a field named like any option of adx, on every command. For four of the names
       that now holds only on a command that has the option from adx itself:
@@ -393,7 +393,7 @@ for each). Where one changes an earlier decision, both say so.
       compile. A global input reaches every kind of command, so it takes none of the names.
     - The name of a root stays a `DECLARATION` error at startup, since a command does not know the
       roots of its tool.
-    - Type-checked in `proto/hello2.ts` and `proto/global.ts`.
+    - Type-checked in `proto/hello2.types.ts` and `proto/global.ts`.
 72. **A tool registers shapes, and `schema` prints them** (see 5 for the start answer):
     - A shape is a schema that a caller writes and no command takes whole: a part of an input, or
       a file that someone edits by hand. `tool({ shapes: { person: Person } })` registers it under
@@ -419,7 +419,7 @@ for each). Where one changes an earlier decision, both say so.
       from a command, such as a list.
     - For oriko's move, a deliberate change: its start answer loses `home`, `cvs` and `profiles`.
       `oriko cvs` and `oriko profiles` answer them.
-    - Type-checked in `proto/examples/parts.ts`.
+    - Type-checked in `proto/examples/parts.ts` and `proto/examples/parts.types.ts`.
 73. **A hint across folders stands at the tool, with `hint(code, step)`** (changes 67):
     - A command in an issue whose target lies in the handler's own folder stands at the issue, with
       `.command(step)`, as before (15).
@@ -491,7 +491,7 @@ for each). Where one changes an earlier decision, both say so.
       `~/.claude/rules`, above all `errors.md` and `ecmascript/try-catch.md`.
     - adx handles every expected error inside itself, so an author writes no `try`: with `$try`
       for a promise, and with `trySync$` for a synchronous call that can throw. Both come from
-      `@honeyglass/utils`, as `RefusalError` does (75).
+      `@honeyglass/utils/ts`, as `RefusalError` does (75).
     - The places:
       - `api.get`, `api.post` and the other methods of a remote: the network, the status and the
         JSON of the answer (6, 41).
@@ -540,7 +540,8 @@ decision, both say so.
       `oriko schema profile` before `oriko profile set`, and `profiles` answers it when no profile
       is stored. After an old CV was read, `read` answers `oriko schema init` after `oriko init`.
       These steps were left out of `proto/oriko/cli/next.ts` and now stand there.
-    - Type-checked in `proto/examples/check.ts` and `proto/oriko/cli/next.ts`.
+    - Type-checked in `proto/examples/check.ts`, `proto/examples/check.types.ts` and
+      `proto/oriko/cli/next.ts`.
 78. **A handler checks a part against a schema with `check`, and the issues are `SCHEMA`** (see 69
     and 72):
     - adx exports `check(shape, value, path)`. It checks the value against the shape and answers
@@ -575,8 +576,8 @@ decision, both say so.
       in no `shapes`, so the check of an item says `{ as: Item }` and the check of a patch
       `{ as: Block }`. The issues name `oriko schema item` and `oriko schema block`, as oriko
       does today.
-    - Type-checked in `proto/examples/check.ts`, `proto/oriko/edit/apply.ts` and
-      `proto/oriko/profile/set.ts`.
+    - Type-checked in `proto/examples/check.ts`, `proto/examples/check.types.ts`,
+      `proto/oriko/edit/apply.ts` and `proto/oriko/profile/set.ts`.
 79. **A step takes fields of the refused call, with `.carry(...fields)`, and lists the values of
     a field, with `.lists(field)`** (changes 52 and 73):
     - `CommandStep` gets `.carry(...fields)`. It takes fields of the target command only:
