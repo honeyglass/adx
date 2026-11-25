@@ -391,8 +391,9 @@ for each). Where one changes an earlier decision, both say so.
     - A key is one word, as in `commands` (63). A shape and a command cannot share a name. Both
       are `DECLARATION` errors. A shape may share its word with a group: `tool schema profile`
       prints the shape, and `tool schema profile set` the command.
-    - The start answer stays what 5, 36 and 65 make it: the name, the version, the path of the
-      skill, the commands and the first steps. A tool adds no data of its own to it. Data comes
+    - The start answer stays what 5, 36 and 65 make it: the name, the version, what the tool does
+      (`does`, which the text header needs too; the person, 2026-11-25), the name of the skill
+      (82), the commands and the first steps. A tool adds no data of its own to it. Data comes
       from a command, such as a list.
     - For oriko's move, a deliberate change: its start answer loses `home`, `cvs` and `profiles`.
       `oriko cvs` and `oriko profiles` answer them.
@@ -478,10 +479,14 @@ for each). Where one changes an earlier decision, both say so.
       one of adx's codes, its kind, the `state`, and the raw error whole as `cause`. Which error
       gets which code and kind is not decided here: the guide lists it under "Errors you did not
       map", and 41 says what is tried again.
-    - A bug, such as one in a handler of oriko, is not caught below. No `$try` of adx stands
-      around a handler, so a programming error flies on.
+    - A bug, such as one in a handler of oriko, is not caught below. No `$try` of adx catches a
+      bug of a handler, so a programming error flies on. The one `$try` around the handler stage
+      answers only adx's own refusals, whose hints and carry need the call's input, and throws
+      every other error on at the next line (the person, 2026-11-25).
     - `main()` is the outermost function. It catches once, with one `$try` around its whole body.
-      A refusal that reaches it is answered by its kind. Any other error is a bug: adx answers
+      A refusal that reaches it is answered by its kind. A `RefusalError` of `@honeyglass/utils`
+      that is not adx's own keeps its kind, and gets the code `UNKNOWN_ERROR` with its reason as
+      the message and its next as the hint (the person, 2026-11-25). Any other error is a bug: adx answers
       `UNKNOWN_ERROR`, kind `bug`, with exit code 2 (rule 10), in the one error shape (27).
     - What that means for an author: a handler writes no `try` for anything that goes through
       adx. Where its own code can fail in an expected way, such as a file it reads itself or the
