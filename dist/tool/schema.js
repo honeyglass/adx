@@ -21,7 +21,7 @@ import { rootOptions } from "../files/index.js";
 import { variablesOf } from "../remote/index.js";
 import { jsonSchemaOf } from "../shapes/index.js";
 /** The word of adx's own command. */
-const SCHEMA = 'schema';
+export const SCHEMA = 'schema';
 /** What each kind asks the caller to do, in the order of the guide's table of kinds. */
 const KINDS = [
     ['fix', 'the caller fixes the input: change the call and run it again'],

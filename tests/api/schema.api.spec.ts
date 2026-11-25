@@ -276,6 +276,25 @@ test('a shape that is no word, or the word of a command, is a DECLARATION error'
   }
 });
 
+test('a command or a group named schema at the top is a DECLARATION error, schemas or a nested one is not', async () => {
+  // each tool gets commands of its own, since one command in two places is a DECLARATION too
+  const greet = () => spec().commands.greet;
+  const hidden = [
+    { greet: greet(), schema: greet() },
+    { greet: greet(), schema: { show: greet() } },
+  ];
+  for (const commands of hidden) {
+    const answer = await answerOf(tool({ ...spec(), commands }), 'greet', '--name', 'Ada');
+    assert.deepEqual([answer.exit, answer.issues?.map(i => i.code)], [2, ['DECLARATION']]);
+    assert.match(answer.issues?.[0]?.message ?? '', /schema hides it/);
+  }
+  const near = tool({ ...spec(), commands: { greet: greet(), schemas: greet() } });
+  assert.equal((await answerOf(near, 'schemas', '--name', 'Ada')).exit, 0);
+  // adx's own schema takes only the first word, so a nested schema stays reachable
+  const nested = tool({ ...spec(), commands: { greet: greet(), profile: { schema: greet() } } });
+  assert.equal((await answerOf(nested, 'profile', 'schema', '--name', 'Ada')).exit, 0);
+});
+
 test('a tool code at a part keeps its own command, not the schema of a shape', async () => {
   const twice = code('NAME_TWICE', 'fix', 'Name each person once');
   const checked = read({

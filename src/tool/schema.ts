@@ -25,7 +25,7 @@ import { jsonSchemaOf } from '../shapes/index.ts';
 import type { Shell } from './tool.ts';
 
 /** The word of adx's own command. */
-const SCHEMA = 'schema';
+export const SCHEMA = 'schema';
 
 /** What each kind asks the caller to do, in the order of the guide's table of kinds. */
 const KINDS: readonly (readonly [Kind, string])[] = [

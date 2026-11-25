@@ -59,7 +59,7 @@ adx braucht Node 24.2 oder neuer.
 ### Das Tool
 
 - `tool({ name, version, does, commands })`: legt das Tool an.
-- `commands`: die Tabelle der Befehle. Ein Schlüssel ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `friends: { add }` ist `hello friends add`.
+- `commands`: die Tabelle der Befehle. Ein Schlüssel ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `friends: { add }` ist `hello friends add`. Kein Befehl und keine Gruppe oben in der Befehlstabelle darf `schema` heißen, sonst ein `DECLARATION`-Fehler beim Start.
 - `skill`: optional, der Name des Agent-Skills, der in `~/.claude/skills/<name>/SKILL.md` liegt: Kleinbuchstaben, Ziffern und Bindestriche, höchstens 64 Zeichen, sonst beim Start ein `DECLARATION`-Fehler. Das Tool öffnet die Datei nie. Nur das Testkit liest ihr Frontmatter.
 - `roots`, `remotes`: die Ordner und Server, die das Tool nutzen darf.
 - `stored`: jede Datenart, die das Tool speichert, mit ihrer Formatnummer.

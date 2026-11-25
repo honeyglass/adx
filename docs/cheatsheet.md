@@ -59,7 +59,7 @@ adx needs Node 24.2 or later.
 ### The tool
 
 - `tool({ name, version, does, commands })`: declares the tool.
-- `commands`: the table of commands. A key is a word of the call, and a table inside the table is a group: `friends: { add }` is `hello friends add`.
+- `commands`: the table of commands. A key is a word of the call, and a table inside the table is a group: `friends: { add }` is `hello friends add`. No command and no group at the top of the command table may be named `schema`, else a `DECLARATION` error at startup.
 - `skill`: optional, the name of the agent skill, which lies in `~/.claude/skills/<name>/SKILL.md`: lowercase letters, digits and hyphens, at most 64 characters, else a `DECLARATION` error at startup. The tool never opens the file. Only the test kit reads its frontmatter.
 - `roots`, `remotes`: the folders and servers the tool may use.
 - `stored`: every kind of data the tool stores, with its format number.

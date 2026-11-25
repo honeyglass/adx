@@ -952,7 +952,7 @@ export const tracker = tool({
 ```
 
 - `global: project` gives every command the option `--project`. A command made without the global input does not compile in this table.
-- A key of `commands` is one word of the call, and a table inside the table is a group: `tracker ticket list`, `tracker ticket show`, `tracker whoami`.
+- A key of `commands` is one word of the call, and a table inside the table is a group: `tracker ticket list`, `tracker ticket show`, `tracker whoami`. No command and no group at the top of the command table may be named `schema`: adx's own `schema` would hide it. A nested one, such as `tool profile schema`, stays allowed. That is a `DECLARATION` error at startup.
 - A folder and a word are independent. `stats.ts` lies in `tickets/`, and its call is `tracker stats`.
 - `next` and `after` are shown at the end of this section, under "A step across folders".
 

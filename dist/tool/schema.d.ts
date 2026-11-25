@@ -1,6 +1,8 @@
 import type { Answered, Runner } from '../command/index.ts';
 import type { Token } from '../core/index.ts';
 import type { Shell } from './tool.ts';
+/** The word of adx's own command. */
+export declare const SCHEMA = "schema";
 /** @returns whether the first word of the call is `schema` */
 export declare const namesSchema: (tokens: readonly Token[]) => boolean;
 /**

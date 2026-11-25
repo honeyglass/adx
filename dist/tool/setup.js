@@ -3,11 +3,12 @@
  *
  * setupIssues: one DECLARATION issue per mistake: in the command table, per command an `after`
  * names that the tool does not list, per code that has a second hint, per hint whose step names
- * a command the tool does not list or a name `schema` does not know, per shape that is no word
- * or has the word of a command, per list whose pages or one-item command do not fit, per effect
- * with `apply` and no `look`, per id() field without a source, per remote whose own address or
- * token cannot work, per stored kind whose format numbers do not run from the newest down or
- * whose format has a field `version`, and for a skill whose name has not the form of one.
+ * a command the tool does not list or a name `schema` does not know, for a command or a group
+ * named `schema`, per shape that is no word or has the word of a command, per list whose pages
+ * or one-item command do not fit, per effect with `apply` and no `look`, per id() field without
+ * a source, per remote whose own address or token cannot work, per stored kind whose format
+ * numbers do not run from the newest down or whose format has a field `version`, and for a skill
+ * whose name has not the form of one.
  *
  * The function of a hint gets nothing, so its step is checked here, before any call (decision
  * 73). Every other step is made in a function that a call runs, such as `next`, so the answer
@@ -25,7 +26,7 @@ import { codeOf, schemaNameOf, stepOfHint } from "../steps/index.js";
 import { kindIssues } from "../stored/index.js";
 import { detailsOf } from "./detail.js";
 import { SKILL_NAME } from "./limits.js";
-import { knows } from "./schema.js";
+import { knows, SCHEMA } from "./schema.js";
 /**
  * @param shell - what the call reads of the tool
  * @param network - the parser of the call, which reads each address as its requests would
@@ -36,6 +37,7 @@ export function setupIssues(shell, network) {
         ...afterIssues(shell),
         ...hintIssues(shell),
         ...shell.hints.flatMap(made => hintStepIssues(shell, made)),
+        ...schemaIssues(shell),
         ...shapeIssues(shell),
         ...listIssues(shell),
         ...lookIssues(shell),
@@ -107,6 +109,13 @@ function listIssues(shell) {
                 : []),
         ].map(message => declaration.issue(message));
     });
+}
+// adx's own schema takes the first word of a call, so a command or a group of that word never runs.
+function schemaIssues(shell) {
+    if (Object.hasOwn(shell.commands, SCHEMA) === false)
+        return [];
+    const message = `${shell.name} lists a command or a group ${SCHEMA}, and adx's own ${shell.name} ${SCHEMA} hides it: rename it`;
+    return [declaration.issue(message)];
 }
 // `schema <word>` names a shape or a command; a group may share its word, and the shape wins.
 function shapeIssues(shell) {

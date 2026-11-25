@@ -952,7 +952,7 @@ export const tracker = tool({
 ```
 
 - `global: project` gibt jedem Befehl die Option `--project`. Ein Befehl, der ohne die globale Eingabe gemacht ist, kompiliert in dieser Tabelle nicht.
-- Ein Schlüssel von `commands` ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `tracker ticket list`, `tracker ticket show`, `tracker whoami`.
+- Ein Schlüssel von `commands` ist ein Wort des Aufrufs, und eine Tabelle in der Tabelle ist eine Gruppe: `tracker ticket list`, `tracker ticket show`, `tracker whoami`. Kein Befehl und keine Gruppe oben in der Befehlstabelle darf `schema` heißen: Das eigene `schema` von adx würde sie verdecken. Ein verschachtelter, etwa `tool profile schema`, bleibt erlaubt. Das ist ein `DECLARATION`-Fehler beim Start.
 - Ein Ordner und ein Wort sind unabhängig. `stats.ts` liegt in `tickets/`, und sein Aufruf ist `tracker stats`.
 - `next` und `after` zeigt das Ende dieses Abschnitts, unter "Ein Schritt über Ordner hinweg".
 
