@@ -1719,19 +1719,40 @@ The same engine runs as a command, for CI or for a tool built by someone else on
 
 ```console
 $ pnpm exec adxcheck report --env TRACKER_TOKEN=test-token -- node bin/tracker.ts
-Raw JSON input      met
-Schema at run time  met
-JSON when piped     met
-Input hardening     met
-Dry runs            not probed   no recorder for "tracker": pass a fake to probe sends
-Agent skill         none named
-...
-Hints that run      not probed   TICKET_NOT_FOUND was never raised
+Raw JSON input           not probed   7 calls reached "tracker", which no fake stands for
+Schema at run time       met
+JSON when piped          met
+Input hardening          met
+Dry runs                 not probed   no recorder for "tracker": pass a fake to probe sends; 3 calls reached "tracker", which no fake stands for
+Agent skill              none named
+Checks in layers         not probed   no probe tells which layer refused a call
+Errors with a hint       not probed   no probe judges whether a hint says what to change
+All or nothing           not probed   no probe makes a write fail halfway
+Exit codes 0, 1, 2       not probed   31 calls reached "tracker", which no fake stands for, so their exit codes show nothing
+Plan before the file     not probed   no probe compares a plan with the file it writes
+Hints that run           not probed   12 calls reached "tracker", which no fake stands for; TICKET_NOT_FOUND, STILL_OPEN, USER_INACTIVE were never raised; 3 calls reached "tracker", which no fake stands for
+Options that list        not probed   6 calls reached "tracker", which no fake stands for
+Next steps               met
+Nothing passes silently  met
+Context discipline       not probed   no read without an output schema answered
 ```
 
-`report` only reports and exits 0. `adxcheck run` refuses instead: any probed behavior that is not met is a refusal with exit 1, one issue per failed probe, each with the call that showed it.
+It answers one line per Agent DX rule, in the order of the README: text at a terminal, as above, and JSON when piped, as a tool of adx answers. `report` only reports and exits 0. `adxcheck run` refuses instead: any rule a probe broke is a refusal with exit 1, `RULE_NOT_MET`, one issue per broken rule, its message beginning with the call that showed it. The command of the issue runs `adxcheck run` again, never the call itself, which would run the real tool. With every probed rule met, `run` answers the same lines and exits 0. `adxcheck` alone, or with `--help`, says what it takes.
 
-"Not probed" is honest: the black box without a fake server cannot see whether a dry run sends, and a code no probe raised cannot prove its hint runs. Raise such codes in a test of your own. "None named" is honest too: the agent skill is yours, and adx does not count a tool without one as having met that rule.
+- `--env NAME=value`, once per variable: the variables of the program. It sees no other variable of yours.
+- `--seed <folder>`: the files the data folder holds in every probe, as `seed` in the samples.
+- `--skill-file <path>`: the repository's `SKILL.md`, as `skillFile` in the samples. Without it, the line of a tool that names a skill reads "not probed", with "pass --skill-file". adxcheck never reads your own home.
+- `--output text` or `--output json`: forces the form, as on every tool.
+- `--` comes before the command line of the tool.
+
+A variable the kit sets itself, such as `HOME`, `TMPDIR` or `ADX_FAKES_ONLY`, cannot come through `--env`, and a seed must be a folder; both are refused before a probe runs.
+
+A fake is a value of a test, so a command line has none. A request through an adx remote then reaches no server, and a call that makes one leaves its rule "not probed" instead of failing it.
+
+> [!WARNING]
+> The test kit closes only the requests that go through an adx remote. Under the kit (`run`, `invoke`, `conformance`, `adxcheck`) such a request goes only to a fake the kit started itself; every other address is refused, the machine itself included, since a tunnel to production lies there too. A handler that calls `fetch` itself, or a program not built on adx, reaches the network with whatever token you pass it.
+
+"Not probed" is honest: the black box without a fake server cannot see whether a dry run sends, and a code no probe raised cannot prove its hint runs. Raise such codes in a test of your own, and give the tracker its fakes there. Four rules are "not probed" in every tool: no probe can tell which layer refused a call, judge the words of a hint, make a write fail halfway or hold a plan against its file. "None named" is honest too: the agent skill is yours, and adx does not count a tool without one as having met that rule.
 
 ## 6. What every tool gets
 
@@ -1739,7 +1760,7 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 
 - `tool`: name, version, the name of the skill or `null`, the commands, and the first steps.
 - `tool <group>`: the actions of the group.
-- `tool schema`: every command, the shapes, the shared options, the four kinds, every code with its kind and hint, the roots with their variable and option, the variables, the stored kinds with their format number, the limits.
+- `tool schema`: every command, the shapes, the shared options, the four kinds, every code with its kind and hint, adx's own and then the tool's, the roots with their variable and option, the remotes by name, the variables, the stored kinds with their format number, the limits.
 - `tool schema <command>`: the input schema, the global fields the command takes, the options it takes, which fields have lists, the key, fields and outline of a list, the fields of a `read` with `output`, the page size, `replace: 'always'` of an effect that replaces a derived file, the example.
 - `tool schema <shape>`: one shape as JSON Schema.
 - `tool <command> --help`: the same facts as text for people.
@@ -1839,12 +1860,14 @@ plan: async ({ name, lang }, { files }) => {
 
 **adx's own codes**
 
-`tool schema` prints this list in every tool, each code with its kind and hint.
+`tool schema` prints this list in every tool, each code with its kind and hint, and after it every code the tool makes with `code()`, raised or not.
 
 - `fix`: `UNKNOWN_COMMAND`, `OPTION_BEFORE_COMMAND`, `UNKNOWN_OPTION`, `UNEXPECTED_ARGUMENT`, `UNEXPECTED_VALUE`, `REPEATED_OPTION`, `MISSING_VALUE`, `MISSING_INPUT`, `INVALID_JSON`, `INPUT_TOO_LARGE`, `SCHEMA`, `NOT_IN_LIST`, `PATH_OUTSIDE`, `FILE_NOT_FOUND`, `NOT_A_FILE`, `NOT_A_FOLDER`, `ALREADY_EXISTS`, `URL_NOT_ALLOWED`
 - `ask`: `ROOT_NOT_FOUND`, `ENV_MISSING`, `SYSTEM_REFUSED`, `ACCESS_REFUSED`, `REMOTE_REFUSED`, `NEWER_VERSION`, `STORED_INVALID`
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
 - `bug`: `DECLARATION`, `UNKNOWN_ERROR`
+
+`adxcheck` adds one code of its own: `RULE_NOT_MET`, kind `fix`, for a rule a probe broke.
 
 `SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. A handler raises it with `check`. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run.
 
@@ -1912,6 +1935,7 @@ In its own repository, Node runs the `.ts` file as it is. Add `#!/usr/bin/env no
 - **A `look` names a command of its own folder.** `after` moves a `next` across folders to the tool, and `hint` moves the command of an issue there. The `look` of an effect stands in the handler. Under a rule that features do not import each other, it cannot name a command of another feature.
 - **The compiler does not know what adx checked.** adx has already refused an unknown `lang`, but `byCode(lang)` still returns a language or `undefined`, so the code needs a branch for the compiler alone.
 - **Two input types to keep apart.** `example: { dir: '.' }` is a string, while `run` gets a `Dir`. A field with a default is optional in `example` and present in `run`.
+- **Two tools in one process share their codes.** Every `code()` lands in one list per process, and `schema` prints it all. A test that builds two tools in one file sees the codes of the other in each, and "Hints that run" can name a code of the other tool as never raised. A code name made with two kinds or hints, or named like one of adx's, is a `DECLARATION` error at startup, in every tool of the process. A program runs one tool, so its list is its own.
 - **A named source without `Source` reports a typo in `needs` far from it.** A source written in `values`, and a named source typed with `Source<...>`, report the typo at the source. A named source with a parameter type of its own reports it at the `values` line that uses the source, in about ten lines and without a suggestion.
 - **Some facts only show at startup, at the call or in a test.** An `id()` field without a source, an example that fails a `.regex()`, a root left out of `roots`, a kind left out of `stored` (at the call that reads or writes it), a field named like a root, a hint for a command no tool lists, an `apply` without `look`, a command left out of `commands`, and a fake route that does not match the path in `api.get`.
 - **A stored file written around its kind has no number.** A file written with `JSON.stringify` in place of `Friend.stringify` lacks `"version"`, and the next read takes it for format 1.

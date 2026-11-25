@@ -1719,19 +1719,40 @@ Dieselbe Prüfung läuft als Befehl, für CI oder für ein Tool, das jemand ande
 
 ```console
 $ pnpm exec adxcheck report --env TRACKER_TOKEN=test-token -- node bin/tracker.ts
-Raw JSON input      met
-Schema at run time  met
-JSON when piped     met
-Input hardening     met
-Dry runs            not probed   no recorder for "tracker": pass a fake to probe sends
-Agent skill         none named
-...
-Hints that run      not probed   TICKET_NOT_FOUND was never raised
+Raw JSON input           not probed   7 calls reached "tracker", which no fake stands for
+Schema at run time       met
+JSON when piped          met
+Input hardening          met
+Dry runs                 not probed   no recorder for "tracker": pass a fake to probe sends; 3 calls reached "tracker", which no fake stands for
+Agent skill              none named
+Checks in layers         not probed   no probe tells which layer refused a call
+Errors with a hint       not probed   no probe judges whether a hint says what to change
+All or nothing           not probed   no probe makes a write fail halfway
+Exit codes 0, 1, 2       not probed   31 calls reached "tracker", which no fake stands for, so their exit codes show nothing
+Plan before the file     not probed   no probe compares a plan with the file it writes
+Hints that run           not probed   12 calls reached "tracker", which no fake stands for; TICKET_NOT_FOUND, STILL_OPEN, USER_INACTIVE were never raised; 3 calls reached "tracker", which no fake stands for
+Options that list        not probed   6 calls reached "tracker", which no fake stands for
+Next steps               met
+Nothing passes silently  met
+Context discipline       not probed   no read without an output schema answered
 ```
 
-`report` berichtet nur und endet mit 0. `adxcheck run` lehnt stattdessen ab: Jedes geprüfte Verhalten, das nicht erfüllt ist, ist eine Ablehnung mit Exit 1, ein Problem pro gescheiterter Prüfung, jedes mit dem Aufruf, der es gezeigt hat.
+Er antwortet mit einer Zeile pro Agent-DX-Regel, in der Reihenfolge der README: als Text an einem Terminal, wie oben, und als JSON in der Pipe, wie ein Tool von adx antwortet. `report` berichtet nur und endet mit 0. `adxcheck run` lehnt stattdessen ab: Jede Regel, die eine Prüfung gebrochen hat, ist eine Ablehnung mit Exit 1, `RULE_NOT_MET`, ein Problem pro gebrochener Regel, dessen Meldung mit dem Aufruf beginnt, der es gezeigt hat. Der Befehl des Problems führt `adxcheck run` noch einmal aus, nie den Aufruf selbst, der das echte Tool ausführen würde. Sind alle geprüften Regeln erfüllt, antwortet `run` mit denselben Zeilen und endet mit 0. `adxcheck` allein oder mit `--help` sagt, was es nimmt.
 
-"Not probed" ist ehrlich: Die Blackbox ohne Fake-Server kann nicht sehen, ob ein Probelauf sendet, und ein Code, den keine Prüfung ausgelöst hat, kann nicht beweisen, dass sein Hinweis läuft. Löse solche Codes in einem eigenen Test aus. "None named" ist auch ehrlich: Der Agent-Skill gehört dir, und adx zählt ein Tool ohne Skill nicht so, als hätte es diese Regel erfüllt.
+- `--env NAME=value`, einmal pro Variable: die Variablen des Programms. Es sieht keine andere Variable von dir.
+- `--seed <folder>`: die Dateien, die der Datenordner in jeder Prüfung hält, wie `seed` in den Samples.
+- `--skill-file <path>`: die `SKILL.md` des Repositorys, wie `skillFile` in den Samples. Ohne sie lautet die Zeile eines Tools, das einen Skill nennt, "not probed", mit "pass --skill-file". adxcheck liest nie dein eigenes Home.
+- `--output text` oder `--output json`: erzwingt die Form, wie bei jedem Tool.
+- `--` steht vor der Befehlszeile des Tools.
+
+Eine Variable, die das Kit selbst setzt, etwa `HOME`, `TMPDIR` oder `ADX_FAKES_ONLY`, kann nicht über `--env` kommen, und ein Seed muss ein Ordner sein; beides wird abgelehnt, bevor eine Prüfung läuft.
+
+Ein Fake ist ein Wert eines Tests, also hat eine Befehlszeile keinen. Eine Anfrage über eine Remote von adx erreicht dann keinen Server, und ein Aufruf, der eine stellt, lässt seine Regel "not probed", statt sie scheitern zu lassen.
+
+> [!WARNING]
+> Das Test-Kit schließt nur die Anfragen, die über eine Remote von adx gehen. Unter dem Kit (`run`, `invoke`, `conformance`, `adxcheck`) geht eine solche Anfrage nur an einen Fake, den das Kit selbst gestartet hat; jede andere Adresse wird abgelehnt, auch die Maschine selbst, denn auch ein Tunnel zur Produktion liegt dort. Ein Handler, der selbst `fetch` aufruft, oder ein Programm, das nicht auf adx gebaut ist, erreicht das Netz, mit jedem Token, das du ihm gibst.
+
+"Not probed" ist ehrlich: Die Blackbox ohne Fake-Server kann nicht sehen, ob ein Probelauf sendet, und ein Code, den keine Prüfung ausgelöst hat, kann nicht beweisen, dass sein Hinweis läuft. Löse solche Codes in einem eigenen Test aus, und gib dem Tracker dort seine Fakes. Vier Regeln sind in jedem Tool "not probed": Keine Prüfung kann sehen, welche Schicht einen Aufruf abgelehnt hat, die Worte eines Hinweises beurteilen, ein Schreiben mittendrin scheitern lassen oder einen Plan gegen seine Datei halten. "None named" ist auch ehrlich: Der Agent-Skill gehört dir, und adx zählt ein Tool ohne Skill nicht so, als hätte es diese Regel erfüllt.
 
 ## 6. Was jedes Tool bekommt
 
@@ -1739,7 +1760,7 @@ Hints that run      not probed   TICKET_NOT_FOUND was never raised
 
 - `tool`: Name, Version, der Name des Skills oder `null`, die Befehle und die ersten Schritte.
 - `tool <group>`: die Aktionen der Gruppe.
-- `tool schema`: jeder Befehl, die Shapes, die gemeinsamen Optionen, die vier Arten, jeder Code mit Art und Hinweis, die Roots mit Variable und Option, die Variablen, die gespeicherten Datenarten mit ihrer Formatnummer, die Grenzen.
+- `tool schema`: jeder Befehl, die Shapes, die gemeinsamen Optionen, die vier Arten, jeder Code mit Art und Hinweis, erst die von adx, dann die des Tools, die Roots mit Variable und Option, die Remotes mit Namen, die Variablen, die gespeicherten Datenarten mit ihrer Formatnummer, die Grenzen.
 - `tool schema <command>`: das Eingabeschema, die globalen Felder, die der Befehl nimmt, die Optionen, die er nimmt, welche Felder Listen haben, Schlüssel, Felder und Kurzform einer Liste, die Felder eines `read` mit `output`, die Seitengröße, `replace: 'always'` eines Effekts, der eine abgeleitete Datei ersetzt, das Beispiel.
 - `tool schema <shape>`: ein Shape als JSON Schema.
 - `tool <command> --help`: dieselben Tatsachen als Text für Menschen.
@@ -1839,12 +1860,14 @@ plan: async ({ name, lang }, { files }) => {
 
 **Die eigenen Codes von adx**
 
-`tool schema` gibt diese Liste in jedem Tool aus, jeden Code mit Art und Hinweis.
+`tool schema` gibt diese Liste in jedem Tool aus, jeden Code mit Art und Hinweis, und danach jeden Code, den das Tool mit `code()` anlegt, ausgelöst oder nicht.
 
 - `fix`: `UNKNOWN_COMMAND`, `OPTION_BEFORE_COMMAND`, `UNKNOWN_OPTION`, `UNEXPECTED_ARGUMENT`, `UNEXPECTED_VALUE`, `REPEATED_OPTION`, `MISSING_VALUE`, `MISSING_INPUT`, `INVALID_JSON`, `INPUT_TOO_LARGE`, `SCHEMA`, `NOT_IN_LIST`, `PATH_OUTSIDE`, `FILE_NOT_FOUND`, `NOT_A_FILE`, `NOT_A_FOLDER`, `ALREADY_EXISTS`, `URL_NOT_ALLOWED`
 - `ask`: `ROOT_NOT_FOUND`, `ENV_MISSING`, `SYSTEM_REFUSED`, `ACCESS_REFUSED`, `REMOTE_REFUSED`, `NEWER_VERSION`, `STORED_INVALID`
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
 - `bug`: `DECLARATION`, `UNKNOWN_ERROR`
+
+`adxcheck` fügt einen eigenen Code hinzu: `RULE_NOT_MET`, Art `fix`, für eine Regel, die eine Prüfung gebrochen hat.
 
 `SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. Ein Handler löst es mit `check` aus. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
 
@@ -1912,6 +1935,7 @@ In seinem eigenen Repository führt Node die `.ts`-Datei aus, wie sie ist. Ergä
 - **Ein `look` nennt einen Befehl seines eigenen Ordners.** `after` verlegt ein `next` über Ordner hinweg an das Tool, und `hint` verlegt den Befehl eines Problems dorthin. Das `look` eines Effekts steht im Handler. Unter einer Regel, nach der Features einander nicht importieren, kann es keinen Befehl eines anderen Features nennen.
 - **Der Compiler weiß nicht, was adx geprüft hat.** adx hat ein unbekanntes `lang` schon abgelehnt, aber `byCode(lang)` gibt weiter eine Sprache oder `undefined` zurück. Der Code braucht also einen Zweig allein für den Compiler.
 - **Zwei Eingabetypen sind auseinanderzuhalten.** `example: { dir: '.' }` ist ein String, während `run` ein `Dir` bekommt. Ein Feld mit Standardwert ist in `example` optional und in `run` vorhanden.
+- **Zwei Tools in einem Prozess teilen ihre Codes.** Jedes `code()` landet in einer Liste pro Prozess, und `schema` gibt sie ganz aus. Ein Test, der zwei Tools in einer Datei baut, sieht in jedem die Codes des anderen, und "Hints that run" kann einen Code des anderen Tools als nie ausgelöst nennen. Ein Codename, der mit zwei Arten oder Hinweisen angelegt ist oder wie einer von adx heißt, ist beim Start ein `DECLARATION`-Fehler, in jedem Tool des Prozesses. Ein Programm führt ein Tool aus, also ist seine Liste seine eigene.
 - **Eine Quelle mit Namen und ohne `Source` meldet einen Tippfehler in `needs` weit weg.** Eine Quelle, die in `values` steht, und eine Quelle mit Namen und dem Typ `Source<...>` melden den Tippfehler an der Quelle. Eine Quelle mit Namen und einem eigenen Parametertyp meldet ihn an der `values`-Zeile, die die Quelle benutzt, in etwa zehn Zeilen und ohne Vorschlag.
 - **Manche Tatsachen zeigen sich erst beim Start, beim Aufruf oder in einem Test.** Ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein Root, der in `roots` fehlt, eine Datenart, die in `stored` fehlt (beim Aufruf, der sie liest oder schreibt), ein Feld, das wie ein Root heißt, ein Hinweis für einen Befehl, den kein Tool listet, ein `apply` ohne `look`, ein Befehl, der in `commands` fehlt, und eine Fake-Route, die nicht zum Pfad in `api.get` passt.
 - **Eine gespeicherte Datei, die an ihrer Datenart vorbei geschrieben wurde, hat keine Nummer.** Einer Datei, die mit `JSON.stringify` statt mit `Friend.stringify` geschrieben wurde, fehlt `"version"`, und das nächste Lesen hält sie für Format 1.

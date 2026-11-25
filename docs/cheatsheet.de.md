@@ -406,7 +406,10 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 - Nennt das Tool einen `skill`, nennt der Test die `SKILL.md` des Repositorys in `samples.skillFile`. Das Testkit kopiert sie in ein Scratch-Home nach `.claude/skills/<name>/SKILL.md`, findet sie dort über ihren Namen und prüft: Sie existiert und hat ein Frontmatter mit `name` und `description`. Mehr liest es nicht. Ohne `skillFile` fällt die Prüfung durch.
 - Ein Effekt, der `--replace` listet und nie ein `files.write` vormerkt, schlägt fehl: `replace: false` ergänzen.
 - Ein `read`, das ohne `output` mit einer langen Liste oder einem großen Dokument antwortet, schlägt fehl.
-- `adxcheck report` und `adxcheck run`: dieselbe Prüfung als Befehl. Ohne Skill meldet der Bericht "none named", nicht "met".
+- `adxcheck report` und `adxcheck run`: dieselbe Prüfung als Befehl, eine Zeile pro Regel. Optionen: `--env NAME=value`, `--seed <folder>`, `--skill-file <path>`, dann `--` und die Befehlszeile des Tools. Unter dem Kit geht eine Anfrage über eine Remote von adx nur an einen Fake, den das Kit gestartet hat, nie an eine andere Adresse, auch nicht an Loopback; ein Aufruf, der eine stellt, ist "not probed". Ohne Skill meldet der Bericht "none named", nicht "met". Eine gebrochene Regel ist `RULE_NOT_MET`, Art `fix`.
+
+> [!WARNING]
+> Geschlossen sind nur die Anfragen über eine Remote von adx. Ein Handler, der selbst `fetch` aufruft, oder ein Programm, das nicht auf adx gebaut ist, erreicht das Netz.
 
 ```ts
 test('a person at a terminal reads text', async () => {
@@ -587,7 +590,7 @@ Exit-Codes und Arten:
 adx baut 15 Regeln ein. Regel 6 ist die des Autors.
 
 1. Rohes JSON als Eingabe: `--json` füllt dasselbe Schema wie die Optionen, auch zusammen mit ihnen.
-2. Schema zur Laufzeit: `tool schema` gibt das Schema aus, mit dem adx prüft, dazu Arten, Codes, Roots, Shapes und Formatnummern.
+2. Schema zur Laufzeit: `tool schema` gibt das Schema aus, mit dem adx prüft, dazu Arten, Codes (die von adx und die des Tools), Roots, Remotes, Shapes und Formatnummern.
 3. JSON in der Pipe: nur adx schreibt auf stdout.
 4. Harte Eingaben: `id()`, `dir`, `inFile`, `outFile`, jeder Pfad bleibt in seinem Root.
 5. Probeläufe: `--dry-run` führt nur `plan` aus. `act.send` gibt es nur in `apply`. Der echte Lauf antwortet mit dem Plan und dem, was `apply` hinzufügt. Ersetzen braucht `--replace`, oder `replace: 'always'` an einem Befehl für abgeleitete Dateien, und zeigt `changes`.

@@ -406,7 +406,10 @@ test('the program keeps them too', t => conformance(t, ['node', 'bin/tracker.ts'
 - If the tool names a `skill`, the test names the repository's `SKILL.md` in `samples.skillFile`. The test kit copies it into a scratch home at `.claude/skills/<name>/SKILL.md`, finds it there by its name, and checks that it exists and has a frontmatter with `name` and `description`. It reads nothing more. Without `skillFile` the check fails.
 - An effect that lists `--replace` and never stages a `files.write` fails: add `replace: false`.
 - A `read` that answers a long list or a large document without `output` fails.
-- `adxcheck report` and `adxcheck run`: the same check as a command. Without a skill the report says "none named", not "met".
+- `adxcheck report` and `adxcheck run`: the same check as a command, one line per rule. Options: `--env NAME=value`, `--seed <folder>`, `--skill-file <path>`, then `--` and the command line of the tool. Under the kit a request through an adx remote goes only to a fake the kit started, never to another address, loopback included; a call that makes one is "not probed". Without a skill the report says "none named", not "met". A broken rule is `RULE_NOT_MET`, kind `fix`.
+
+> [!WARNING]
+> Only requests through an adx remote are closed. A handler that calls `fetch` itself, or a program not built on adx, reaches the network.
 
 ```ts
 test('a person at a terminal reads text', async () => {
@@ -587,7 +590,7 @@ Exit codes and kinds:
 adx builds in 15 rules. Rule 6 is the author's.
 
 1. Raw JSON input: `--json` fills the same schema as the options, also together with them.
-2. Schema at run time: `tool schema` prints the schema adx checks with, and the kinds, codes, roots, shapes and format numbers.
+2. Schema at run time: `tool schema` prints the schema adx checks with, and the kinds, codes (adx's and the tool's), roots, remotes, shapes and format numbers.
 3. JSON when piped: only adx writes to stdout.
 4. Input hardening: `id()`, `dir`, `inFile`, `outFile`, every path stays in its root.
 5. Dry runs: `--dry-run` runs only `plan`. `act.send` exists only in `apply`. The real run answers the plan and what `apply` adds. Replacing needs `--replace`, or `replace: 'always'` on a command for derived files, and shows `changes`.
