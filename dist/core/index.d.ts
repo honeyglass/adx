@@ -48,7 +48,7 @@ export { listing, unlisted } from './listed.ts';
 export { exitOf, refusalAnswer } from './answer.ts';
 export type { Code } from './code.ts';
 export { code, factsOf } from './code.ts';
-export { ADX_CODES, alreadyExists, declaration, envMissing, fileNotFound, inputTooLarge, invalidJson, missingInput, missingValue, networkFailed, newerVersion, notAFile, notAFolder, notInList, notInListAt, optionBeforeCommand, pathOutside, remoteRefused, repeatedOption, rootNotFound, schemaFailed, storedInvalid, systemRefused, unexpectedArgument, unexpectedValue, unknownCommand, unknownOption, urlNotAllowed, } from './codes.ts';
+export { ADX_CODES, alreadyExists, declaration, envMissing, fileNotFound, inputTooLarge, invalidJson, missingInput, missingValue, networkFailed, newerVersion, notAFile, notAFolder, notInList, notInListAt, optionBeforeCommand, pathOutside, remoteRefused, repeatedOption, rootNotFound, schemaFailed, storedInvalid, systemRefused, unexpectedArgument, unexpectedValue, unknownCommand, unknownError, unknownOption, urlNotAllowed, } from './codes.ts';
 export { isDecimal } from './decimal.ts';
 export { escaped, oneLine } from './escape.ts';
 export { codePointsIn } from './length.ts';

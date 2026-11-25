@@ -4,6 +4,7 @@
  * terminal and JSON when piped.
  *
  * call: the exit code and what the call writes, for main() and for the test kit's run().
+ * lostAnswer: what the program writes for an error that no call awaited, for main().
  *
  * The one $try of adx around a whole call stands here, since main() and run() share it. Below it,
  * nothing catches a bug, so a programming error reaches it and is answered as UNKNOWN_ERROR.
@@ -13,7 +14,15 @@
 import { $try } from '@honeyglass/utils/ts';
 import { formOf, listed, refused, route } from '../command/index.ts';
 import type { Answered, Runner } from '../command/index.ts';
-import { answerOfError, exitOf, listing } from '../core/index.ts';
+import {
+  answerOfError,
+  answerOfRefused,
+  exitOf,
+  listing,
+  refusedWith,
+  UNKNOWN_STATE,
+  unknownError,
+} from '../core/index.ts';
 import type { Around, Issue, Ran, Surroundings, Token } from '../core/index.ts';
 import { Located, within } from '../files/index.ts';
 import { Line } from '../remote/index.ts';
@@ -32,13 +41,32 @@ import { namesVersion, versionAnswer } from './version.ts';
  */
 export async function call(shell: Shell, around: Around): Promise<Ran> {
   const read = formOf(around.tokens, shell.name);
-  const tty = 'form' in read && read.form !== undefined ? read.form === 'text' : around.tty;
+  const tty = ttyOf(read, around);
   const answering = async () => written(await answered(shell, around, read), tty);
   const { data, error } = await $try(answering);
   if (error === null) return data;
   const { answer, err } = answerOfError(error);
   return { ...written({ answer }, tty), err };
 }
+
+/**
+ * Such an error, a timer that throws or a promise nobody awaits, is a bug whatever it holds, so
+ * it never keeps the kind of a RefusalError (decision 88).
+ *
+ * @param shell - what the call reads of the tool
+ * @param around - the tokens of the arguments, and whether stdout is a terminal
+ * @param error - what the process caught
+ * @returns UNKNOWN_ERROR of kind bug, in the form the call answers in, and the error for stderr
+ */
+export function lostAnswer(shell: Shell, around: Around, error: unknown): Ran {
+  const issue = unknownError.issue('the tool broke on an error that no call awaited');
+  const { answer, err } = answerOfRefused(refusedWith([issue], UNKNOWN_STATE, error));
+  return { ...written({ answer }, ttyOf(formOf(around.tokens, shell.name), around)), err };
+}
+
+// The form --output forces, else text at a terminal.
+const ttyOf = (read: ReturnType<typeof formOf>, around: Around) =>
+  'form' in read && read.form !== undefined ? read.form === 'text' : around.tty;
 
 // The setup first, so a mistake in it shows on every call, then --output, then the words, then
 // the command.

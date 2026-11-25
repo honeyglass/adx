@@ -1,7 +1,8 @@
 /**
  * The entry of '@honeyglass/adx/node', the adapter to Node: the one folder that imports node:.
  *
- * around, write: what one call gets from Node, and what it leaves there.
+ * around, output, Output: what one call gets from Node, and what the program leaves there.
+ * catchLost: the errors of the program that no call awaited.
  * tokensOf: the arguments of a call as tokens, read by util.parseArgs.
  * captured: what console writes during a call in the process of a test.
  * network: the port a remote reaches its server through.
@@ -20,6 +21,7 @@ export { around } from './around.ts';
 export { captured } from './capture.ts';
 export { byteLength } from './bytes.ts';
 export { digestOf, keep, textAt } from './kept.ts';
+export { catchLost } from './lost.ts';
 export { network } from './network.ts';
 export { program } from './program.ts';
 export type { ProgramCall } from './program.ts';
@@ -28,4 +30,5 @@ export { serve } from './serve.ts';
 export { placeSkill, skillAt } from './skills.ts';
 export { snapshot, testFolder } from './snapshot.ts';
 export { tokensOf } from './tokens.ts';
-export { write } from './write.ts';
+export { output } from './write.ts';
+export type { Output } from './write.ts';

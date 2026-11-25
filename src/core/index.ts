@@ -75,6 +75,7 @@ export {
   unexpectedArgument,
   unexpectedValue,
   unknownCommand,
+  unknownError,
   unknownOption,
   urlNotAllowed,
 } from './codes.ts';
