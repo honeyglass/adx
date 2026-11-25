@@ -7,6 +7,11 @@
  * it ends. A reader that left, such as `| true` or `| head -1`, closes the pipe: the write then
  * fails with EPIPE, and the call ends quietly with the exit code of its answer.
  *
+ * stdout holds the answer and nothing else (decision 91): from the moment output() is made until
+ * the answer is written, every other write to stdout, console.log among them, goes to stderr, and
+ * only the answer goes through stdout's own write, so a second call of one process has stdout
+ * back. A write to the file descriptor itself is not seen.
+ *
  * An error that no call awaited can come before the answer or after it (decision 88). Before,
  * its bug is the answer, and the call's own answer is dropped; after, it goes to stderr only. So
  * stdout holds one JSON document. A listener on the process keeps Node from ending on such an
@@ -19,14 +24,21 @@ import process from 'node:process';
 export class Output {
     #answered = false;
     #ended = false;
+    /** stdout's own write, which only the answer takes, and which it gets back after the answer. */
+    #own = process.stdout.write;
+    #stdout = this.#own.bind(process.stdout);
+    constructor() {
+        process.stdout.write = process.stderr.write.bind(process.stderr);
+    }
     /** @param ran - the answer of the call, dropped once a bug ended the program */
     answer(ran) {
         if (this.#ended)
             return;
         this.#answered = true;
         process.exitCode = ran.exit;
-        writeTo(process.stdout, ran.out);
+        writeTo(process.stdout, ran.out, this.#stdout);
         writeTo(process.stderr, ran.err);
+        process.stdout.write = this.#own;
     }
     /** @param ran - the answer of an error no call awaited; the program ends with exit 2 */
     bug(ran) {
@@ -35,9 +47,9 @@ export class Output {
         this.#ended = true;
         process.exitCode = 2;
         if (this.#answered === false)
-            writeTo(process.stdout, ran.out);
+            writeTo(process.stdout, ran.out, this.#stdout);
         writeTo(process.stderr, ran.err);
-        exitWhenWritten();
+        exitWhenWritten(this.#stdout);
     }
     /** Ends the program at once with exit 2, for a bug that broke while it was answered. */
     stop() {
@@ -47,21 +59,21 @@ export class Output {
 export const output = () => new Output();
 /** Each stream gets its listener once, however many writes and calls it carries. */
 const listened = new WeakSet();
-function writeTo(stream, text) {
+function writeTo(stream, text, write = stream.write.bind(stream)) {
     if (listened.has(stream) === false)
         stream.on('error', ended);
     listened.add(stream);
-    stream.write(text);
+    write(text);
 }
 // A write calls back once all earlier writes of its stream are out, or once the stream failed.
-function exitWhenWritten() {
+function exitWhenWritten(stdout) {
     let open = 2;
     const written = () => {
         open -= 1;
         if (open === 0)
             process.exit(2);
     };
-    process.stdout.write('', written);
+    stdout('', undefined, written);
     process.stderr.write('', written);
 }
 /**
