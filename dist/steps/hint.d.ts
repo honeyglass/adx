@@ -21,7 +21,7 @@ export interface Hint {
  * @param step - the step to the command that helps; a step from tell has no command
  * @returns the hint, which the tool takes in `hints`
  */
-export declare function hint(code: Code, step: () => CommandStep<never>): Hint;
+export declare function hint(code: Code, step: () => CommandStep<any>): Hint;
 /** @returns the name of the code the hint stands for, or undefined for any other value */
 export declare const codeOf: (made: Hint) => string | undefined;
 /** @returns the step the hint names, or undefined for any other value */

@@ -23,7 +23,7 @@ export interface ToolSpec<G extends Obj> {
     roots?: Root[];
     remotes?: Remote[];
     /** Every kind of data the tool keeps, so `schema` shows its format number and the test kit checks it. */
-    stored?: Stored<unknown, never>[];
+    stored?: Stored<any, any>[];
     /** Leave out for a tool whose commands share no input. */
     global?: Global<G>;
     /** Every command of the tool. A command built for another global input does not compile here. */

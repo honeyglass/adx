@@ -489,7 +489,11 @@ export function global<G extends Obj>(spec: {
   /** A global field goes to every kind of command, so it takes no name of an option of any kind. */
   input: G & Free<G, Always | 'page' | 'fields'>;
   example: Given<G>;
-  values?: Values<G, G>;
+  /**
+   * Every source but `keyOf` and `detailOf`: a list is made before the global input, so no tool
+   * with one lists it.
+   */
+  values?: { [F in Field<G>]?: Source<In<G>> | Fresh<In<G>> };
 }): Global<G>;
 
 /** The command table: a key is one word of the call, and a nested table is a group. */

@@ -18,8 +18,10 @@ import { checksOf } from "./checks.js";
  * @throws a fix RefusalError when the target cannot be probed, and per check in its subtest
  */
 export async function conformance(t, target, samples = {}) {
-    for (const check of await checksOf(t, target, samples)) {
-        await t.test(check.name, async (sub) => {
+    // the test of node:test, through the members conformance uses, so only node/ names Node's own
+    const context = t;
+    for (const check of await checksOf(context, target, samples)) {
+        await context.test(check.name, async (sub) => {
             const { failed, todo } = await check.outcome();
             if (failed !== undefined)
                 failedOn(failed);

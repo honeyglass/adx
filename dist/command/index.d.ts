@@ -4,6 +4,8 @@
  * read, list, effect, global: the kinds of command, and the input every command shares.
  * Global, Commands: the global input as a value, and the table a tool lists its commands in.
  * Field, GlobalUse: the public types of fields and of the global input.
+ * Entry, Command, ListCommand, Kinds, ReadSpec, ListSpec, EffectSpec, Values: the public types of
+ * a command, of the three kinds and of what each takes.
  * placeAll, declarationIssues, runnersIn, isWord: the words of each command, the setup checked at
  * every call, the commands a table lists, and a key that is one word.
  * route, listed, commandsIn: the command the words of a call name, and a group called alone.
@@ -30,4 +32,6 @@ export { ADX_OPTIONS } from './runner.ts';
 export type { Ready, RootOption, Run, Runner, Scene } from './runner.ts';
 export { declarationIssues, isWord, placeAll, runnersIn } from './table.ts';
 export type { Table } from './table.ts';
-export type { Commands, Empty, Field, GlobalUse, InvokeOptions, Obj } from './types.ts';
+export type { Command, Entry, ListCommand } from './command.ts';
+export type { Kinds } from './kinds.ts';
+export type { Commands, EffectSpec, Empty, Field, GlobalUse, InvokeOptions, ListSpec, Obj, ReadSpec, Values, } from './types.ts';

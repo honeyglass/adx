@@ -14,6 +14,7 @@ export { nameIssue } from "./names.js";
 export { BARE, wordsOf } from "./words.js";
 export { aboutFile, aboutText, lookOf, NOTHING_CHANGED, Refused, refusedWith, UNKNOWN_STATE, withLook, } from "./refused.js";
 export { baseOf, brokenLinesIn, failuresOf, ID, isId, keysOf, layersOf, MULTILINE, schemasAlong, unknownKeysIn, unknownKindsIn, } from "./shape.js";
+export { builtFor, realRun } from "./command.js";
 export { freshBrand, needsBrand, refBrand } from "./source.js";
 export { KIT_TOKEN, kitMark, noFakeLead } from "./remote.js";
 export { status } from "./status.js";

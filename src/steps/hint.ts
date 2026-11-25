@@ -28,7 +28,7 @@ const helping = new WeakMap<object, Helping>();
  * @param step - the step to the command that helps; a step from tell has no command
  * @returns the hint, which the tool takes in `hints`
  */
-export function hint(code: Code, step: () => CommandStep<never>): Hint {
+export function hint(code: Code, step: () => CommandStep<any>): Hint {
   const made = new Helped();
   // An issue of the code carries its name, the one every issue of a refusal names.
   helping.set(made, { code: code.issue().code, step });

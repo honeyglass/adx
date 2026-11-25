@@ -7,6 +7,7 @@
  * endOnSignals, nonce: what adxcheck closes on a signal, and a token no program can guess.
  * tokensOf: the arguments of a call as tokens, read by util.parseArgs.
  * captured: what console writes during a call in the process of a test.
+ * TestContext: the test of node:test that conformance takes.
  * network: the port a remote reaches its server through.
  * scratch, seeded: the scratch folders of a call of the test kit, and its seed copied in.
  * snapshot, testFolder: what a folder holds, and the top of the test's working directory, so
@@ -34,6 +35,7 @@ export { scratch, seeded } from './scratch.ts';
 export { serve } from './serve.ts';
 export { placeSkill, skillAt } from './skills.ts';
 export { snapshot, testFolder } from './snapshot.ts';
+export type { TestContext } from 'node:test';
 export { tokensOf } from './tokens.ts';
 export { output } from './write.ts';
 export type { Output } from './write.ts';

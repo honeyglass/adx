@@ -1,6 +1,6 @@
 // `global` holds for every command, and one command can opt out or make a field optional.
 import { z } from 'zod';
-import { code, global, id, read as plain, tool } from '@honeyglass/adx';
+import { code, detailOf, global, id, keyOf, list, read as plain, tool } from '@honeyglass/adx';
 
 const project = global({
   input: z.object({ project: id().describe('the project key') }),
@@ -95,3 +95,28 @@ global({
 });
 // @ts-expect-error a tool lists its commands
 tool({ name: 'tracker', version: '1.2.0', does: 'x' });
+// A global field takes every source but a key of a list: the list is made without the global.
+const keys = list({
+  does: 'lists the projects',
+  item: z.object({ key: z.string() }),
+  key: 'key',
+  outline: ['key'],
+  run: () => ({ items: [] }),
+});
+global({
+  input: z.object({ project: z.string() }),
+  example: { project: 'checkout-web' },
+  values: { project: () => [{ value: 'checkout-web' }] },
+});
+global({
+  input: z.object({ project: z.string() }),
+  example: { project: 'checkout-web' },
+  // @ts-expect-error a global field takes no key of a list
+  values: { project: keyOf(keys) },
+});
+global({
+  input: z.object({ project: z.string() }),
+  example: { project: 'checkout-web' },
+  // @ts-expect-error a global field takes no key of a list, nor the one-item command of one
+  values: { project: detailOf(keys) },
+});

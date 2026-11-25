@@ -10,6 +10,7 @@
  * @example test('hello keeps the agent rules', t => conformance(t, hello, samples));
  */
 import { RefusalError } from '@honeyglass/utils/ts';
+import type { TestContext } from '../node/index.ts';
 import type { Context } from './caller.ts';
 import { checksOf } from './checks.ts';
 import type { Outcome } from './rules.ts';
@@ -22,12 +23,14 @@ import type { Checked, Samples } from './run.ts';
  * @throws a fix RefusalError when the target cannot be probed, and per check in its subtest
  */
 export async function conformance(
-  t: Context,
+  t: TestContext,
   target: Checked | readonly string[],
   samples: Samples = {},
 ) {
-  for (const check of await checksOf(t, target, samples)) {
-    await t.test(check.name, async sub => {
+  // the test of node:test, through the members conformance uses, so only node/ names Node's own
+  const context: Context = t;
+  for (const check of await checksOf(context, target, samples)) {
+    await context.test(check.name, async sub => {
       const { failed, todo } = await check.outcome();
       if (failed !== undefined) failedOn(failed);
       if (todo !== undefined) sub.todo(todo);

@@ -6,10 +6,13 @@
  *
  * The package comes in by its name, so its exports and dist/ are what is checked. Every value
  * the package exports is checked against proto/adx/index.d.ts and test.d.ts without a line
- * here. A value fits when it is assignable to its declaration and is not any. A value not
- * built yet stands in NotBuilt, and the change that builds it takes it out. Types have no list
- * of their names: each built type gets a pair in TypePairs, and fits only when both are the
- * same type. The typecheck reads dist/*.d.ts with skipLibCheck off, so a broken one fails too.
+ * here. A value fits when it and its declaration are the same type, any inside included; one
+ * of ByAssignment fits when the two are assignable to each other and it is not any. A value not
+ * built yet stands in NotBuilt, and the change that builds it takes it out.
+ * Types have no list of their names: each built type gets a pair in TypePairs, and fits only
+ * when both are the same type. A value or type that carries a brand is checked the same way in
+ * declared.api.spec.ts, which reads the build's brands as the declared ones. The typecheck reads
+ * dist/*.d.ts with skipLibCheck off, so a broken one fails too.
  *
  * @example type Kind = [Built.Kind, Declared.Kind]; // a pair in TypePairs, once Kind is built
  */
@@ -20,14 +23,29 @@ import type * as Declared from '../../proto/adx/index.d.ts';
 import type * as DeclaredTest from '../../proto/adx/test.d.ts';
 
 /** Compiles only for never, and names what is left in the error otherwise. */
-type Nothing<T extends never> = T;
+export type Nothing<T extends never> = T;
 
 /** True for any, which fits every declaration and so would hide a broken type. */
 type IsAny<T> = 0 extends 1 & T ? true : false;
-/** Each name whose built value is any or not assignable to its declaration. */
-type Unfit<B, D> = {
-  [K in keyof B & keyof D]: IsAny<B[K]> extends true ? K : [B[K]] extends [D[K]] ? never : K;
+
+/**
+ * The values compared by assignability both ways, since no identity can hold. The compiler never
+ * finds two declarations of a conditional type with `infer` the same, and after's types are such.
+ * A declared class has no constructor of its own, while adx's Issue and Refused take their parts;
+ * their instances are pairs in TypePairs.
+ */
+export type ByAssignment = 'after' | 'Issue' | 'Refused';
+
+/** Each name whose built value differs from its declaration, or is any. */
+export type Unfit<B, D> = {
+  [K in keyof B & keyof D]: (
+    K extends ByAssignment ? Assignable<B[K], D[K]> : Same<B[K], D[K]>
+  ) extends true
+    ? never
+    : K;
 }[keyof B & keyof D];
+type Assignable<B, D> =
+  IsAny<B> extends true ? false : [B] extends [D] ? ([D] extends [B] ? true : false) : false;
 type Undeclared<B, D> = Exclude<keyof B, keyof D>;
 type Missing<B, D> = Exclude<keyof D, keyof B>;
 
@@ -44,10 +62,10 @@ type NotBuiltTest = never;
 /**
  * The built values whose declared type carries a brand of index.d.ts, such as the `builtFor` of
  * a Command. A brand is a `unique symbol`, one type per declaration, so no built value fits a
- * branded declaration. tests/tsconfig.json checks them by use instead: it compiles every file of
- * proto/ against dist/, with no mapping onto the declarations.
+ * branded declaration here. declared.api.spec.ts checks them both ways, with the build's brands
+ * read as the declared ones; tests/tsconfig.json also compiles every file of proto/ against dist/.
  */
-type ByUse =
+export type ByUse =
   | 'after'
   | 'detailOf'
   | 'effect'
@@ -61,9 +79,9 @@ type ByUse =
   | 'tool';
 
 /** A schema with two fields, for the types that take one. */
-type Sample = z.ZodObject<{ project: z.ZodString; team: z.ZodOptional<z.ZodString> }>;
+export type Sample = z.ZodObject<{ project: z.ZodString; team: z.ZodOptional<z.ZodString> }>;
 /** The input of a step with two fields, one of which has a source. */
-type StepInput = { cv: string; block: string };
+export type StepInput = { cv: string; block: string };
 
 /** One pair per built type, the built one first, such as [Built.Kind, Declared.Kind]. */
 type TypePairs = [
@@ -101,11 +119,19 @@ type TypePairs = [
   [BuiltTest.Samples, DeclaredTest.Samples],
 ];
 /** Each index whose built type is any or differs from its declaration in either direction. */
-type UnfitTypes<P> = {
+export type UnfitTypes<P> = {
   [I in keyof P]: P[I] extends [infer B, infer D] ? (Same<B, D> extends true ? never : I) : I;
 }[keyof P & number];
+/**
+ * True only when both are the same type, by the compiler's identity check: unlike assignability,
+ * it tells any from every other type at any depth, such as a member that turned any.
+ */
 type Same<B, D> =
-  IsAny<B> extends true ? false : [B] extends [D] ? ([D] extends [B] ? true : false) : false;
+  (<P>() => P extends B ? 1 : 2) extends <P>() => P extends D ? 1 : 2
+    ? (<P>() => P extends D ? 1 : 2) extends <P>() => P extends B ? 1 : 2
+      ? true
+      : false
+    : false;
 
 export type Checked = [
   Nothing<Unfit<Omit<typeof Built, ByUse>, typeof Declared>>,

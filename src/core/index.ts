@@ -15,6 +15,8 @@
  * Page, Listing: one page a list asks for, and what its handler answers.
  * Step, CommandStep, commandStep, Target, StepOption, partsOfStep: a next move, and one to a
  * command.
+ * Command, ListCommand, AnyList, builtFor, realRun, Obj, Empty, In, Given, Use, UseGiven,
+ * InvokeOptions: a command as a value, as every feature names it, and what it takes.
  * Code, code, factsOf: a code a tool declares and raises, and its name, kind and hint.
  * unknownCommand, unknownOption, schemaFailed, declaration, ...: codes adx raises itself, and
  * ADX_CODES, all of them.
@@ -129,8 +131,20 @@ export {
   unknownKeysIn,
   unknownKindsIn,
 } from './shape.ts';
+export { builtFor, realRun } from './command.ts';
 export type {
   AnyList,
+  Command,
+  Empty,
+  Given,
+  In,
+  InvokeOptions,
+  ListCommand,
+  Obj,
+  Use,
+  UseGiven,
+} from './command.ts';
+export type {
   Choice,
   Declared,
   Fresh,

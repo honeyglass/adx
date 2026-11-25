@@ -1,7 +1,7 @@
 /**
  * Where the values of a field come from, and the port through which a command asks its sources.
  *
- * Choice, Source, Needs, Fresh, ListRef, AnyList: the types of proto/adx/index.d.ts for a source.
+ * Choice, Source, Needs, Fresh, ListRef: the types of proto/adx/index.d.ts for a source.
  * needsBrand, freshBrand, refBrand: their brands, real symbols, so values/ makes branded values.
  * Declared: any source as adx calls it, whatever input its command types.
  * Sourced, Known, Listed, Sources: a command as its sources see it, the input it knows, the
@@ -34,12 +34,6 @@ export interface Fresh<I> {
 export interface ListRef {
   readonly [refBrand]: 'key' | 'detail';
 }
-/** A list command, as keyOf and detailOf take it: a step to it carries the fields of a call. */
-export type AnyList = {
-  readonly item: unknown;
-  step(input?: Readonly<Record<string, unknown>>): Step;
-};
-
 /**
  * A source written as a method's type, whose parameter TypeScript compares both ways, so every
  * typed source of `values` fits it, and adx calls it with the input of any command.

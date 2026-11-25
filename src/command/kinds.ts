@@ -1,7 +1,7 @@
 /**
  * The three kinds of command: read, list and effect, for a tool with or without global input.
  *
- * Kinds: the three, made for one global input or none.
+ * Kinds, Makers: the three, made for one global input or none, as declared and as a value.
  * read, list, effect: the three for a tool without global input.
  *
  * A command is a value: it runs once a tool lists it in `commands`. Nothing is checked when it
@@ -10,7 +10,8 @@
  * @example const greet = read({ does: 'greets', input, example: { name: 'Ada' }, run });
  */
 import type { z } from 'zod';
-import { Command, ListCommand } from './command.ts';
+import { CommandValue, ListValue } from './command.ts';
+import type { Command, ListCommand } from './command.ts';
 import type {
   EffectSpec,
   Either,
@@ -24,17 +25,47 @@ import type {
   Shared,
 } from './types.ts';
 
+/** The three kinds, as index.d.ts declares them. */
+export interface Kinds<G extends Obj> {
+  /** With `output`, `run` must answer what the schema declares. */
+  read<
+    I extends Obj = Empty,
+    S extends z.ZodType = z.ZodType,
+    O extends z.output<S> = z.output<S>,
+    const U extends GlobalUse<G> = {},
+    L extends Field<I> = never,
+  >(
+    spec: ReadSpec<I, G, O, U, S, L>,
+  ): Command<I, O, G, U, O, L>;
+  list<
+    I extends Obj = Empty,
+    T extends Obj = Empty,
+    const U extends GlobalUse<G> = {},
+    L extends Field<I> = never,
+  >(
+    spec: ListSpec<I, G, T, U, L>,
+  ): ListCommand<I, T, G, U, L>;
+  effect<
+    I extends Obj = Empty,
+    O = unknown,
+    A extends object | void = void,
+    const U extends GlobalUse<G> = {},
+    L extends Field<I> = never,
+  >(
+    spec: EffectSpec<I, G, O, A, U, L>,
+  ): Command<I, Either<O, A>, G, U, Merged<O, A>, L>;
+}
+
 /**
  * Each kind is a property, not a method, so `const { read } = project` keeps its global input.
  */
-export class Kinds<G extends Obj> {
+export class Makers<G extends Obj> implements Kinds<G> {
   readonly #global: Shared | undefined;
 
   constructor(global: Shared | undefined) {
     this.#global = global;
   }
 
-  /** With `output`, `run` must answer what the schema declares. */
   readonly read = <
     I extends Obj = Empty,
     S extends z.ZodType = z.ZodType,
@@ -43,7 +74,7 @@ export class Kinds<G extends Obj> {
     L extends Field<I> = never,
   >(
     spec: ReadSpec<I, G, O, U, S, L>,
-  ) => new Command<I, O, G, U, O, L>('read', spec, this.#global);
+  ) => new CommandValue<I, O, G, U, O, L>('read', spec, this.#global);
 
   readonly list = <
     I extends Obj = Empty,
@@ -52,7 +83,7 @@ export class Kinds<G extends Obj> {
     L extends Field<I> = never,
   >(
     spec: ListSpec<I, G, T, U, L>,
-  ) => new ListCommand<I, T, G, U, L>(spec, this.#global);
+  ) => new ListValue<I, T, G, U, L>(spec, this.#global);
 
   readonly effect = <
     I extends Obj = Empty,
@@ -62,12 +93,12 @@ export class Kinds<G extends Obj> {
     L extends Field<I> = never,
   >(
     spec: EffectSpec<I, G, O, A, U, L>,
-  ) => new Command<I, Either<O, A>, G, U, Merged<O, A>, L>('effect', spec, this.#global);
+  ) => new CommandValue<I, Either<O, A>, G, U, Merged<O, A>, L>('effect', spec, this.#global);
 }
 
-const plain = new Kinds<Empty>(undefined);
+const plain = new Makers<Empty>(undefined);
 
 /** For a tool without global input. A tool with one takes the three from its `global(...)`. */
-export const read = plain.read;
-export const list = plain.list;
-export const effect = plain.effect;
+export const read: Kinds<Empty>['read'] = plain.read;
+export const list: Kinds<Empty>['list'] = plain.list;
+export const effect: Kinds<Empty>['effect'] = plain.effect;

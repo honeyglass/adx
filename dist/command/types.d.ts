@@ -1,13 +1,13 @@
 /**
  * The types of commands, as proto/adx/index.d.ts declares them for read, list, effect and global.
  *
- * Obj, Empty, Field, In, Given, All, Maybe: a Zod object, its fields, and what a handler gets.
- * GlobalUse, UseGiven, Fields: how one command takes the global fields.
+ * Obj, Empty, In, Given, UseGiven, InvokeOptions: the types of core/ a command names, passed on.
+ * Field, All, Maybe: the fields of a Zod object, and what a handler gets.
+ * GlobalUse, Fields: how one command takes the global fields.
  * Merged, Either: the answer of the real run of an effect, and of either run.
  * Always, Free: the options adx gives a command, and an input that names none of them.
  * Values, Shared: the sources a command names for its fields, and the global input with its own.
  * Refuse, ReadSpec, ListSpec, EffectSpec: what read(), list() and effect() take.
- * InvokeOptions: what invoke takes beside the input.
  * Commands: the command table of a tool.
  * Spec: the same three as adx reads them, one shape for every kind.
  *
@@ -16,15 +16,11 @@
  * @example const greet = read({ does: 'greets', input, example: { name: 'Ada' }, run });
  */
 import type { z } from 'zod';
-import type { Act, Declared, Fake, Files, Fresh, Issue, Listing, ListRef, Page, Refused, Source, Step } from '../core/index.ts';
+import type { Act, Declared, Empty, Files, Fresh, Given, In, Issue, Listing, ListRef, Obj, Page, Refused, Source, Step, Use } from '../core/index.ts';
 import type { Entry } from './command.ts';
-export type Obj = z.ZodObject;
-export type Empty = z.ZodObject<{}>;
+export type { Empty, Given, In, InvokeOptions, Obj, UseGiven } from '../core/index.ts';
 export type Maybe<T> = T | Promise<T>;
 export type Field<S extends Obj> = string extends keyof z.output<S> ? never : keyof z.output<S> & string;
-type Plain<T> = string extends keyof T ? unknown : T;
-export type In<S extends Obj> = Plain<z.output<S>>;
-export type Given<S extends Obj> = Plain<z.input<S>>;
 /**
  * How one command uses the tool's global fields: all of them as declared (the default),
  * none (`false`, such as `whoami`), or some made optional (`{ project: 'optional' }`).
@@ -32,11 +28,6 @@ export type Given<S extends Obj> = Plain<z.input<S>>;
 export type GlobalUse<G extends Obj> = false | {
     readonly [K in Field<G>]?: 'optional';
 };
-type Use<T, U> = [U] extends [false] ? {} : Omit<T, keyof U> & Partial<Pick<T, keyof U & keyof T>>;
-/** What a caller passes: a command with `global: false` refuses the global fields, so passing one does not compile. */
-export type UseGiven<T, U> = [U] extends [false] ? {
-    [K in keyof T]?: never;
-} : Use<T, U>;
 type GlobalField<G extends Obj, U> = [U] extends [false] ? never : Field<G>;
 export type All<I extends Obj, G extends Obj, U> = In<I> & Use<In<G>, U>;
 export type Fields<I extends Obj, G extends Obj, U> = Field<I> | GlobalField<G, U>;
@@ -125,13 +116,6 @@ export interface EffectSpec<I extends Obj, G extends Obj, O, A extends object | 
     look?: (input: All<I, G, U>) => Step;
     text?: (out: Either<O, A>) => string;
 }
-export interface InvokeOptions {
-    env?: Record<string, string>;
-    fakes?: Fake[];
-    seed?: string;
-    dryRun?: boolean;
-    replace?: boolean;
-}
 /** The refuse of any handler, as a method, so the refuse of each typed spec fits it. */
 type LooseRefuse = {
     refuse(...issues: [Issue, ...Issue[]]): Refused;
@@ -172,4 +156,3 @@ export interface Spec {
 export interface Commands<G extends Obj> {
     readonly [word: string]: Entry<G> | Commands<G>;
 }
-export {};
