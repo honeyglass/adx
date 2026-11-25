@@ -52,6 +52,13 @@ export type Place = {
     roots: readonly RootOption[];
     act: Act;
 };
+/** The options adx gives some command, and the commands each goes to, as `schema` lists them. */
+export declare const SHARED_OPTIONS: {
+    option: string;
+    takes: import("./input.ts").Takes;
+    does: string;
+    for: string;
+}[];
 /** Every option adx gives some command, so no root option may take its name. */
 export declare const ADX_OPTIONS: string[];
 export declare class Runner implements Sourced {

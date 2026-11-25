@@ -1,14 +1,15 @@
 /**
- * adx's own command `schema`: what every command takes, the shapes, the kinds and the codes.
+ * adx's own command `schema`: what every command takes, the shapes, kinds, codes and limits.
  *
  * namesSchema, schemaAnswer: whether a call names `schema`, and its answer.
  * schemaTargetOf, knows: the shape or the command a name after `schema` shows, and whether
  * `schema` knows a name.
  *
- * `schema` alone names every command with its input, the shapes, the roots with their variable
- * and option, the remotes by name and their variables, never their values, the stored kinds
- * with the format number each is written in, what each kind asks the caller, and adx's own codes
- * followed by every other code made in the process. `schema <command>` shows the
+ * `schema` alone names every command with its input, the shapes, the options adx gives each kind
+ * of command, the roots with their variable and option, the remotes by name and their variables,
+ * never their values, the stored kinds with the format number each is written in, what each kind
+ * asks the caller, adx's own codes followed by every other code made in the process, and the
+ * limits a call meets. `schema <command>` shows the
  * input as JSON Schema with what --help shows, and of a list its item, key, outline and page
  * size; `schema <shape>` shows the shape. Each prints the JSON Schema of the same Zod schema adx
  * checks with, so the two never differ. `schema` comes before the command table, and takes no
@@ -16,19 +17,29 @@
  *
  * @example if (namesSchema(tokens)) return schemaAnswer(shell, tokens);
  */
-import { refused, runnersIn } from '../command/index.ts';
+import { PAGE_SIZE, refused, runnersIn, SHARED_OPTIONS } from '../command/index.ts';
 import type { Answered, Runner } from '../command/index.ts';
 import {
   ADX_CODES,
   codesMade,
   exitOf,
   factsOf,
+  LARGE_ANSWER,
+  LONG_LIST,
+  STDIN_LIMIT,
   unknownCommand,
   unknownOption,
 } from '../core/index.ts';
-import { rootOptions } from '../files/index.ts';
+import { CHANGES_BYTES, CHANGES_LIMIT, NAME_BYTES, rootOptions } from '../files/index.ts';
 import type { Kind, Step, Token } from '../core/index.ts';
-import { nameOf, variablesOf } from '../remote/index.ts';
+import {
+  ANSWER_BYTES,
+  nameOf,
+  PAUSE_MS,
+  RETRIES,
+  TIMEOUT_MS,
+  variablesOf,
+} from '../remote/index.ts';
 import { jsonSchemaOf } from '../shapes/index.ts';
 import type { Shell } from './tool.ts';
 
@@ -41,6 +52,76 @@ const KINDS: readonly (readonly [Kind, string])[] = [
   ['ask', 'only the person can solve it: stop and ask'],
   ['retry', 'a later call may succeed: call again later'],
   ['bug', 'the tool broke: stop and tell the person'],
+];
+
+/** Each limit a call meets, from the one constant that sets it. */
+const LIMITS = [
+  {
+    limit: 'stdin',
+    most: STDIN_LIMIT,
+    unit: 'characters',
+    does: 'the input --json - reads from stdin; more is INPUT_TOO_LARGE',
+  },
+  {
+    limit: 'page',
+    most: PAGE_SIZE,
+    unit: 'items',
+    does: 'one page of a list that names no page size of its own',
+  },
+  {
+    limit: 'list',
+    most: LONG_LIST,
+    unit: 'entries',
+    does: 'one array in the answer of a read without output; more is a DECLARATION bug',
+  },
+  {
+    limit: 'answer',
+    most: LARGE_ANSWER,
+    unit: 'bytes',
+    does: 'the answer of a read without output; more is a DECLARATION bug',
+  },
+  {
+    limit: 'changes',
+    most: CHANGES_LIMIT,
+    unit: 'entries',
+    does: 'each list of changes a replace answers; more counts the rest',
+  },
+  {
+    limit: 'changes file',
+    most: CHANGES_BYTES,
+    unit: 'bytes',
+    does: 'the old file a replace reads for its changes; a larger one changes as a whole',
+  },
+  {
+    limit: 'name',
+    most: NAME_BYTES,
+    unit: 'bytes',
+    does: 'one name of a file or folder in a path',
+  },
+  {
+    limit: 'server answer',
+    most: ANSWER_BYTES,
+    unit: 'bytes',
+    does: 'the answer adx reads from a server',
+  },
+  {
+    limit: 'server time',
+    most: TIMEOUT_MS,
+    unit: 'milliseconds',
+    does: 'one attempt of a request to a server and its answer',
+  },
+  {
+    limit: 'server retries',
+    most: RETRIES,
+    unit: 'tries',
+    does: 'the tries of a read again, after a network error, a 429 or a 503',
+  },
+  {
+    limit: 'server pause',
+    most: PAUSE_MS,
+    unit: 'milliseconds',
+    does: 'the pause before the first try again; each further pause is twice the one before',
+  },
 ];
 
 /** @returns whether the first word of the call is `schema` */
@@ -102,7 +183,18 @@ function overviewOf(shell: Shell) {
   const stored = shell.stored.map(({ name, version }) => ({ name, version }));
   const codes = codesOf();
   const shapes = Object.keys(shell.shapes);
-  return { commands, shapes, roots, remotes, variables, stored, kinds, codes };
+  return {
+    commands,
+    shapes,
+    options: SHARED_OPTIONS,
+    roots,
+    remotes,
+    variables,
+    stored,
+    kinds,
+    codes,
+    limits: LIMITS,
+  };
 }
 
 // adx's own codes first, then each other name code() made in the process, as its first code()

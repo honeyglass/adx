@@ -3,6 +3,7 @@
  *
  * Kind, Run, Ready: the three kinds, what a run is asked for, and a call ready for its handler.
  * Place, Through: where a tool lists a command, and how that tool answers a call of it.
+ * SHARED_OPTIONS: the options adx gives some command, and to which, for `schema`.
  * Runner: read, a call from its tokens; answered, its handler run, or the values of an option
  * given alone; through, for invoke; what a step and the sources read of the command; what
  * `schema` shows of it; and the input as a step carries it.
@@ -125,47 +126,87 @@ export type Place = {
   act: Act;
 };
 
-const JSON_OPTION: AdxOption = {
-  option: '--json',
-  takes: 'json',
-  does: 'the whole input as one JSON object',
-};
-const OUTPUT_OPTION: AdxOption = {
-  option: '--output',
-  takes: 'text',
-  does: 'the form of the answer, text or json, in place of the one stdout picks',
-};
-const HELP_OPTION: AdxOption = {
-  option: '--help',
-  takes: 'switch',
-  does: 'shows what the command takes',
-};
-const DRY_RUN_OPTION: AdxOption = {
-  option: '--dry-run',
-  takes: 'switch',
-  does: 'runs plan only and changes nothing',
-};
-const REPLACE_OPTION: AdxOption = {
-  option: '--replace',
-  takes: 'switch',
-  does: 'lets a write replace a file that holds other bytes',
-};
-const PAGE_OPTION: AdxOption = {
-  option: '--page',
-  takes: 'text',
-  does: 'the page the previous answer named',
-};
-const FIELDS_OPTION: AdxOption = {
-  option: '--fields',
-  takes: 'text',
-  does: 'the fields of the answer, each whole; alone, it lists them',
-};
+/** What decides whether a command takes an option of adx: its kind, `replace`, and --fields. */
+type Taker = { kind: Kind; replace: Spec['replace']; fields: boolean };
 
-/** The options adx gives every command: a field takes none. */
-const ALWAYS_TAKEN = ['json', 'output', 'help', 'dry-run', 'replace'];
+/**
+ * Each option adx gives some command, in words for `schema`, and in a check for the command; a
+ * root option comes on top, by the tool's roots. A field takes the name of none that is
+ * `everywhere`, on any command, and of none the command is given (decision 71).
+ */
+const SHARED: readonly (AdxOption & {
+  for: string;
+  given: (taker: Taker) => boolean;
+  everywhere: boolean;
+})[] = [
+  {
+    option: '--json',
+    takes: 'json',
+    does: 'the whole input as one JSON object',
+    for: 'every command',
+    given: () => true,
+    everywhere: true,
+  },
+  {
+    option: '--output',
+    takes: 'text',
+    does: 'the form of the answer, text or json, in place of the one stdout picks',
+    for: 'every command',
+    given: () => true,
+    everywhere: true,
+  },
+  {
+    option: '--help',
+    takes: 'switch',
+    does: 'shows what the command takes',
+    for: 'every command',
+    given: () => true,
+    everywhere: true,
+  },
+  {
+    option: '--dry-run',
+    takes: 'switch',
+    does: 'runs plan only and changes nothing',
+    for: 'every effect',
+    given: ({ kind }) => kind === 'effect',
+    everywhere: true,
+  },
+  {
+    option: '--replace',
+    takes: 'switch',
+    does: 'lets a write replace a file that holds other bytes',
+    for: 'every effect without replace: false or always',
+    given: ({ kind, replace }) => kind === 'effect' && replace === undefined,
+    everywhere: true,
+  },
+  {
+    option: '--page',
+    takes: 'text',
+    does: 'the page the previous answer named',
+    for: 'every list',
+    given: ({ kind }) => kind === 'list',
+    everywhere: false,
+  },
+  {
+    option: '--fields',
+    takes: 'text',
+    does: 'the fields of the answer, each whole; alone, it lists them',
+    for: 'every list, and every read with output',
+    given: ({ fields }) => fields,
+    everywhere: false,
+  },
+];
+
+/** The options adx gives some command, and the commands each goes to, as `schema` lists them. */
+export const SHARED_OPTIONS = SHARED.map(({ option, takes, does, for: to }) => ({
+  option,
+  takes,
+  does,
+  for: to,
+}));
 
 /** Every option adx gives some command, so no root option may take its name. */
-export const ADX_OPTIONS = [...ALWAYS_TAKEN, 'page', 'fields'];
+export const ADX_OPTIONS = SHARED.map(({ option }) => option.slice(2));
 
 /** The code a value outside its list is refused with, by its name. */
 const NOT_IN_LIST = notInList.issue().code;
@@ -357,10 +398,11 @@ export class Runner implements Sourced {
    * option two fields would share, and per field the global input would replace
    */
   clashes(): Issue[] {
+    const taker = this.#taker();
     const taken = new Set([
-      ...ALWAYS_TAKEN,
-      ...(this.kind === 'list' ? ['page', 'fields'] : []),
-      ...(this.#hasFields() ? ['fields'] : []),
+      ...SHARED.filter(shared => shared.everywhere || shared.given(taker)).map(({ option }) =>
+        option.slice(2),
+      ),
       ...this.#roots().map(({ name }) => name),
     ]);
     const fields = fieldsOf(this.input).map(({ field }) => field);
@@ -558,16 +600,15 @@ export class Runner implements Sourced {
       const does = `the folder of the root ${name}, in place of ${variable}`;
       return [{ option: `--${name}`, takes: 'text', does }];
     });
-    return [
-      JSON_OPTION,
-      OUTPUT_OPTION,
-      HELP_OPTION,
-      ...(this.kind === 'effect' ? [DRY_RUN_OPTION] : []),
-      ...(this.kind === 'effect' && this.spec.replace === undefined ? [REPLACE_OPTION] : []),
-      ...(this.kind === 'list' ? [PAGE_OPTION] : []),
-      ...(this.#hasFields() ? [FIELDS_OPTION] : []),
-      ...roots,
-    ];
+    const taker = this.#taker();
+    const given = SHARED.filter(shared => shared.given(taker)).map(
+      ({ option, takes, does }): AdxOption => ({ option, takes, does }),
+    );
+    return [...given, ...roots];
+  }
+
+  #taker(): Taker {
+    return { kind: this.kind, replace: this.spec.replace, fields: this.#hasFields() };
   }
 
   #roots() {

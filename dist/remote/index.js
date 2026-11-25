@@ -11,12 +11,14 @@
  * variable that points a program at it.
  * FAKES_ONLY, FAKE_ORIGINS: the variables with which the test kit closes the network of a
  * program it runs, and names the fakes it serves.
+ * ANSWER_BYTES, TIMEOUT_MS, RETRIES, PAUSE_MS: the largest answer of a server, how long one try
+ * of a request may take, and how often and after which pause a read is tried again, for `schema`.
  *
  * @example const api = remote('ship', { url: envUrl('SHIP_URL', fallback), auth: bearer('SHIP_TOKEN') });
  */
 export { bearer, envUrl, nameOf, setupIssuesOf, urlVariableOf, variablesOf } from "./address.js";
 export { act } from "./exchange.js";
 export { fake, fakeAnswer, heard, reply } from "./fake.js";
-export { FAKE_ORIGINS, FAKES_ONLY } from "./limits.js";
+export { ANSWER_BYTES, FAKE_ORIGINS, FAKES_ONLY, PAUSE_MS, RETRIES, TIMEOUT_MS } from "./limits.js";
 export { Line } from "./line.js";
 export { remote } from "./remote.js";

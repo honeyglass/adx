@@ -12,7 +12,9 @@
  * Answered, refused: what a command answers, with its terminal form.
  * Form, formOf: --output, the form of the answer every call can force.
  * Runner, runnerOf, Ready, Run: what runs a command, the call ready for its handler, and its run.
- * ADX_OPTIONS: every option adx gives some command, which no root may be named like.
+ * ADX_OPTIONS, SHARED_OPTIONS: every option adx gives some command, which no root may be named
+ * like, and the same with what each does and the commands it goes to, for `schema`.
+ * PAGE_SIZE: the size of the page a list gets when it names none.
  * After, after, followsOf: the steps after a command, given at the tool.
  *
  * @example import { declarationIssues, route } from '../command/index.ts';
@@ -28,7 +30,8 @@ export type { Form } from './output.ts';
 export type { Global } from './global.ts';
 export { effect, list, read } from './kinds.ts';
 export { commandsIn, listed, route } from './route.ts';
-export { ADX_OPTIONS } from './runner.ts';
+export { PAGE_SIZE } from './limits.ts';
+export { ADX_OPTIONS, SHARED_OPTIONS } from './runner.ts';
 export type { Ready, RootOption, Run, Runner, Scene } from './runner.ts';
 export { declarationIssues, isWord, placeAll, runnersIn } from './table.ts';
 export type { Table } from './table.ts';

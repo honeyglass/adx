@@ -136,6 +136,42 @@ test('schema alone names every command with its input, the shapes, the stored ki
   );
 });
 
+test('schema alone names the options adx gives each kind of command, and the limits a call meets', async () => {
+  const Shared = z.object({
+    options: z.array(z.object({ option: z.string(), takes: z.string(), for: z.string() })),
+    limits: z.array(z.object({ limit: z.string(), most: z.number(), unit: z.string() })),
+  });
+  const schema = answerIn((await run(hello, ['schema'])).out, Shared).result;
+  assert.deepEqual(
+    schema?.options.map(o => [o.option, o.takes, o.for]),
+    [
+      ['--json', 'json', 'every command'],
+      ['--output', 'text', 'every command'],
+      ['--help', 'switch', 'every command'],
+      ['--dry-run', 'switch', 'every effect'],
+      ['--replace', 'switch', 'every effect without replace: false or always'],
+      ['--page', 'text', 'every list'],
+      ['--fields', 'text', 'every list, and every read with output'],
+    ],
+  );
+  assert.deepEqual(
+    schema?.limits.map(l => [l.limit, l.most, l.unit]),
+    [
+      ['stdin', 1_048_576, 'characters'],
+      ['page', 50, 'items'],
+      ['list', 50, 'entries'],
+      ['answer', 8192, 'bytes'],
+      ['changes', 20, 'entries'],
+      ['changes file', 1_048_576, 'bytes'],
+      ['name', 255, 'bytes'],
+      ['server answer', 16_777_216, 'bytes'],
+      ['server time', 30_000, 'milliseconds'],
+      ['server retries', 3, 'tries'],
+      ['server pause', 200, 'milliseconds'],
+    ],
+  );
+});
+
 test("schema lists the tool's own codes after adx's, and one made the same way twice once", async () => {
   const noTicket = code('TICKET_NOT_FOUND', 'fix', 'Use a key the list command answers');
   code('TICKET_NOT_FOUND', 'fix', 'Use a key the list command answers');

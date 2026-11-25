@@ -11,6 +11,8 @@
  * variable that points a program at it.
  * FAKES_ONLY, FAKE_ORIGINS: the variables with which the test kit closes the network of a
  * program it runs, and names the fakes it serves.
+ * ANSWER_BYTES, TIMEOUT_MS, RETRIES, PAUSE_MS: the largest answer of a server, how long one try
+ * of a request may take, and how often and after which pause a read is tried again, for `schema`.
  *
  * @example const api = remote('ship', { url: envUrl('SHIP_URL', fallback), auth: bearer('SHIP_TOKEN') });
  */
@@ -18,6 +20,6 @@ export { bearer, envUrl, nameOf, setupIssuesOf, urlVariableOf, variablesOf } fro
 export { act } from './exchange.ts';
 export { fake, fakeAnswer, heard, reply } from './fake.ts';
 export type { Json, Reply } from './fake.ts';
-export { FAKE_ORIGINS, FAKES_ONLY } from './limits.ts';
+export { ANSWER_BYTES, FAKE_ORIGINS, FAKES_ONLY, PAUSE_MS, RETRIES, TIMEOUT_MS } from './limits.ts';
 export { Line } from './line.ts';
 export { remote } from './remote.ts';

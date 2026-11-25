@@ -5,5 +5,6 @@ export { global } from "./global.js";
 export { formOf } from "./output.js";
 export { effect, list, read } from "./kinds.js";
 export { commandsIn, listed, route } from "./route.js";
-export { ADX_OPTIONS } from "./runner.js";
+export { PAGE_SIZE } from "./limits.js";
+export { ADX_OPTIONS, SHARED_OPTIONS } from "./runner.js";
 export { declarationIssues, isWord, placeAll, runnersIn } from "./table.js";
