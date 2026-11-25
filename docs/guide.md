@@ -1844,7 +1844,7 @@ plan: async ({ name, lang }, { files }) => {
 - `fix`: `UNKNOWN_COMMAND`, `OPTION_BEFORE_COMMAND`, `UNKNOWN_OPTION`, `UNEXPECTED_ARGUMENT`, `UNEXPECTED_VALUE`, `REPEATED_OPTION`, `MISSING_VALUE`, `MISSING_INPUT`, `INVALID_JSON`, `INPUT_TOO_LARGE`, `SCHEMA`, `NOT_IN_LIST`, `PATH_OUTSIDE`, `FILE_NOT_FOUND`, `NOT_A_FILE`, `NOT_A_FOLDER`, `ALREADY_EXISTS`, `URL_NOT_ALLOWED`
 - `ask`: `ROOT_NOT_FOUND`, `ENV_MISSING`, `SYSTEM_REFUSED`, `ACCESS_REFUSED`, `REMOTE_REFUSED`, `NEWER_VERSION`, `STORED_INVALID`
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
-- `bug`: `DECLARATION`, `UNKNOWN_ERROR`, `PANIC`
+- `bug`: `DECLARATION`, `UNKNOWN_ERROR`
 
 `SCHEMA` covers every problem with the shape of the input. Its `path` tells them apart. A handler raises it with `check`. `MISSING_VALUE` stands at a field whose option came without a value and has no list to print, and at every field a list needs first. `DECLARATION` means the tool's own setup is wrong in a way the compiler cannot see, such as an `id()` field without a source, an example that fails a `.regex()`, an `apply` without `look`, or a step to a command that no tool lists. adx checks the setup at every start, so you see it on the first run.
 
@@ -1856,6 +1856,7 @@ plan: async ({ name, lang }, { files }) => {
 - A system error on a path, such as a full disk: `SYSTEM_REFUSED`, kind `ask`.
 - A `RefusalError` of `@honeyglass/utils` that is not adx's own: `UNKNOWN_ERROR`, with the kind it carries, its reason as the message and its next as the hint.
 - Any other thrown error: `UNKNOWN_ERROR`, kind `bug`.
+- An error no call awaits, such as a timer that throws or a promise rejected while nobody awaits it (also one awaited too late): `UNKNOWN_ERROR`, kind `bug`, exit 2. Before the answer it is the answer; after it, it goes to stderr only, so stdout stays one JSON document. The first such error ends the program.
 
 A read is tried again up to 3 times before it is refused, with a growing pause, on a network error, a 429 or a 503. A send is never tried again by adx: the agent gets kind `retry` and the `look` step. Every refusal keeps the error that led to it as its `cause`.
 

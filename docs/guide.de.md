@@ -1844,7 +1844,7 @@ plan: async ({ name, lang }, { files }) => {
 - `fix`: `UNKNOWN_COMMAND`, `OPTION_BEFORE_COMMAND`, `UNKNOWN_OPTION`, `UNEXPECTED_ARGUMENT`, `UNEXPECTED_VALUE`, `REPEATED_OPTION`, `MISSING_VALUE`, `MISSING_INPUT`, `INVALID_JSON`, `INPUT_TOO_LARGE`, `SCHEMA`, `NOT_IN_LIST`, `PATH_OUTSIDE`, `FILE_NOT_FOUND`, `NOT_A_FILE`, `NOT_A_FOLDER`, `ALREADY_EXISTS`, `URL_NOT_ALLOWED`
 - `ask`: `ROOT_NOT_FOUND`, `ENV_MISSING`, `SYSTEM_REFUSED`, `ACCESS_REFUSED`, `REMOTE_REFUSED`, `NEWER_VERSION`, `STORED_INVALID`
 - `retry`: `NETWORK_FAILED`, `SERVER_BUSY`
-- `bug`: `DECLARATION`, `UNKNOWN_ERROR`, `PANIC`
+- `bug`: `DECLARATION`, `UNKNOWN_ERROR`
 
 `SCHEMA` deckt jedes Problem mit der Form der Eingabe ab. Sein `path` unterscheidet sie. Ein Handler löst es mit `check` aus. `MISSING_VALUE` steht an einem Feld, dessen Option ohne Wert kam und das keine Liste zum Ausgeben hat, und an jedem Feld, das eine Liste zuerst braucht. `DECLARATION` heißt, dass der Aufbau des Tools selbst falsch ist, auf eine Weise, die der Compiler nicht sehen kann, etwa ein `id()`-Feld ohne Quelle, ein Beispiel, das ein `.regex()` nicht erfüllt, ein `apply` ohne `look` oder ein Schritt zu einem Befehl, den kein Tool listet. adx prüft den Aufbau bei jedem Start. Du siehst es also beim ersten Lauf.
 
@@ -1856,6 +1856,7 @@ plan: async ({ name, lang }, { files }) => {
 - Ein Systemfehler auf einem Pfad, etwa eine volle Platte: `SYSTEM_REFUSED`, Art `ask`.
 - Ein `RefusalError` aus `@honeyglass/utils`, der nicht von adx stammt: `UNKNOWN_ERROR`, mit der Art, die er trägt, seinem reason als Meldung und seinem next als Hinweis.
 - Jeder andere geworfene Fehler: `UNKNOWN_ERROR`, Art `bug`.
+- Ein Fehler, auf den kein Aufruf wartet, etwa ein Timer, der wirft, oder ein Promise, das abgelehnt wird, während niemand darauf wartet (auch eines, auf das zu spät gewartet wird): `UNKNOWN_ERROR`, Art `bug`, Exit 2. Vor der Antwort ist er die Antwort; danach geht er nur nach stderr, sodass stdout ein JSON-Dokument bleibt. Der erste solche Fehler beendet das Programm.
 
 Ein Lesen wird bis zu 3-mal erneut versucht, bevor es abgelehnt wird, mit wachsender Pause, bei einem Netzwerkfehler, einem 429 oder einem 503. Ein Senden versucht adx nie erneut: Der Agent bekommt die Art `retry` und den `look`-Schritt. Jede Ablehnung behält den Fehler, der zu ihr geführt hat, als ihre `cause`.
 
