@@ -15,7 +15,11 @@ pnpm install --frozen-lockfile
 
 ## How the repository is laid out
 
-adx is designed, not built yet. The repository holds:
+adx is in development and not on npm yet. The repository holds:
+
+- [src/](src/): the toolkit, one folder per feature, and [dist/](dist/), its build, checked in so a
+  tool installs adx from GitHub without a build step.
+- [tests/](tests/): the api, internals and e2e tests.
 
 - [docs/](docs/): the user guide in English and German, the German cheat sheet, and a page that sets
   the old API against the current one.

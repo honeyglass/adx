@@ -24,9 +24,8 @@ adx is a TypeScript toolkit for command-line tools. You describe each command wi
 its input and a function that does the work. adx reads the arguments, checks them, writes the
 answer and sets the exit code. An AI agent that runs such a tool cannot ask a colleague what an
 option means; it reads what the tool answers. So every answer of an adx tool says what happened and
-what the agent can do next, and every mistake comes back with its fix. adx is designed, not built
-yet: this repository holds its guide and a type-only prototype in which every code example of the
-guide compiles.
+what the agent can do next, and every mistake comes back with its fix. adx is in development: it is
+installed from GitHub, pinned by the sha of a commit, until it is published to npm.
 
 ### Why adx?
 
@@ -41,8 +40,9 @@ guide compiles.
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/terminal-dark.svg"><img src="brand/icons/terminal.svg" width="24" height="24" alt=""></picture> Quickstart
 
 ```bash
-# install adx, the utils it needs beside it, and Zod from GitHub (planned: adx is not built yet)
-pnpm add github:honeyglass/adx#<sha> github:honeyglass/utils#<sha> zod
+# adx is in development and not on npm yet, so it and the utils it needs beside it come from
+# GitHub, each pinned by the full sha of a commit; Zod comes from npm
+pnpm add github:honeyglass/adx#4c363be52b9fe61ceadb7276e071b5b8e6c18e64 github:honeyglass/utils#a6c8b941393ba0831b2909a54dae0a59d40f50bf zod
 
 # run a tool written with adx, here the guide's hello.ts
 node hello.ts greet --name Ada
@@ -54,8 +54,7 @@ node hello.ts greet --name Ada | jq
 node hello.ts greet --nmae Ada again
 ```
 
-The commands show how adx will work once it is built. The [Quickstart of the guide](docs/guide.md#2-quickstart)
-shows the whole `hello.ts`, about ten lines, and what each call answers.
+The [Quickstart of the guide](docs/guide.md#2-quickstart) shows the whole `hello.ts`, about ten lines, and what each call answers.
 
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/list-checks-dark.svg"><img src="brand/icons/list-checks.svg" width="24" height="24" alt=""></picture> The 16 Agent DX rules
 
