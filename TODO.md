@@ -1,7 +1,7 @@
 # TODO
 
 Open work on adx, the toolkit for command-line tools that AI agents drive.
-<!-- last item number: 16 -->
+<!-- last item number: 18 -->
 
 ## Next
 
@@ -53,8 +53,13 @@ Open work on adx, the toolkit for command-line tools that AI agents drive.
       after:#1
 - [ ] #6 Decide how adx reads a file the person names and an https address the person names, which `oriko read --posting` needs and adx cannot do today; oriko migrates `read` last and keeps its own code for it until then (added 2026-11-22)
       after:#1
+- [ ] #18 Check whether a tool built with adx can serve agents that work in code mode, where the agent writes JavaScript that bundles several tool calls and runs it in a sandbox instead of calling one tool after another (experimental in Claude Code and at Cloudflare): the toolkit as it is stays the base, MCP and code mode sit on top of it as two more ways out of the same tool, and an author changes nothing in a tool; the tool stays a command-line tool and gets no new command, and the same program also speaks MCP when an MCP client starts it, so a code mode host gets its API from the MCP tools; the behavior stays as close to the command line as each way allows, so the study goes through the rules adx builds in one by one and shows for each how its content holds on every way, and `next`, the hint and the command of an issue reach the agent in a form it can follow there; it also settles how the program tells an MCP start from a call without arguments, which prints the start answer today, without a guess by timing, whether a refusal stops a bundled run and brings its hint back to the model, and how the dry run and `--replace` guard a loop; it reads the current docs of both hosts first, since both are experimental; a feasibility study first, a rule only after it (the person, 2026-11-26) (added 2026-11-26)
+      after:#1
+      'design/code-mode/examples.md'
 
 ## Docs
 
 - [ ] #4 Write the package's README for npm, a skill for building tools with adx, and an `llms.txt` (https://llmstxt.org/) that explain the flow for agents, such as the `ALREADY_EXISTS` refusal with `--replace --dry-run`; it comes after #1 and before the publication (added 2026-11-21)
       after:#1
+- [ ] #17 Set the install line in README.md:45 to the commit of main a tool should install: it names 4c363be, which is behind main and whose dist/ differs; the line keeps the full sha (added 2026-11-26)
+      'README.md'
